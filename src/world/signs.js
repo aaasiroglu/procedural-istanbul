@@ -12,12 +12,12 @@ const COLORS = [
   ['#0f6fc6', '#ffffff'], ['#5a5d61', '#ffffff'],
 ];
 const STYLE = { FASCIA: 0, BLADE: 1, TITLE: 2 };
-const FONT = '"Yu Gothic", "Meiryo", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif';
+const FONT = '"Segoe UI", "Roboto", "Arial", "Noto Sans", sans-serif';
 const PX = 48;              // texture pixels across a sign's short side
 const ATLAS_W = 2048, ATLAS_MAX_H = 4096;
 export const SIGN_LOD_DISTANCE = 230;
 
-const isWide = (ch) => ch.charCodeAt(0) > 0x2e7f;
+const isWide = (ch) => false;
 
 function drawSign(g, s, x, y, w, h) {
   const [bg, fg] = COLORS[s.color] ?? COLORS[2];

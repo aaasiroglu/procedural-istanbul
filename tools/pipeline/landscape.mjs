@@ -206,22 +206,7 @@ export function placeProps({ land, trees, treeRows, vending, edges, idx, inBound
     }
 
     if (BACKSTREET.has(hw)) {
-      // utility poles along one side of the street, joined by wires; a vending machine by some of them
-      const side = hash(e.way, 3) < 0.5 ? 1 : -1;
-      carry = forEachAlong(pts, 30, (x, z, dx, dz) => {
-        const nx = -dz, nz = dx, edge = reach(idx.road, x, z, nx, nz, side, 12);
-        if (edge == null) { prevPole = null; return; }
-        const px = x + nx * (edge - 0.35) * side, pz = z + nz * (edge - 0.35) * side;
-        if (!inBounds(px, pz) || idx.building.has(px, pz) || !free(px, pz, 4)) { prevPole = null; return; }
-        props.push({ kind: PROP.POLE, variant: hash(px, pz, 4) < 0.35 ? 1 : 0, rot: Math.atan2(dx, dz), x: px, z: pz, scale: 1 });
-        if (prevPole && Math.hypot(px - prevPole[0], pz - prevPole[1]) < 55) wires.push([prevPole[0], prevPole[1], px, pz]);
-        prevPole = [px, pz];
-        if (hash(px, pz, 9) < 0.14) {
-          const vx = x + nx * (edge + 0.45) * side + dx * 2.2, vz = z + nz * (edge + 0.45) * side + dz * 2.2;
-          if (!idx.building.has(vx, vz) && !idx.road.has(vx, vz))
-            props.push({ kind: PROP.VENDING, variant: Math.floor(hash(vx, vz, 8) * 4), rot: Math.atan2(-nx * side, -nz * side), x: vx, z: vz, scale: 1 });
-        }
-      }, carry);
+      // Utility poles & overhead wires disabled for Istanbul corridor to optimize performance and realism
     }
   });
 

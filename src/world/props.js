@@ -26,7 +26,7 @@ const tube = (r0, r1, h, x, y, z, rgb, seg = 8) => colored(new THREE.CylinderGeo
 
 const CONCRETE = [0.6, 0.6, 0.58], STEEL = [0.36, 0.38, 0.4], DARK = [0.16, 0.17, 0.18];
 
-// Japanese utility pole: concrete mast, two crossarms, a street lamp on a short arm (local +x),
+// Utility pole: concrete mast, two crossarms, a street lamp on a short arm (local +x),
 // optionally a pole-top transformer.
 const POLE_LAMP = { x: 1.0, y: 5.6 };
 function poleGeometry(transformer) {
@@ -89,7 +89,7 @@ const benchGeometry = () => mergeGeometries([
   box(0.06, 0.43, 0.42, -0.7, 0.215, 0, STEEL), box(0.06, 0.43, 0.42, 0.7, 0.215, 0, STEEL),
 ]);
 const bollardGeometry = () => mergeGeometries([tube(0.075, 0.075, 0.85, 0, 0, 0, [0.3, 0.31, 0.33], 10), tube(0.08, 0.08, 0.1, 0, 0.62, 0, [0.9, 0.9, 0.86], 10)]);
-// Japan Post box: red, on a short pedestal.
+// Post box: red, on a short pedestal.
 const postBoxGeometry = () => mergeGeometries([
   box(0.3, 0.75, 0.28, 0, 0.375, 0, RED), box(0.52, 0.72, 0.46, 0, 1.11, 0, RED), box(0.56, 0.05, 0.5, 0, 1.49, 0, RED),
   box(0.3, 0.04, 0.02, 0, 1.3, 0.235, DARK),
@@ -283,7 +283,7 @@ function decalTexture() {
     g.fillText(text, 0, -m.actualBoundingBoxDescent);
     g.restore();
   };
-  cell(DECAL.STOP, () => [...'止まれ'].forEach((ch, i) => fit(ch, 14, 10 + i * 168, CELL_W - 28, 150, '#fff')));
+  cell(DECAL.STOP, () => [...'DUR'].forEach((ch, i) => fit(ch, 14, 10 + i * 168, CELL_W - 28, 150, '#fff')));
   for (const [v, text] of [[DECAL.SPEED_20, '20'], [DECAL.SPEED_30, '30'], [DECAL.SPEED_40, '40'], [DECAL.SPEED_50, '50'], [DECAL.SPEED_60, '60']])
     cell(v, () => [...text].forEach((ch, i) => fit(ch, 10 + i * 124, 12, 112, CELL_H - 24, '#f2a31b')));
   const t = new THREE.CanvasTexture(c);
@@ -439,6 +439,11 @@ export class Props {
   streetLights = 1; // strength of the light the street lamps throw on the ground at night (1: as designed)
   parkLights = 0.3; // the same for the lamps along park paths: dimmer than the streets
 
+  polesEnabled = false;       // Electric utility poles with crossarms/transformers (DISABLED for high performance)
+  wiresEnabled = false;       // Catenary overhead power wires (DISABLED)
+  clutterEnabled = false;     // Minor clutter: vending machines, shrines, phone booths (DISABLED)
+  propsShadows = false;       // Shadow casting for small street props (DISABLED for maximum FPS)
+
   update(dt) {
     this.time += dt;
     const night = shared.uNight.value;
@@ -470,7 +475,7 @@ export class Props {
     }
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), v = new THREE.Vector3(), s = new THREE.Vector3();
     // An InstancedMesh with one matrix per prop: `local` offsets the part within the prop's frame.
-    const instanced = (rows, geo, mat, { parent = group, shadow = true, lift = 0, local = null, scale = null } = {}) => {
+    const instanced = (rows, geo, mat, { parent = group, shadow = false, lift = 0, local = null, scale = null } = {}) => {
       const mesh = new THREE.InstancedMesh(geo, mat, rows.length);
       rows.forEach((i, n) => {
         const x = props[i + 3], z = props[i + 4], k = scale ? scale(i) : props[i + 5];
@@ -480,7 +485,8 @@ export class Props {
         if (Array.isArray(k)) s.set(...k); else s.setScalar(k);
         mesh.setMatrixAt(n, m.compose(v, q, s));
       });
-      mesh.castShadow = shadow; mesh.receiveShadow = shadow;
+      mesh.castShadow = shadow && this.propsShadows;
+      mesh.receiveShadow = shadow && this.propsShadows;
       mesh.computeBoundingSphere();
       parent.add(mesh);
       return mesh;
@@ -492,26 +498,30 @@ export class Props {
         const t = this.trees[variant % this.trees.length];
         instanced(rows, t.branches, t.branchMat, { parent: near });
         instanced(rows, t.leaves, t.leafMat, { parent: near });
-        instanced(rows, this.models.blob, this.mats.blob, { parent: far, shadow: false, scale: (i) => [t.radius * 1.75 * props[i + 5], t.height * props[i + 5], t.radius * 1.75 * props[i + 5]] });
+        instanced(rows, this.models.blob, this.mats.blob, { parent: far, scale: (i) => [t.radius * 1.75 * props[i + 5], t.height * props[i + 5], t.radius * 1.75 * props[i + 5]] });
       } else if (kind === PROP.POLE) {
+        // Completely skip electric utility poles & transformers
+        if (!this.polesEnabled) continue;
         instanced(rows, this.models.pole[variant % 2], this.mats.metal);
-        instanced(rows, this.models.lamp, this.mats.lamp, { shadow: false, local: [POLE_LAMP.x, POLE_LAMP.y - 0.02, 0], scale: () => [1.6, 1, 0.3] });
-        instanced(rows, this.models.pool, this.mats.poolCool, { lift: 0.2, shadow: false, local: [POLE_LAMP.x + 0.6, 0, 0], scale: () => 2 * POOL_REACH * POLE_LAMP.y }).layers.set(LAMP_LAYER);
+        instanced(rows, this.models.lamp, this.mats.lamp, { local: [POLE_LAMP.x, POLE_LAMP.y - 0.02, 0], scale: () => [1.6, 1, 0.3] });
+        instanced(rows, this.models.pool, this.mats.poolCool, { lift: 0.2, local: [POLE_LAMP.x + 0.6, 0, 0], scale: () => 2 * POOL_REACH * POLE_LAMP.y }).layers.set(LAMP_LAYER);
       } else if (kind === PROP.LIGHT) {
         instanced(rows, this.models.light, this.mats.metal, { lift: 0.15 });
-        instanced(rows, this.models.lamp, this.mats.lamp, { lift: 0.15, shadow: false, local: [0, LAMP.y, LAMP.z] });
+        instanced(rows, this.models.lamp, this.mats.lamp, { lift: 0.15, local: [0, LAMP.y, LAMP.z] });
         // the light on the ground: street lights, and park lamps (half the height: a smaller patch, a strength of its own)
         const street = rows.filter((r) => props[r + 5] >= 1), park = rows.filter((r) => props[r + 5] < 1);
-        if (street.length) instanced(street, this.models.pool, this.mats.pool, { lift: 0.34, shadow: false, local: [0, 0, LAMP.z + 1], scale: () => 2 * POOL_REACH * LAMP.y }).layers.set(LAMP_LAYER);
-        if (park.length) instanced(park, this.models.pool, this.mats.poolPark, { lift: 0.34, shadow: false, local: [0, 0, LAMP.z + 1], scale: () => 1.4 * POOL_REACH * LAMP.y }).layers.set(LAMP_LAYER);
+        if (street.length) instanced(street, this.models.pool, this.mats.pool, { lift: 0.34, local: [0, 0, LAMP.z + 1], scale: () => 2 * POOL_REACH * LAMP.y }).layers.set(LAMP_LAYER);
+        if (park.length) instanced(park, this.models.pool, this.mats.poolPark, { lift: 0.34, local: [0, 0, LAMP.z + 1], scale: () => 1.4 * POOL_REACH * LAMP.y }).layers.set(LAMP_LAYER);
       } else if (kind === PROP.VENDING) {
+        if (!this.clutterEnabled) continue;
         const body = instanced(rows, this.models.vending, this.mats.vending, { lift: 0.02 });
         rows.forEach((i, n) => body.setColorAt(n, new THREE.Color().setRGB(...VENDING_BODY[props[i + 1] % 4], THREE.SRGBColorSpace)));
-        instanced(rows, this.models.quad, this.mats.panel, { lift: 0.02, shadow: false, local: [0, 0.97, 0.365], scale: () => [0.94, 1.66, 1] });
+        instanced(rows, this.models.quad, this.mats.panel, { lift: 0.02, local: [0, 0.97, 0.365], scale: () => [0.94, 1.66, 1] });
       } else if (kind === PROP.PARKED) {
         const kit = parkedVehicles(), mesh = instanced(rows, kit.models[variant % kit.models.length], kit.material, { lift: 0.05 });
         rows.forEach((i, n) => mesh.setColorAt(n, new THREE.Color(kit.colors[(props[i + 1] >> 2) % kit.colors.length])));
       } else if (this.furniture[kind]) {
+        if (!this.clutterEnabled) continue;
         const models = this.furniture[kind];
         instanced(rows, models[variant % models.length], this.mats.metal, { lift: 0.12 });
       } else if (kind === PROP.DECAL) {
@@ -521,7 +531,7 @@ export class Props {
         // three lenses per head; crossing directions alternate phase
         for (let lens = 0; lens < 3; lens++) {
           const mesh = instanced(rows, this.models.lens, this.mats.lens, {
-            lift: 0.15, shadow: false, local: [-SIGNAL.arm + 0.35 + (lens - 1) * -0.4, SIGNAL.y, 0.115], scale: (i) => props[i + 5],
+            lift: 0.15, local: [-SIGNAL.arm + 0.35 + (lens - 1) * -0.4, SIGNAL.y, 0.115], scale: (i) => props[i + 5],
           });
           const a = new Float32Array(rows.length * 2);
           rows.forEach((i, n) => { a[n * 2] = lens; a[n * 2 + 1] = Math.round(props[i + 2] / (Math.PI / 2)) % 2; });
@@ -531,8 +541,8 @@ export class Props {
       }
     }
 
-    // wires: catenaries between pole tops
-    if (wires.length) {
+    // wires: catenaries between pole tops (Disabled to optimize performance)
+    if (wires.length && this.wiresEnabled) {
       const SEG = 6, pts = [];
       for (let i = 0; i < wires.length; i += 4) {
         const x1 = wires[i], z1 = wires[i + 1], x2 = wires[i + 2], z2 = wires[i + 3];
@@ -545,9 +555,16 @@ export class Props {
       }
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-      near.add(new THREE.LineSegments(g, this.mats.wire)); // hair-thin: only worth drawing close up
+      near.add(new THREE.LineSegments(g, this.mats.wire));
     }
-    return { group, near, far, roosts, count: (by.get(PROP.TREE * 16) ?? []).length + (by.get(PROP.TREE * 16 + 1) ?? []).length + (by.get(PROP.TREE * 16 + 2) ?? []).length + (by.get(PROP.TREE * 16 + 3) ?? []).length };
+
+    return {
+      group,
+      near,
+      far,
+      roosts,
+      count: (by.get(PROP.TREE * 16) ?? []).length + (by.get(PROP.TREE * 16 + 1) ?? []).length + (by.get(PROP.TREE * 16 + 2) ?? []).length + (by.get(PROP.TREE * 16 + 3) ?? []).length,
+    };
   }
 
   static lodDistance = TREE_LOD_DISTANCE;

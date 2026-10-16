@@ -15,7 +15,7 @@ const TURN = {
   'left;through': DECAL.THROUGH_LEFT, 'through;left': DECAL.THROUGH_LEFT, through_left: DECAL.THROUGH_LEFT,
   'through;right': DECAL.THROUGH_RIGHT, 'right;through': DECAL.THROUGH_RIGHT, through_right: DECAL.THROUGH_RIGHT,
 };
-// Untagged approaches, by lane count: the usual Japanese layout.
+// Untagged approaches, by lane count: the usual Turkish layout.
 const defaultTurns = (n) => (n === 2 ? [DECAL.THROUGH_LEFT, DECAL.THROUGH_RIGHT]
   : [DECAL.THROUGH_LEFT, ...Array(n - 2).fill(DECAL.THROUGH), DECAL.RIGHT]);
 const SPEED = { 20: DECAL.SPEED_20, 30: DECAL.SPEED_30, 40: DECAL.SPEED_40, 50: DECAL.SPEED_50, 60: DECAL.SPEED_60 };
@@ -135,7 +135,7 @@ export function buildMarkings({ edges, pos, idx, land, inBounds }) {
     }
   }
 
-  // ---- 止まれ where a side street meets a main road without signals
+  // ---- DUR where a side street meets a main road without signals
   const pointBack = (pts, fromEnd, dist) => { // point `dist` metres before one end of a polyline, with the travel direction
     const p = fromEnd ? [...pts].reverse() : pts;
     let left = dist;
@@ -192,7 +192,7 @@ export function buildMarkings({ edges, pos, idx, land, inBounds }) {
     }
   }
 
-  // ---- zebra crossings (Japanese style: bars parallel to the traffic) and stop lines
+  // ---- zebra crossings (bars parallel to the traffic) and stop lines
   const zebraAt = [];
   const zebra = (path) => {
     // A crossing runs from kerb to kerb. A path whose ends both lie out in the carriageway (inside a bus
@@ -223,14 +223,14 @@ export function buildMarkings({ edges, pos, idx, land, inBounds }) {
       marks.push({ kind: AREA.TACTILE, ring: [[tx - dx * 0.3 - px * 1.5, tz - dz * 0.3 - pz * 1.5], [tx + dx * 0.3 - px * 1.5, tz + dz * 0.3 - pz * 1.5],
         [tx + dx * 0.3 + px * 1.5, tz + dz * 0.3 + pz * 1.5], [tx - dx * 0.3 + px * 1.5, tz - dz * 0.3 + pz * 1.5]] });
     }
-    // Stop lines: 2.5 m before the bars, across the left half of the road (left-hand traffic),
+    // Stop lines: 2.5 m before the bars, across the right half of the road (right-hand traffic),
     // only on the side facing away from the junction.
     const rx = -dz, rz = dx, j = nearestJunction(cx, cz, 35);
     for (const s of [-1, 1]) {
       const px = cx + rx * 4.4 * s, pz = cz + rz * 4.4 * s;
       if (j && Math.hypot(px - j[0], pz - j[1]) < Math.hypot(cx - j[0], cz - j[1])) continue;
-      // traffic here drives towards the crossing along -s * r; its left-hand side is -s * (dx, dz)
-      const lx = -dx * s, lz = -dz * s;
+      // traffic here drives towards the crossing along -s * r; its right-hand side is s * (dx, dz)
+      const lx = dx * s, lz = dz * s;
       if (!idx.carriageway.has(px + lx * half * 0.5, pz + lz * half * 0.5)) continue;
       quad(AREA.MARK_WHITE, [px - rx * 0.225, pz - rz * 0.225], [px + rx * 0.225, pz + rz * 0.225],
         [px + rx * 0.225 + lx * (half - 0.3), pz + rz * 0.225 + lz * (half - 0.3)], [px - rx * 0.225 + lx * (half - 0.3), pz - rz * 0.225 + lz * (half - 0.3)]);

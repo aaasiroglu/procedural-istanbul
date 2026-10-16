@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { createSky, SKY } from './sky.js';
 import { shared } from './materials.js';
 
-const SHADOW_SIZE = 4096;
+const SHADOW_SIZE = 2048;
 
 const DAY = { hemi: 0.55, sun: 3.4, sunColor: new THREE.Color(0xfff0dc), env: 1.0, exposure: 0.82, bloom: 0.12 };
 const NIGHT = {

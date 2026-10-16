@@ -5,7 +5,9 @@ dist/
 # raw downloads (PLATEAU CityGML and textures, OSM, GSI DEM): several GB per area - re-create with `npm run fetch`
 data/raw/
 data/preview/
+data/ibb-local/network.gdb/
 *.part
+*.bak
 
 # compiled city - re-create with `npm run compile`
 public/tiles/
@@ -19,6 +21,10 @@ public/ortho/
 .env.*
 !.env.example
 .claude/
+.venv/
+scratch/
+__pycache__/
+*.pyc
 
 # logs, caches, editors, operating system
 *.log

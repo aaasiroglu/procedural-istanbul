@@ -14,11 +14,12 @@
 // Usage: node tools/pipeline/compile.mjs [--area=shibuya] [--no-ads]   (--no-ads: leave out the invented billboards, screens and banners)
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { resolveArea, ROOT } from './config.mjs';
 import { makeProjection, TILE, tileOf, tileKey } from '../../src/shared/geo.js';
 import { encodeTile, AREA, BFLAG, PROP, VERSION } from '../../src/shared/tileformat.js';
 import { readBuildings, readRoads } from './citygml.mjs';
-import { readOsm, buildRoadGraph, buildRailways } from './osm.mjs';
+import { readOsm, buildRoadGraph, fuseIbbRoads, buildRailways } from './osm.mjs';
 import { buildHeightGrid, sampleGrid, buildBackdropGrid } from './terrain.mjs';
 import { BACKDROP, AREAS } from './config.mjs';
 import { PolyIndex, readLand, clipRing, placeProps } from './landscape.mjs';
@@ -47,6 +48,15 @@ const [maxX, minZ] = proj.project(area.bbox.east, area.bbox.north);
 const bounds = { minX, maxX, minZ, maxZ };
 const inBounds = (x, z) => x >= minX && x <= maxX && z >= minZ && z <= maxZ;
 log(`area ${area.id}: ${(maxX - minX).toFixed(0)} x ${(maxZ - minZ).toFixed(0)} m around [${area.origin}]`);
+const ibbGdb = path.join(ROOT, 'data/ibb-local/network.gdb');
+const ibbNetworkFile = path.join(area.rawDir, 'ibb_network.geojson');
+if (fs.existsSync(ibbGdb)) {
+  execFileSync(process.env.PYTHON ?? 'python', [
+    path.join(ROOT, 'tools/pipeline/ibb_network.py'), '--gdb', ibbGdb,
+    '--bbox', `${area.bbox.west},${area.bbox.south},${area.bbox.east},${area.bbox.north}`,
+    '--output', ibbNetworkFile,
+  ], { cwd: ROOT, stdio: 'inherit' });
+}
 
 // ---------------------------------------------------------------- geometry helpers
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -75,6 +85,23 @@ function cleanRing(ll) {
     }
   }
   return pts.length >= 3 ? pts : null;
+}
+
+// OSM already stores projected coordinates for us. Use the same cleanup logic, without reprojecting them.
+function cleanWorldRing(pts) {
+  let ring = pts.map(([x, z]) => [r2(x), r2(z)]);
+  if (ring.length > 1) { const [a, b] = [ring[0], ring.at(-1)]; if (Math.hypot(a[0] - b[0], a[1] - b[1]) < 0.02) ring.pop(); }
+  ring = ring.filter((p, i) => { const q = ring[(i + ring.length - 1) % ring.length]; return Math.hypot(p[0] - q[0], p[1] - q[1]) >= 0.02; });
+  for (let changed = true; changed && ring.length > 3;) {
+    changed = false;
+    for (let i = 0; i < ring.length; i++) {
+      const a = ring[(i + ring.length - 1) % ring.length], b = ring[i], c = ring[(i + 1) % ring.length];
+      const cross = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+      const len = Math.hypot(c[0] - a[0], c[1] - a[1]);
+      if (Math.abs(cross) / Math.max(len, 1e-6) < 0.01) { ring.splice(i, 1); changed = true; break; }
+    }
+  }
+  return ring.length >= 3 ? ring : null;
 }
 
 // [[outer, ...holes]] in lon/lat -> world polygons with outer CCW and holes CW; drops slivers.
@@ -124,11 +151,14 @@ const tileFor = (x, z) => {
 // Point-in-polygon indexes used to place paint, trees and street furniture.
 const idx = { building: new PolyIndex(), road: new PolyIndex(), carriageway: new PolyIndex(), sidewalk: new PolyIndex(), water: new PolyIndex() };
 const plateauDir = path.join(area.rawDir, 'plateau');
-const gmlFiles = (type) => fs.readdirSync(plateauDir).filter((f) => new RegExp(`^\\d{8}_${type}(_\\d+)?\\.gml$`).test(f)).sort();
+const plateauExists = fs.existsSync(plateauDir);
+const gmlFiles = (type) => plateauExists ? fs.readdirSync(plateauDir).filter((f) => new RegExp(`^\\d{8}_${type}(_\\d+)?\\.gml$`).test(f)).sort() : [];
+const emptyDeckTops = { at: () => undefined, cover: () => 0 };
 
 // bridges, street furniture and trees that PLATEAU gives as finished models
-const models = readModels(plateauDir, proj.project, ground);
-log(`models (PLATEAU): ${Object.entries(models.count).map(([k, v]) => `${k.split(':')[1]} ${v}`).join(', ')}; ${models.objects.reduce((s, o) => s + o.tris.length, 0)} triangles`);
+const models = plateauExists ? readModels(plateauDir, proj.project, ground) : { objects: [], tops: emptyDeckTops, count: {} };
+if (plateauExists) log(`models (PLATEAU): ${Object.entries(models.count).map(([k, v]) => `${k.split(':')[1]} ${v}`).join(', ')}; ${models.objects.reduce((s, o) => s + o.tris.length, 0)} triangles`);
+else log('PLATEAU directory missing: skipping CityGML model pass');
 
 const seen = new Set();
 const bstats = { files: 0, read: 0, dup: 0, noSolid: 0, dropped: 0, lod2: 0, baseDiff: [], heights: [], usage: {} };
@@ -175,13 +205,17 @@ for (const f of gmlFiles('bldg')) {
   }
   log(`  ${f}: ${list.length} buildings`);
 }
-const pct = (arr, p) => { const s = [...arr].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; };
+const pct = (arr, p) => {
+  const values = [...(arr ?? [])].sort((a, b) => a - b);
+  if (!values.length) return 0;
+  return values[Math.min(values.length - 1, Math.floor(p * values.length))];
+};
 const nB = bstats.read - bstats.dup - bstats.dropped;
 log(`buildings: ${nB} kept from ${bstats.files} files (${bstats.dup} duplicates across ward files, ${bstats.dropped} dropped, ` +
   `${bstats.noSolid} without LOD1 solid, ${bstats.lod2} with LOD2)`);
-log(`  LOD2 shells: ${bstats.surfaces} surfaces`);
+log(`  LOD2 shells: ${bstats.surfaces ?? 0} surfaces`);
 log(`  height median ${pct(bstats.heights, 0.5).toFixed(1)} m, p95 ${pct(bstats.heights, 0.95).toFixed(1)} m, max ${pct(bstats.heights, 1).toFixed(1)} m`);
-const absDiff = bstats.baseDiff.map(Math.abs);
+const absDiff = (bstats.baseDiff ?? []).map(Math.abs);
 log(`  building base vs DEM: median |d| ${pct(absDiff, 0.5).toFixed(2)} m, p95 ${pct(absDiff, 0.95).toFixed(2)} m`);
 log(`  usage codes: ${Object.entries(bstats.usage).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}:${v}`).join(' ')}`);
 
@@ -232,6 +266,9 @@ log(`buildings: dropped ${structures} unnamed structures standing in a road`);
 // ---------------------------------------------------------------- OSM
 const osm = readOsm(path.join(area.rawDir, 'osm.json'));
 const graph = buildRoadGraph(osm, proj.project, inBounds);
+const ibbFeatures = fs.existsSync(ibbNetworkFile) ? JSON.parse(fs.readFileSync(ibbNetworkFile, 'utf8')).features : [];
+const fusion = fuseIbbRoads(graph.edges, ibbFeatures, proj.project, graph.pos, r2);
+log(`road data fusion: ${fusion.matched}/${graph.edges.length} OSM edges matched to ${fusion.candidates} local IBB segments; OSM tags retained`);
 // road level per node: the ground, or above it on bridges and the elevated expressway
 const { level, spans } = profileRoads(graph.edges, graph.pos, ground);
 const roadsOut = {
@@ -290,6 +327,42 @@ log(`railways (OSM): ${rails.length} lines (${rails.filter((r) => r.bridge).leng
 
 // Roads PLATEAU maps only as an outline get their carriageway from the OSM centrelines; the rest is sidewalk.
 const extraRaw = readExtra(path.join(area.rawDir, 'osm_extra.json'), proj.project);
+const lampFile = path.join(area.rawDir, 'osm_lights.json');
+if (fs.existsSync(lampFile)) {
+  const knownPoints = new Set(extraRaw.points.map((p) => p.id));
+  for (const e of JSON.parse(fs.readFileSync(lampFile, 'utf8')).elements) {
+    if (e.type !== 'node' || knownPoints.has(e.id)) continue;
+    const [x, z] = proj.project(e.lon, e.lat);
+    extraRaw.points.push({ id: e.id, tags: e.tags ?? {}, x, z });
+  }
+}
+
+// Fallback: If no PLATEAU building files were present (non-Japanese cities like Istanbul),
+// generate 3D procedural buildings directly from OSM building polygons
+if (nB === 0 && extraRaw) {
+  let osmBldgCount = 0;
+  for (const w of extraRaw.ways) {
+    if (!w.tags || !w.tags.building || w.tags.building === 'no' || w.tags.building === 'roof') continue;
+    if (!w.closed || w.pts.length < 4) continue;
+    const polygon = cleanWorldRing(w.pts);
+    if (!polygon || Math.abs(areaEN(polygon)) < 0.5) continue;
+    const polys = [areaEN(polygon) > 0 ? polygon : polygon.reverse()];
+    const [cx, cz] = centroidOf([polys]);
+    if (!inBounds(cx, cz)) continue;
+
+    const storeys = parseInt(w.tags['building:levels'], 10) || (w.tags.building === 'apartments' ? 5 : w.tags.building === 'house' ? 2 : 4);
+    const height = parseFloat(w.tags.height) || storeys * 3.2;
+    const base = ground(cx, cz);
+    const flags = BFLAG.NO_SOLID;
+    const usage = w.tags.building === 'office' ? 401 : (w.tags.building === 'commercial' || w.tags.building === 'retail') ? 402 : w.tags.building === 'hotel' ? 403 : w.tags.building === 'house' ? 411 : w.tags.building === 'apartments' ? 412 : 415;
+
+    bstats.heights.push(height);
+    bstats.usage[usage] = (bstats.usage[usage] ?? 0) + 1;
+    tileFor(cx, cz).buildings.push({ usage, storeys, flags, base: r2(base), height: r2(height), measuredHeight: height, polygons: [polys], surfaces: [] });
+    osmBldgCount++;
+  }
+  log(`buildings (OSM fallback): ${osmBldgCount} procedural 3D buildings generated from OpenStreetMap footprints`);
+}
 // pedestrian streets and paths in the open, as lines (stairs, bridges and passages are not streets)
 const walkLines = extraRaw.ways.filter((w) => ['pedestrian', 'footway', 'path'].includes(w.tags.highway) && !w.closed && !w.tags.bridge && !w.tags.tunnel
   && w.tags.indoor !== 'yes' && !['sidewalk', 'crossing', 'link'].includes(w.tags.footway)).map((w) => w.pts);
@@ -358,6 +431,53 @@ const worldLand = {
   crossings: landRaw.crossings.map(xz), signals: landRaw.signals,
   crossingNodes: landRaw.crossingNodes,
 };
+// Istanbul has no PLATEAU road polygons, so derive tiled asphalt and explicitly mapped sidewalks from OSM.
+let osmRoadPatches = 0, osmSidewalkPatches = 0;
+const addRoadPatch = (kind, ring, index) => {
+  let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  for (const [x, z] of ring) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
+  for (let tx = Math.floor(Math.max(x0, minX) / TILE); tx <= Math.floor(Math.min(x1, maxX) / TILE); tx++)
+    for (let tz = Math.floor(Math.max(z0, minZ) / TILE); tz <= Math.floor(Math.min(z1, maxZ) / TILE); tz++) {
+      const piece = clipRing(ring, Math.max(tx * TILE, minX), Math.max(tz * TILE, minZ), Math.min((tx + 1) * TILE, maxX), Math.min((tz + 1) * TILE, maxZ));
+      if (!piece || Math.abs(areaEN(piece)) < 0.2) continue;
+      if (areaEN(piece) < 0) piece.reverse();
+      const polygon = [piece.map(([x, z]) => [r2(x), r2(z)])];
+      tileFor((tx + 0.5) * TILE, (tz + 0.5) * TILE).areas.push({ kind, code: 0, polygons: [polygon] });
+      index.add(polygon);
+      if (kind === AREA.CARRIAGEWAY) idx.road.add(polygon);
+      if (kind === AREA.CARRIAGEWAY) osmRoadPatches++; else osmSidewalkPatches++;
+    }
+};
+const sidewalkValue = (value) => value != null && !['no', 'none'].includes(value);
+for (const edge of graph.edges) {
+  if (edge.tunnel) continue;
+  if (edge.flyover || edge.span) continue; // 3D elevated structure is generated by flyovers.js
+  const pts = edge.ids.map(graph.pos);
+  const width = Math.min(32, Math.max(3.5, edge.width ?? edge.lanes * 3));
+  const half = width / 2;
+  const baseSidewalk = ['yes', 'both'].includes(edge.sidewalk);
+  const leftSidewalk = edge.sidewalkLeft != null ? sidewalkValue(edge.sidewalkLeft) : baseSidewalk || edge.sidewalk === 'left';
+  const rightSidewalk = edge.sidewalkRight != null ? sidewalkValue(edge.sidewalkRight) : baseSidewalk || edge.sidewalk === 'right';
+  const sidewalkWidth = Math.min(5, Math.max(1.2, edge.sidewalkWidth ?? 1.8));
+  const strip = (a, b, halfWidth, offset = 0) => {
+    const dx = b[0] - a[0], dz = b[1] - a[1], length = Math.hypot(dx, dz);
+    if (length < 0.1) return;
+    const nx = -dz / length, nz = dx / length;
+    const cx = offset * nx, cz = offset * nz;
+    addRoadPatch(offset ? AREA.SIDEWALK : AREA.CARRIAGEWAY, [
+      [a[0] + cx + nx * halfWidth - dx / length * halfWidth, a[1] + cz + nz * halfWidth - dz / length * halfWidth],
+      [b[0] + cx + nx * halfWidth + dx / length * halfWidth, b[1] + cz + nz * halfWidth + dz / length * halfWidth],
+      [b[0] + cx - nx * halfWidth + dx / length * halfWidth, b[1] + cz - nz * halfWidth + dz / length * halfWidth],
+      [a[0] + cx - nx * halfWidth - dx / length * halfWidth, a[1] + cz - nz * halfWidth - dz / length * halfWidth],
+    ], offset ? idx.sidewalk : idx.carriageway);
+  };
+  for (let i = 1; i < pts.length; i++) {
+    strip(pts[i - 1], pts[i], half);
+    if (leftSidewalk) strip(pts[i - 1], pts[i], sidewalkWidth / 2, -(half + sidewalkWidth / 2));
+    if (rightSidewalk) strip(pts[i - 1], pts[i], sidewalkWidth / 2, half + sidewalkWidth / 2);
+  }
+}
+log(`road surfaces (OSM): ${osmRoadPatches} asphalt pieces, ${osmSidewalkPatches} mapped sidewalk pieces`);
 const paint = buildMarkings({ edges: graph.edges, pos: graph.pos, idx, land: worldLand, inBounds });
 for (const m of paint.marks) {
   const ring = m.ring.map(([x, z]) => [r2(x), r2(z)]);

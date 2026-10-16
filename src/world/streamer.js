@@ -7,8 +7,8 @@ import { makeSurface, makeCover } from '../shared/decks.js';
 import { SIGN_LOD_DISTANCE } from './signs.js';
 import { shared } from './materials.js';
 
-const WORKERS = Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1));
-const MAX_IN_FLIGHT = WORKERS * 2;
+const WORKERS = Math.min(8, Math.max(4, (navigator.hardwareConcurrency || 4)));
+const MAX_IN_FLIGHT = WORKERS * 3;
 // Distance (m) from the eye within which a tile shows its full-size photo atlas instead of the small one.
 const ROOFS_FULL = 600, WALLS_FULL = 900;
 
@@ -66,7 +66,8 @@ export class Streamer {
       // simple versions; a margin on the way out stops a tile flickering at the threshold.
       const tl = this.available.get(key), x0 = tl.x * size, z0 = tl.z * size;
       const dx = Math.max(x0 - eye.x, 0, eye.x - (x0 + size)), dz = Math.max(z0 - eye.z, 0, eye.z - (z0 + size));
-      const dy = Math.max(0, eye.y - this.ground(x0 + size / 2, z0 + size / 2) - 25);
+      if (tl.centerY === undefined) tl.centerY = this.ground(x0 + size / 2, z0 + size / 2);
+      const dy = Math.max(0, eye.y - tl.centerY - 25);
       const d = Math.hypot(dx, dy, dz);
       if (t.trees) {
         // a tile full of trees (a wood) keeps its detailed ones closer: thousands of them are too much to draw
@@ -156,6 +157,7 @@ export class Streamer {
     let trees = null;
     if (props.length || wires.length) {
       trees = this.props.build(props, wires, this.surface);
+      trees.group.name = 'props';
       trees.near.visible = false; // update() picks the level of detail on the next frame
       group.add(trees.group);
     }
@@ -243,6 +245,17 @@ export class Streamer {
     while (lo < hi) { const mid = (lo + hi) >> 1; if (ends[mid] > v) hi = mid; else lo = mid + 1; }
     const [usage, storeys, height, base] = info[lo];
     return { usage, storeys, height, base };
+  }
+
+  setPropsVisible(visible) {
+    for (const t of this.tiles.values()) {
+      const grp = t.group || t.mesh;
+      if (grp?.children) {
+        grp.children.forEach((c) => {
+          if (c.name === 'props') c.visible = visible;
+        });
+      }
+    }
   }
 
   get pending() { return this.inFlight; }

@@ -1,17 +1,20 @@
 {
-  "name": "procedural-tokyo",
+  "name": "procedural-istanbul",
   "version": "0.1.0",
   "private": true,
-  "description": "A real-time 3D Tokyo in the browser, compiled from public data (PLATEAU, OpenStreetMap, GSI) with procedural detail",
+  "description": "A real-time 3D Istanbul in the browser, compiled from public data with procedural detail",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "fetch": "node tools/pipeline/fetch.mjs",
     "compile": "node --max-old-space-size=4096 tools/pipeline/compile.mjs",
+    "prepare:ibb-grid": "python tools/pipeline/ibb_grid.py",
+    "fetch:ibb-grid": "node tools/pipeline/ibb_batch.mjs fetch",
+    "compile:ibb-grid": "node tools/pipeline/ibb_batch.mjs compile",
     "preview": "node tools/pipeline/preview.mjs",
     "deploy": "node tools/deploy.mjs",
-    "test": "node tools/tests/tileformat.test.mjs && node tools/tests/road-markings.test.mjs"
+    "test": "node tools/tests/tileformat.test.mjs && node tools/tests/road-markings.test.mjs && node tools/tests/predictive-routing.test.mjs"
   },
   "license": "MIT",
   "dependencies": {

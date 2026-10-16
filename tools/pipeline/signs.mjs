@@ -16,15 +16,16 @@ export const SIGN_COLORS = [
   ['#0f6fc6', '#ffffff'], ['#5a5d61', '#ffffff'],
 ];
 const BRAND = [
-  [/セブン|7-?eleven/i, 10], [/ファミリーマート|familymart/i, 11], [/ローソン|lawson/i, 12],
-  [/スターバックス|starbucks/i, 5], [/マクドナルド|mcdonald/i, 0], [/ドトール|doutor/i, 1], [/eneos/i, 6], [/三菱ufj/i, 0], [/みずほ/i, 4],
-  [/吉野家/i, 6], [/松屋/i, 1], [/すき家/i, 0], [/タリーズ|tully/i, 8], [/三井住友/i, 5],
+  [/b\u0130m|bim/i, 10], [/a101/i, 4], [/\u015fok|sok/i, 1], [/migros/i, 6], [/carrefour/i, 0],
+  [/starbucks/i, 5], [/mcdonald/i, 0], [/burger\s*king/i, 6], [/garanti/i, 5], [/\u0130\u015f\s*bank/i, 4],
+  [/yap\u0131\s*kredi/i, 4], [/ziraat/i, 0], [/akbank/i, 0], [/kahve\s*d\u00fcnyas\u0131/i, 8], [/simit\s*saray\u0131/i, 6],
+  [/k\u00f6fteci\s*yusuf/i, 0], [/mavi/i, 4],
 ];
 // Restaurants by cuisine (OSM's cuisine tag); anything else falls back to the palette of its kind.
 const CUISINE = [
-  [/ramen|chinese|noodle|gyoza/, [0, 1, 6]], [/sushi|japanese|soba|udon|tempura|kaiseki|unagi/, [9, 3, 8]], [/coffee|cafe|tea|cake|dessert/, [8, 5, 2]],
-  [/italian|pizza|pasta|french|spanish/, [5, 2, 0]], [/burger|chicken|american|sandwich/, [0, 1]], [/indian|curry|thai|vietnamese|asian|korean/, [6, 1, 0]],
-  [/barbecue|yakiniku|steak|beef|yakitori/, [3, 0, 8]],
+  [/kebab|kebap|doner|d\u00f6ner|kofte|k\u00f6fte|lahmacun|pide/, [0, 1, 6]], [/meze|balik|bal\u0131k|seafood|fish|meyhane/, [9, 3, 4]], [/coffee|cafe|kahve|tea|cay|\u00e7ay|baklava|pastane/, [8, 5, 2]],
+  [/italian|pizza|pasta|french|spanish/, [5, 2, 0]], [/burger|chicken|american|sandwich|durum|d\u00fcr\u00fcm/, [0, 1]], [/indian|curry|thai|vietnamese|asian|korean/, [6, 1, 0]],
+  [/barbecue|bbq|steak|beef|grill|kokore\u00e7|kokorec/, [3, 0, 8]],
 ];
 const PALETTE = {
   restaurant: [0, 1, 6, 8, 3], fast_food: [0, 1, 6], cafe: [8, 5, 2, 3], bar: [3, 9, 7], pub: [3, 0, 8],

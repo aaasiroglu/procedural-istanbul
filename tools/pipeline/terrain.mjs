@@ -1,4 +1,4 @@
-// GSI (国土地理院) elevation tiles -> a regular height grid in world metres.
+// Elevation tiles -> a regular height grid in world metres.
 // Tiles are PNG-encoded DEMs on the Web Mercator XYZ grid:
 //   v = R * 2^16 + G * 2^8 + B;  v < 2^23: h = 0.01 v;  v = 2^23: no data;  v > 2^23: h = 0.01 (v - 2^24)
 import fs from 'node:fs';
@@ -6,9 +6,37 @@ import path from 'node:path';
 import { PNG } from 'pngjs';
 export { sampleGrid } from '../../src/shared/terrain.js';
 
+// We avoid Japan-only DEM servers here. The generic open-source fallback is Mapzen
+// Terrarium tiles, which expose a public XYZ height map suitable for city-scale terrain.
 export const DEM_SOURCES = [
-  { id: 'dem5a', zoom: 15, url: (z, x, y) => `https://cyberjapandata.gsi.go.jp/xyz/dem5a_png/${z}/${x}/${y}.png` },
-  { id: 'dem10b', zoom: 14, url: (z, x, y) => `https://cyberjapandata.gsi.go.jp/xyz/dem_png/${z}/${x}/${y}.png` },
+  {
+    id: 'terrarium',
+    zoom: 15,
+    url: (z, x, y) => `https://elevation-tiles-prod.s3.amazonaws.com/terrarium/${z}/${x}/${y}.png`,
+    decode: (rgba) => {
+      const out = new Float32Array(rgba.length / 4);
+      for (let i = 0; i < out.length; i++) {
+        const p = i * 4;
+        const h = (rgba[p] * 256 + rgba[p + 1] + rgba[p + 2] / 256) - 32768;
+        out[i] = h;
+      }
+      return out;
+    },
+  },
+  {
+    id: 'terrarium_low',
+    zoom: 14,
+    url: (z, x, y) => `https://elevation-tiles-prod.s3.amazonaws.com/terrarium/${z}/${x}/${y}.png`,
+    decode: (rgba) => {
+      const out = new Float32Array(rgba.length / 4);
+      for (let i = 0; i < out.length; i++) {
+        const p = i * 4;
+        const h = (rgba[p] * 256 + rgba[p + 1] + rgba[p + 2] / 256) - 32768;
+        out[i] = h;
+      }
+      return out;
+    },
+  },
 ];
 
 const worldPx = (lon, lat, z) => {
@@ -31,10 +59,12 @@ function demSource(dir, src) {
     let h = null;
     if (fs.existsSync(f)) {
       const png = PNG.sync.read(fs.readFileSync(f));
-      h = new Float32Array(256 * 256);
-      for (let i = 0; i < h.length; i++) {
-        const v = (png.data[i * 4] << 16) | (png.data[i * 4 + 1] << 8) | png.data[i * 4 + 2];
-        h[i] = v === 0x800000 ? NaN : v < 0x800000 ? v * 0.01 : (v - 0x1000000) * 0.01;
+      h = src.decode ? src.decode(png.data) : new Float32Array(256 * 256);
+      if (!src.decode) {
+        for (let i = 0; i < h.length; i++) {
+          const v = (png.data[i * 4] << 16) | (png.data[i * 4 + 1] << 8) | png.data[i * 4 + 2];
+          h[i] = v === 0x800000 ? NaN : v < 0x800000 ? v * 0.01 : (v - 0x1000000) * 0.01;
+        }
       }
     }
     cache.set(key, h);

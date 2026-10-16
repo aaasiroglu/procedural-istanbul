@@ -2,17 +2,13 @@
 // are lifted to a clearance by OSM layer. Their approaches are raised into ramps where the graph allows:
 // a node also used by an ordinary street stays on the ground, so ramps always land.
 
-const CLEARANCE = [0, 7, 11, 15.5, 20]; // road level above the ground under a bridge, by layer
+const CLEARANCE = [0, 6.5, 11.5, 16.5, 21.5]; // road level above the ground under a bridge, by layer
 const MAX_GRADE = 0.06;
 
-// Lifted clear of the streets: the expressway and its ramps, and bridges tagged as an upper level. An
-// ordinary road bridge is never lifted: it either spans a dip from bank to bank or lies on the ground.
-export const flyover = (e) => e.bridge && !e.tunnel && (e.highway.startsWith('motorway') || e.layer >= 2);
-const elevatable = (e) => !e.tunnel && (flyover(e) || e.highway.startsWith('motorway'));
+// In Istanbul, any bridge or layer>=1 road is elevated clear of the streets below.
+export const flyover = (e) => !e.tunnel && (!!e.bridge || (e.layer != null && e.layer >= 1));
+export const elevatable = (e) => !e.tunnel && (flyover(e) || e.highway.startsWith('motorway') || e.highway.startsWith('trunk') || e.highway.endsWith('_link'));
 
-// edges: graph edges ({ ids, bridge, tunnel, layer, highway }); pos: node id -> [x, z]; ground(x, z).
-// A street bridge whose ends stand this much above the lowest ground beneath it crosses a cutting or a
-// river: it runs level from bank to bank instead of climbing over the dip.
 const SPAN_DIP = 2.5;
 export const BANK = 14; // metres beyond each end of a span that still belong to the bridge approach
 
@@ -20,47 +16,79 @@ export const BANK = 14; // metres beyond each end of a span that still belong to
 export function profileRoads(edges, pos, ground) {
   const y = new Map(), pinned = new Set(), spans = new Set();
   const g = (id) => { const p = pos(id); return ground(p[0], p[1]); };
+
+  // Identify all nodes that belong to bridges or elevated flyovers
+  const bridgeNodes = new Set();
   for (const e of edges) {
-    if (!e.bridge || e.tunnel || e.highway.startsWith('motorway')) continue;
-    // The terrain model is already slumping towards the dip at the bridge ends, so take each bank's level
-    // from the highest ground along the road's line a little further out.
-    const pts = e.ids.map(pos);
-    const bank = (p, q) => { // p: end point, q: its neighbour on the bridge
-      const len = Math.hypot(p[0] - q[0], p[1] - q[1]) || 1, dx = (p[0] - q[0]) / len, dz = (p[1] - q[1]) / len;
-      let top = ground(p[0], p[1]);
-      for (let d = 3.5; d <= BANK; d += 3.5) top = Math.max(top, ground(p[0] + dx * d, p[1] + dz * d));
-      return top;
-    };
-    const ends = [bank(pts[0], pts[1]), bank(pts.at(-1), pts.at(-2))];
-    let low = Infinity, total = 0;
-    for (let i = 1; i < pts.length; i++) {
-      const len = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
-      for (let s = 0; s <= len; s += 3) low = Math.min(low, ground(pts[i - 1][0] + ((pts[i][0] - pts[i - 1][0]) * s) / (len || 1), pts[i - 1][1] + ((pts[i][1] - pts[i - 1][1]) * s) / (len || 1)));
-      total += len;
+    if (flyover(e)) {
+      for (const id of e.ids) bridgeNodes.add(id);
     }
-    if (Math.min(...ends) - low > SPAN_DIP) { e.spanLength = total; e.spanEnds = ends; spans.add(e); }
   }
+
+  // Build adjacency among elevatable edges for ramp slope propagation
+  const adj = new Map();
   for (const e of edges) {
-    if (spans.has(e)) continue;
-    const lift = flyover(e) ? CLEARANCE[Math.max(1, Math.min(4, e.layer))] : 0;
+    if (!elevatable(e)) continue;
+    for (let i = 1; i < e.ids.length; i++) {
+      const u = e.ids[i - 1], v = e.ids[i];
+      const pu = pos(u), pv = pos(v);
+      const d = Math.hypot(pv[0] - pu[0], pv[1] - pu[1]);
+      if (!adj.has(u)) adj.set(u, []);
+      if (!adj.has(v)) adj.set(v, []);
+      adj.get(u).push({ to: v, dist: d });
+      adj.get(v).push({ to: u, dist: d });
+    }
+  }
+
+  // BFS outwards from all bridge nodes up to 130m along elevatable edges
+  const rampNodes = new Set(bridgeNodes);
+  const distToBridge = new Map();
+  const queue = [];
+  for (const bId of bridgeNodes) {
+    distToBridge.set(bId, 0);
+    queue.push(bId);
+  }
+
+  const MAX_RAMP_DIST = 130; // 130m ramp allows smooth 5-6% slope from ground to 6.5m bridge
+  let head = 0;
+  while (head < queue.length) {
+    const u = queue[head++];
+    const dU = distToBridge.get(u);
+    for (const neighbor of adj.get(u) ?? []) {
+      const nDist = dU + neighbor.dist;
+      if (nDist <= MAX_RAMP_DIST && (!distToBridge.has(neighbor.to) || nDist < distToBridge.get(neighbor.to))) {
+        distToBridge.set(neighbor.to, nDist);
+        rampNodes.add(neighbor.to);
+        queue.push(neighbor.to);
+      }
+    }
+  }
+
+  // Set initial heights and determine pinned ground nodes
+  for (const e of edges) {
+    const isFly = flyover(e);
+    const lift = isFly ? CLEARANCE[Math.max(1, Math.min(4, e.layer || 1))] : 0;
     for (const id of e.ids) {
       y.set(id, Math.max(y.get(id) ?? -Infinity, g(id) + lift));
-      if (!elevatable(e) && !e.tunnel) pinned.add(id);
+      // Ground nodes that are NOT bridge nodes and NOT in the ramp zone get pinned to ground
+      if (!elevatable(e) && !e.tunnel && !rampNodes.has(id)) {
+        pinned.add(id);
+      }
+      // On elevatable roads, nodes at the outer end of the ramp (> 100m away) or un-elevated are pinned
+      if (!bridgeNodes.has(id) && (distToBridge.get(id) ?? Infinity) >= 110 && e.layer <= 0) {
+        pinned.add(id);
+      }
     }
   }
-  for (const id of pinned) y.set(id, g(id));
-  // bank-to-bank bridges: both ends at their ground level (or whatever joins there), a straight line between
-  for (const e of spans) {
-    const [a, b] = e.spanEnds;
-    y.set(e.ids[0], a); y.set(e.ids.at(-1), b);
-    let walked = 0;
-    for (let i = 1; i < e.ids.length - 1; i++) {
-      const p = pos(e.ids[i - 1]), q = pos(e.ids[i]);
-      walked += Math.hypot(q[0] - p[0], q[1] - p[1]);
-      y.set(e.ids[i], a + ((b - a) * walked) / e.spanLength);
+
+  // Pin true ground nodes (never pin bridge nodes or elevated roads)
+  for (const id of pinned) {
+    if (!bridgeNodes.has(id)) {
+      y.set(id, g(id));
     }
-    for (const id of e.ids) pinned.add(id);
   }
+
+  // Segments for grade smoothing
   const segments = [];
   for (const e of edges) {
     if (!elevatable(e) || spans.has(e)) continue;
@@ -69,14 +97,21 @@ export function profileRoads(edges, pos, ground) {
       if (d > 0.01) segments.push([e.ids[i - 1], e.ids[i], d]);
     }
   }
-  // raise the lower end of any stretch that is too steep (never a pinned node), until nothing changes
+
+  // Raise the lower end of any stretch that is too steep (never a pinned node), until nothing changes
   for (let pass = 0, changed = true; changed && pass < 300; pass++) {
     changed = false;
     for (const [a, b, d] of segments) {
       const ya = y.get(a), yb = y.get(b), max = MAX_GRADE * d;
-      if (ya < yb - max - 1e-3 && !pinned.has(a)) { y.set(a, yb - max); changed = true; }
-      else if (yb < ya - max - 1e-3 && !pinned.has(b)) { y.set(b, ya - max); changed = true; }
+      if (ya < yb - max - 1e-3 && !pinned.has(a) && !bridgeNodes.has(a)) {
+        y.set(a, Math.max(g(a), yb - max));
+        changed = true;
+      } else if (yb < ya - max - 1e-3 && !pinned.has(b) && !bridgeNodes.has(b)) {
+        y.set(b, Math.max(g(b), ya - max));
+        changed = true;
+      }
     }
   }
+
   return { level: y, spans };
 }

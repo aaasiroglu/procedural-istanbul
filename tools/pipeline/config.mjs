@@ -2,52 +2,56 @@
 // around a centre; the world origin (0, 0, 0) sits on `origin`. `backdrop` (kilometres) adds the land that far
 // around the area as coarse terrain under an aerial photo: the mountains on the horizon.
 import path from 'node:path';
-import { meshBlock, meshBounds3 } from '../../src/shared/geo.js';
+import fs from 'node:fs';
+import { bboxAround } from '../../src/shared/geo.js';
 
 export const AREAS = {
   // (in the order of the city switch; the first is the one the site opens with)
-  tokyo: {
-    name: 'Tokyo',
-    origin: [139.76712, 35.68124], // Tokyo Station, between Marunouchi and Yaesu
+  istanbul: {
+    name: 'Istanbul (Sultanahmet / Eminönü)',
+    origin: [28.9784, 41.0082], // Eminönü / Sultanahmet area
+    radius: 1,
+    view: '0,0,500,220,28',
+  },
+  taksim: {
+    name: 'Taksim / Beyoğlu',
+    origin: [28.9850, 41.0370], // Taksim Square & İstiklal Street
     radius: 1,
   },
-  shiba: {
-    name: 'Shiba (Tokyo Tower)',
-    origin: [139.74543, 35.65858], // Tokyo Tower
+  besiktas: {
+    name: 'Beşiktaş / Dolmabahçe',
+    origin: [29.0060, 41.0420], // Beşiktaş waterfront & Dolmabahçe
     radius: 1,
   },
-  shibuya: {
-    name: 'Shibuya',
-    origin: [139.70045, 35.65948], // Shibuya Scramble Crossing [lon, lat]
-    radius: 1,                     // 3 x 3 meshes, about 3.4 x 2.8 km
-  },
-  shinjuku: {
-    name: 'Shinjuku',
-    origin: [139.7005, 35.6896],   // Shinjuku Station: the skyscraper district to the west, Kabukicho to the north
+  kadikoy: {
+    name: 'Kadıköy / Moda',
+    origin: [29.0250, 40.9900], // Kadıköy harbour & Moda
     radius: 1,
   },
-  chiyoda: {
-    name: 'Chiyoda (Akihabara)',
-    origin: [139.7679, 35.7020],   // Kanda Myojin: north of the Tokyo area, without overlapping it
-    radius: 1,
-    view: '460,400,420,215,32',    // opens over Akihabara Station
-  },
-  chuo: {
-    name: 'Chuo (Tsukiji, Tsukishima)',
-    origin: [139.7800, 35.6560],   // Kachidoki: the waterfront south of the Tokyo area (which has Ginza and Nihonbashi)
+  uskudar: {
+    name: 'Üsküdar (Kız Kulesi)',
+    origin: [29.0150, 41.0250], // Üsküdar & Maiden's Tower
     radius: 1,
   },
-  fujinomiya: {
-    name: 'Fujinomiya (Mt Fuji)',
-    origin: [138.6100, 35.2275], // Fujisan Hongu Sengen Taisha, the head shrine of Mt Fuji
+  levent: {
+    name: 'Levent / Maslak (Financial District)',
+    origin: [29.0120, 41.0780], // Skyscraper district
     radius: 1,
-    backdrop: 30,                  // the summit stands 18 km to the north-east
-    view: '0,0,700,305,10',        // the opening view (as ?cam=): over the town towards the mountain
+  },
+  koridor: {
+    name: 'Mecidiyeköy · Şişli · Gayrettepe · Levent · Köprü Yolu',
+    origin: [29.0080, 41.0680], // Zincirlikuyu / Gayrettepe intersection hub
+    bbox: { south: 41.056, north: 41.082, west: 28.992, east: 29.028 },
+    view: '0,0,600,210,32',
   },
 };
 
 export const ROOT = path.resolve(import.meta.dirname, '../..');
 export const RAW = path.join(ROOT, 'data/raw');
+const IBB_GRID_FILE = path.join(ROOT, 'data/ibb-local/areas.json');
+const IBB_GRID_AREAS = fs.existsSync(IBB_GRID_FILE)
+  ? Object.fromEntries(JSON.parse(fs.readFileSync(IBB_GRID_FILE, 'utf8')).map((area) => [area.id, area]))
+  : {};
 
 // DEM tiles (about 125 m a pixel) and the grid made of them (metres); the photo of all of it (15 m a pixel), and a
 // sharper one (4 m) of the land within `near` kilometres: what lies just beyond the last houses
@@ -61,14 +65,9 @@ export function backdropBox({ origin: [lon, lat] }, backdrop) {
 
 export function resolveArea(argv = process.argv) {
   const arg = argv.find((a) => a.startsWith('--area='));
-  const id = arg ? arg.split('=')[1] : 'shibuya';
-  const area = AREAS[id];
+  const id = arg ? arg.split('=')[1] : 'istanbul';
+  const area = AREAS[id] ?? IBB_GRID_AREAS[id];
   if (!area) throw new Error(`unknown area "${id}" (known: ${Object.keys(AREAS).join(', ')})`);
-  const meshes = meshBlock(area.origin[0], area.origin[1], area.radius);
-  const b = meshes.map(meshBounds3);
-  const bbox = {
-    south: Math.min(...b.map((m) => m.south)), west: Math.min(...b.map((m) => m.west)),
-    north: Math.max(...b.map((m) => m.north)), east: Math.max(...b.map((m) => m.east)),
-  };
-  return { id, ...area, meshes, bbox, backdropBbox: area.backdrop ? backdropBox(area, area.backdrop) : null, rawDir: path.join(RAW, id), outDir: path.join(ROOT, 'public/tiles', id) };
+  const bbox = area.bbox ?? bboxAround(area.origin[0], area.origin[1], area.radius);
+  return { id, ...area, meshes: [], bbox, backdropBbox: area.backdrop ? backdropBox(area, area.backdrop) : null, rawDir: path.join(RAW, id), outDir: path.join(ROOT, 'public/tiles', id) };
 }

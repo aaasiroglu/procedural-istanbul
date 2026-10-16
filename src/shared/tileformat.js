@@ -50,7 +50,7 @@ export const PROP = {
 // Painted symbols on the road (PROP.DECAL variants). `rot` is the direction of travel that reads them.
 export const DECAL = {
   THROUGH: 0, LEFT: 1, RIGHT: 2, THROUGH_LEFT: 3, THROUGH_RIGHT: 4,
-  STOP: 5,                                              // 止まれ
+  STOP: 5,                                              // DUR
   SPEED_20: 6, SPEED_30: 7, SPEED_40: 8, SPEED_50: 9, SPEED_60: 10,
 };
 

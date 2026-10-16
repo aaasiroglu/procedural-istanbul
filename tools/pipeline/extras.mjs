@@ -210,10 +210,13 @@ export function buildExtras({ ways, points }, { idx, ground, inBounds, rails, ro
     if (!inBounds(x, z)) continue;
     const road = roadAt.get(p.id), h = hash(Math.round(x * 10), Math.round(z * 10), 9);
     if (t.emergency === 'fire_hydrant') {
-      // in Japan the hydrant is under a cover in the road, edged in yellow; beside the road it is a red sign on a pole
+      // the hydrant is under a cover in the road, edged in yellow; beside the road it is a red sign on a pole
       if (idx.carriageway.has(x, z)) out.marks.push({ kind: AREA.MARK_YELLOW, ring: [[x - 0.45, z - 0.45], [x + 0.45, z - 0.45], [x + 0.45, z + 0.45], [x - 0.45, z + 0.45]] });
       else if (!idx.building.has(x, z)) out.props.push({ kind: PROP.HYDRANT, variant: 0, rot: h * 6.28, x, z, scale: 1 });
       tally('hydrant');
+    } else if (t.highway === 'street_lamp' || t.man_made === 'street_lamp') {
+      if (!idx.building.has(x, z)) out.props.push({ kind: PROP.LIGHT, variant: 0, rot: num(t.direction) != null ? num(t.direction) * Math.PI / 180 : h * 6.28, x, z, scale: 1 });
+      tally('mapped street lamp');
     } else if (t.railway === 'level_crossing' && road) {
       out.props.push({ kind: PROP.RAIL_CROSSING, variant: 0, rot: Math.atan2(road.dx, road.dz), x, z, scale: 1 }); tally('level crossing');
     } else if (t.man_made === 'ceremonial_gate') {

@@ -1,7 +1,7 @@
 // Geographic helpers shared by the compiler (Node) and the client (browser).
 //
 // World frame (three.js convention): metres, x = east, y = up, z = SOUTH (so north is -z).
-// Elevations are orthometric metres above Tokyo Peil (TP), as in PLATEAU and GSI data.
+// Elevations are orthometric metres above sea level, as in PLATEAU and GSI data.
 
 export const TILE = 256; // streaming tile size, metres
 
@@ -21,9 +21,20 @@ export function makeProjection(lon0, lat0) {
 export const tileOf = (x, z) => [Math.floor(x / TILE), Math.floor(z / TILE)];
 export const tileKey = (tx, tz) => `${tx}_${tz}`;
 
+// Generic geodesic box around a lon/lat origin. This is the format used by the
+// Istanbul / OpenStreetMap data pipeline and avoids assumptions from the Japanese
+// JIS mesh system.
+export function bboxAround(lon0, lat0, radiusKm) {
+  const dLat = radiusKm / 111.32;
+  const dLon = radiusKm / (111.32 * Math.cos((lat0 * Math.PI) / 180));
+  return { south: lat0 - dLat, west: lon0 - dLon, north: lat0 + dLat, east: lon0 + dLon };
+}
+
 // ---------------------------------------------------------------- Japanese standard grid squares
 // JIS X 0410 mesh codes. PLATEAU distributes CityGML per 3rd-level mesh (8 digits, ~1 km).
 // 1st level: 40' lat x 1° lon; 2nd: 1/8 of that; 3rd: 1/10 of the 2nd (30" x 45").
+// TODO: The mesh code functions below are for the Japanese grid system (JIS X 0410).
+// For Istanbul, replace with an appropriate tile/grid scheme or use simple lat/lon bounding boxes.
 export function meshCode3(lon, lat) {
   const p = Math.floor((lat * 60) / 40), u = Math.floor(lon - 100);
   const latR = lat * 60 - p * 40, lonR = (lon - 100 - u) * 60;

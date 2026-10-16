@@ -195,7 +195,7 @@ function category(usage, height, seed) {
   return height < 9 ? CAT.HOUSE : seed < 0.5 ? CAT.APARTMENT : CAT.COMMERCIAL;
 }
 
-// Tokyo wall finishes per category: [r, g, b, texture layer].
+// Istanbul wall finishes per category: [r, g, b, texture layer].
 const PALETTE = {
   [CAT.HOUSE]: [
     [0.86, 0.83, 0.75, WALL.PLASTER], [0.9, 0.9, 0.87, WALL.PLASTER], [0.5, 0.4, 0.33, WALL.BRICK], [0.66, 0.66, 0.65, WALL.SIDING],

@@ -10,8 +10,8 @@ const DEFAULT_LANES = {
   residential: 1, living_street: 1, service: 1,
 };
 const MINOR = new Set(['unclassified', 'residential', 'living_street', 'service']);
-// Japanese defaults when maxspeed is untagged (km/h).
-const DEFAULT_SPEED = { motorway: 60, trunk: 50, primary: 50, secondary: 40, tertiary: 40 };
+// Turkish defaults when maxspeed is untagged (km/h).
+const DEFAULT_SPEED = { motorway: 120, trunk: 82, primary: 50, secondary: 50, tertiary: 50 };
 
 const intTag = (v) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : null; };
 
@@ -43,9 +43,11 @@ function roadAttrs(t) {
     // lane arrows, left to right in the direction of travel ("left;through|through|right")
     turnLanes: t['turn:lanes'] ?? null, turnLanesForward: t['turn:lanes:forward'] ?? null, turnLanesBackward: t['turn:lanes:backward'] ?? null,
     width: Number.parseFloat(t.width) || null,
-    layer: intTag(t.layer) ?? 0,
+    sidewalk: t.sidewalk ?? null, sidewalkLeft: t['sidewalk:left'] ?? null, sidewalkRight: t['sidewalk:right'] ?? null,
+    sidewalkWidth: Number.parseFloat(t['sidewalk:width']) || null,
+    layer: intTag(t.layer) ?? (t.bridge && t.bridge !== 'no' ? 1 : 0),
     bridge: t.bridge && t.bridge !== 'no' ? 1 : 0,
-    tunnel: t.tunnel && t.tunnel !== 'no' ? 1 : 0,
+    tunnel: (t.tunnel && t.tunnel !== 'no') || (intTag(t.layer) != null && intTag(t.layer) < 0) ? 1 : 0,
     name: t.name ?? null, nameEn: t['name:en'] ?? null, ref: t.ref ?? null,
   };
 }
@@ -104,6 +106,79 @@ export function buildRoadGraph({ nodes, ways }, project, inBounds) {
     }
   }
   return { nodes: outNodes, edges, pos };
+}
+
+export function fuseIbbRoads(edges, features, project, pos, round2 = (value) => Math.round(value * 100) / 100) {
+  const cellSize = 80, cells = new Map(), segments = [];
+  const cellKey = (x, z) => `${Math.floor(x / cellSize)},${Math.floor(z / cellSize)}`;
+  const addCell = (x, z, segment) => {
+    const key = cellKey(x, z);
+    if (!cells.has(key)) cells.set(key, new Set());
+    cells.get(key).add(segment);
+  };
+
+  for (const feature of features) {
+    const geometry = feature.geometry;
+    if (!geometry || !['LineString', 'MultiLineString'].includes(geometry.type)) continue;
+    const lines = (geometry.type === 'LineString' ? [geometry.coordinates] : geometry.coordinates)
+      .map((line) => line.map(([lon, lat]) => project(lon, lat)));
+    const parts = [];
+    for (const line of lines) for (let i = 1; i < line.length; i++) {
+      const a = line[i - 1], b = line[i], length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (length < 0.1) continue;
+      const part = { feature, lines, a, b, length, dx: (b[0] - a[0]) / length, dz: (b[1] - a[1]) / length };
+      parts.push(part);
+      for (let x = Math.floor(Math.min(a[0], b[0]) / cellSize); x <= Math.floor(Math.max(a[0], b[0]) / cellSize); x++)
+        for (let z = Math.floor(Math.min(a[1], b[1]) / cellSize); z <= Math.floor(Math.max(a[1], b[1]) / cellSize); z++) addCell(x * cellSize, z * cellSize, part);
+    }
+    if (parts.length) segments.push({ feature, lines, parts });
+  }
+
+  let matched = 0;
+  for (const edge of edges) {
+    const ids = edge.ids, middle = Math.floor((ids.length - 1) / 2);
+    const at = pos(ids[middle]), before = pos(ids[Math.max(0, middle - 1)]), after = pos(ids[Math.min(ids.length - 1, middle + 1)]);
+    const dx = after[0] - before[0], dz = after[1] - before[1], length = Math.hypot(dx, dz) || 1;
+    const nearby = new Set();
+    for (let x = -1; x <= 1; x++) for (let z = -1; z <= 1; z++)
+      for (const part of cells.get(cellKey(at[0] + x * cellSize, at[1] + z * cellSize)) ?? []) nearby.add(part);
+
+    let best = null;
+    for (const part of nearby) {
+      const alignment = (dx * part.dx + dz * part.dz) / length;
+      if (Math.abs(alignment) < 0.7) continue;
+      const along = Math.max(0, Math.min(part.length, (at[0] - part.a[0]) * part.dx + (at[1] - part.a[1]) * part.dz));
+      const distance = Math.hypot(at[0] - part.a[0] - part.dx * along, at[1] - part.a[1] - part.dz * along);
+      if (!best || distance < best.distance) best = { ...part, distance, alignment };
+    }
+    if (!best || best.distance > 12) continue;
+
+    const properties = best.feature.properties ?? {};
+    const numeric = (value) => value == null || value === '' || !Number.isFinite(Number(value)) ? null : Number(value);
+    const ft = numeric(properties.FT_BASESPEED), tf = numeric(properties.TF_BASESPEED), kph = numeric(properties.KPH);
+    const sameDirection = best.alignment >= 0;
+    const ibbSpeedForward = sameDirection ? ft ?? kph : tf ?? kph;
+    const ibbSpeedBackward = sameDirection ? tf ?? kph : ft ?? kph;
+    const ibbId = properties.IBB_KIMLIKNO ?? properties.LINK_ID ?? best.feature.id;
+    const ibbGeometry = best.lines.map((line) => line.map(([x, z]) => [round2(x), round2(z)]));
+    edge.ibb = {
+      id: ibbId,
+      linkId: properties.LINK_ID ?? null,
+      vsegId: properties.VSEGID ?? null,
+      vsegDirId: properties.VSEGDIRID ?? null,
+      direction: properties.DIR_TRAVEL ?? null,
+      matchDistance: round2(best.distance),
+      geometryDirection: sameDirection ? 1 : -1,
+      width: numeric(properties.GENISLIK),
+      speedForward: ibbSpeedForward,
+      speedBackward: ibbSpeedBackward,
+      geometry: ibbGeometry,
+      properties,
+    };
+    if (edge.width == null && edge.ibb.width > 0) edge.width = edge.ibb.width;
+    matched++;
+  }
+  return { matched, candidates: segments.length };
 }
 
 // Returns the visible lines; a line whose first / last node continues underground gets tunnelStart / tunnelEnd.

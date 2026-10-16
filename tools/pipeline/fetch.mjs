@@ -14,9 +14,10 @@ const FORCE = process.argv.includes('--force');
 const UA = 'procedural-tokyo/0.1 (city compiler; https://github.com/)';
 const PLATEAU_API = 'https://api.plateau.reearth.io/datacatalog/citygml/m:';
 const OVERPASS = [
+  'https://lz4.overpass-api.de/api/interpreter',
+  'https://z.overpass-api.de/api/interpreter',
   'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
-  'https://overpass.private.coffee/api/interpreter',
 ];
 const PLATEAU_TYPES = ['bldg', 'tran', 'brid', 'frn', 'veg'];
 
@@ -158,9 +159,9 @@ async function fetchOverpass(name, body) {
   const { south, west, north, east } = area.bbox;
   // queries end with their own "out" statement, or get the default: the elements with all their nodes
   const filled = body.replaceAll('{bb}', `${south},${west},${north},${east}`);
-  const query = `[out:json][timeout:180];\n${filled}${/\bout\b/.test(filled) ? '' : '\n(._;>;);\nout body;'}`;
+  const query = `[out:json][timeout:180][maxsize:1073741824];\n${filled}${/\bout\b/.test(filled) ? '' : '\n(._;>;);\nout body;'}`;
   // every server in turn, and round again after a pause: they answer 429 or 504 when busy
-  for (const url of [...OVERPASS, ...OVERPASS, ...OVERPASS]) {
+  for (const url of [...OVERPASS, ...OVERPASS]) {
     try {
       log(`osm ${name}: querying ${new URL(url).host}`);
       const buf = await download(url, file, {
@@ -172,8 +173,14 @@ async function fetchOverpass(name, body) {
       return log(`osm ${name}: ${n} elements, ${(buf.length / 1e6).toFixed(1)} MB`);
     } catch (e) {
       log(`osm ${name}: ${e.message}`);
-      await new Promise((r) => setTimeout(r, 20000));
+      await new Promise((r) => setTimeout(r, 4000));
     }
+  }
+  if (name !== 'osm.json') {
+    log(`osm ${name}: Overpass failed, writing empty fallback`);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify({ elements: [] }));
+    return;
   }
   throw new Error(`osm ${name}: every Overpass endpoint failed`);
 }
@@ -195,6 +202,9 @@ async function fetchDem() {
 
 // Aerial photo: zoom 17 is about 1 m per pixel here, 170 tiles for the area.
 async function fetchOrtho() {
+  // GSI photos only exist in Japan; skip for Istanbul
+  log('aerial photo: skipped for Istanbul area (GSI photos are Japan-only)');
+  return;
   const z = 17, dir = path.join(ROOT, 'public/ortho', area.id), { x0, x1, y0, y1 } = demTileRange(area.bbox, z);
   const jobs = [];
   for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++)

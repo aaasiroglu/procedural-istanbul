@@ -1,6 +1,6 @@
 // Billboards, LED screens and vertical banners (sign styles 3-6, placed by tools/pipeline/signs.mjs).
-// The artwork is invented and drawn here, once, into an atlas: neon-sign pictures on Japanese themes — an
-// anime-style face, a lucky cat, Mount Fuji, a sports car, a robot, a bowl of ramen, a game pad ... — with
+// The artwork is invented and drawn here, once, into an atlas: neon-sign pictures on Istanbul themes — an
+// anime-style face, a lucky cat, the Bosphorus, a sports car, a robot, a bowl of ramen, a game pad ... — with
 // sign words. No real character, brand or logo is used. A screen cycles through the posters with a wipe,
 // seen through an LED grid. Everything glows at night; screens are bright all day.
 import * as THREE from 'three';
@@ -9,9 +9,9 @@ import { shared } from './materials.js';
 const COLS = 8, ROWS = 4, SIZE = 512;
 export const WIDE = 24, TALL = 8; // posters 0..23 fill their cell; 24..31 are banners in the left third of theirs
 const FONT = '"Yu Gothic", "Meiryo", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif';
-const KANA = ['ラーメン', 'カラオケ', 'ゲーム', 'アニメ', 'ライブ', 'カフェ', 'ロボ', 'ネオン', 'ホテル', 'シネマ'];
-const KANJI = ['寿司', '電気', '居酒屋', '東京', '祭', '夢', '未来', '新発売', '大特価', '音楽', '薬', '焼肉'];
-const LATIN = ['TOKYO', 'NEON', 'GAME', 'LIVE', 'SALE', 'CAFE', 'MUSIC', 'ROBO', 'OPEN', 'KAWAII', 'TURBO', 'TECH'];
+const KANA = ['KEBAP', 'ÇORBA', 'LOKANTA', 'KAHVE', 'MÜZİK', 'SİNEMA', 'HAMAM', 'PAZAR', 'DÜRÜM', 'BALIK'];
+const KANJI = ['KÖFTE', 'KUAFÖR', 'MEYHANE', 'İSTANBUL', 'BAYRAM', 'RÜYA', 'GELECEK', 'İNDİRİM', 'KAMPANYA', 'SANAT', 'ECZANE', 'LAHMACUN'];
+const LATIN = ['ISTANBUL', 'NEON', 'GAME', 'LIVE', 'SALE', 'CAFE', 'MUSIC', 'ROBO', 'OPEN', 'GÜZEL', 'TURBO', 'TECH'];
 // neon tubes: pink, cyan, yellow, green, orange, violet, red, white
 const NEON = ['#ff3d9a', '#22e6ff', '#ffe23d', '#4dff88', '#ff8a2b', '#b56bff', '#ff3838', '#f4f8ff'];
 const NIGHT = ['#0b0620', '#06142b', '#1a0626', '#04181a', '#200a0a', '#0a0a18'];
