@@ -37,7 +37,7 @@ import pyarrow.parquet as pq
 API = "https://tkmservices.ibb.gov.tr/web/api/TrafficData"
 SEGMENT_DATA = f"{API}/v4/SegmentData"
 TRAFFIC_INDEX = f"{API}/v1/TrafficIndex_Sc1_Cont"
-SEGMENTS = f"{API}/v3/Segments/1"
+SEGMENTS = f"{API}/v3/Segments/0"
 ISTANBUL = ZoneInfo("Europe/Istanbul")
 ROOT = Path(__file__).resolve().parents[2]
 RETRIES = (5, 15, 45)  # seconds to wait before each retry of a failed request

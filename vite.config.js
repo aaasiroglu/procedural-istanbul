@@ -19,7 +19,7 @@ export default defineConfig({
       '/api/ibb-segments': {
         target: 'https://tkmservices.ibb.gov.tr',
         changeOrigin: true,
-        rewrite: () => '/web/api/TrafficData/v3/Segments/1',
+        rewrite: () => '/web/api/TrafficData/v3/Segments/0',
       },
     },
   },

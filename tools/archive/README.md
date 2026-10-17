@@ -21,7 +21,7 @@ uv run tools/archive/ibb_speeds.py --out /yol --interval 300
 - Hatalı istekler 5, 15 ve 45 sn arayla yeniden denenir.
 - Arşiv büyüklüğü günde yaklaşık 20 MB.
 
-Geometri uç noktası (8.801 kesim), hız akışından (yaklaşık 12.700 kesim) daha az kesim döndürüyor. Bu yüzden bazı hız kayıtlarının geometrisi yok.
+Geometri `v3/Segments/0` uç noktasından alınır (13.534 kesim). Bu uç nokta otoyol (FD) kesimleri dahil hız kayıtlarının yaklaşık %96'sını kapsar. `Segments/1` yalnızca 8.801 kesimlik bir alt kümedir ve otoyolları içermez.
 
 ## Sorgu örneği (DuckDB)
 
