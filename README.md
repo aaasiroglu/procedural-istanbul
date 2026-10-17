@@ -28,15 +28,16 @@ Gerçek O-D'si bilinen sentetik bir şehirde (`npm run test:od`) linklerin %30'u
 | 3D şehir (yollar, binalar, arazi, atmosfer) | Çalışıyor. Bina yükseklikleri OSM'den, etiket yoksa varsayılan kat sayısından geliyor |
 | İBB canlı hız akışı | Çalışıyor (yalnızca `npm run dev` proxy'siyle) |
 | İBB hız arşivi | ✅ 5 dakikada bir Parquet (`npm run archive:ibb`) |
-| Ters O-D tahmini | ✅ Python, test edildi. Henüz gerçek koridor ağına bağlanmadı |
+| SUMO ağı | ✅ OSM'den koridor ağı; köprü, metrobüs ayrık şeridi, 293 sinyalli kavşak; İBB segmentlerinin %95.5'i kenarlara eşlendi ([tools/sumo](tools/sumo/README.md)) |
+| Ters O-D tahmini | ✅ Python, test edildi. Henüz SUMO ağına bağlanmadı (sıradaki adım) |
 | Tarayıcıdaki trafik | Görsel: araçlar kameranın çevresinde, rotalar rastgele. Analiz için kullanılmamalı |
 | Panellerdeki H3 / tahmin / maliyet değerleri | **Gösterim amaçlı**, elle girilmiş sabitler. Veriden hesaplanmıyor |
-| SUMO simülasyonu, kalibrasyon, öneri motoru | Planlandı |
+| Talep, kalibrasyon, öneri motoru | Planlandı |
 
 ## Yol haritası
 
 1. **Kapsam ve arşiv:** Koridor sınırı ✅, canlı hız arşivi ✅
-2. **Ağ:** OSM + İBB ağından SUMO ağı. Zincirlikuyu örgülenmesi, Mecidiyeköy viyadüğü, metrobüs ayrık şeridi elle düzeltilir
+2. **Ağ:** OSM'den SUMO ağı ✅, İBB segment eşlemesi ✅. Duman testindeki kilitlenme noktaları ile Zincirlikuyu örgülenmesi ve Mecidiyeköy viyadüğü netedit ile doğrulanacak
 3. **Talep:** Prior O-D, tahmin, hold-out GEH raporu
 4. **Sınıflandırma:** HCM LOS, tekrarlayan ve tekrarlamayan tıkanıklık, darboğaz aktivasyonu
 5. **3D:** Tarayıcı SUMO yörüngelerini oynatır, köprü gerçek ölçüleriyle modellenir
@@ -72,6 +73,7 @@ src/matrakci            Matrakçı görünümü
 tools/pipeline          OSM / İBB / DEM → 3D karolar
 tools/archive           İBB canlı veri arşivi (Python)
 tools/od                Ters O-D tahmini ve UE ataması (Python)
+tools/sumo              SUMO ağı, İBB segment eşlemesi, duman testi (Python)
 ```
 
 `GEO_TWIN_MIMARISI.md` ve `METODOLOJI_VE_MIMARI.md` hedef mimariyi anlatır. Anlattıkları her şey henüz uygulanmış değildir.
