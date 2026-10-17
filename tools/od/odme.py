@@ -110,7 +110,7 @@ class Estimate:
     fit: dict                     # in-sample GEH on counts (a fit diagnostic, not validation)
     bound_violations: int         # one-sided observations not met by more than 2 sd
     converged: bool
-    lam: float
+    lam: object                   # the prior weight(s) used
     info: dict = field(default_factory=dict)
 
 
@@ -120,14 +120,26 @@ def _rows(obs: list[Observation], kind: str):
             np.array([o.sd for o in sel], float))
 
 
-def estimate(P, x0, obs: list[Observation], lam: float = 1.0, uncertainty: bool = True, max_dense: int = 4000) -> Estimate:
+def prior_weights(x0, cv: float) -> np.ndarray:
+    """Per-pair KL weights giving each OD pair a prior standard deviation of cv times its prior value.
+
+    A single lam gives pair w a prior variance of 2 x0_w / lam, Poisson-like: a pair of 10 trips would be held to
+    about +-4.5 whatever lam reasonably is, far tighter than a made-up gravity model deserves. lam_w = 2 / (cv^2 x0_w)
+    makes the prior's uncertainty relative instead (cv = 1: +-100 %)."""
+    x0 = np.asarray(x0, float)
+    return np.where(x0 > 0, 2 / (cv ** 2 * np.where(x0 > 0, x0, 1)), 0.0)
+
+
+def estimate(P, x0, obs: list[Observation], lam=1.0, uncertainty: bool = True, max_active: int = 4000) -> Estimate:
     """MAP OD estimate for a fixed assignment matrix P (links x OD pairs). x0 > 0 where trips are possible;
-    pairs with x0 == 0 (e.g. the diagonal) stay at 0."""
+    pairs with x0 == 0 (e.g. the diagonal) stay at 0. lam: one prior weight, or one per OD pair (prior_weights)."""
     P = csr_matrix(P)
     x0 = np.asarray(x0, float)
     free = x0 > 0
     Pf = P[:, free]
     p0 = x0[free]
+    lam_all = lam
+    lam = np.asarray(lam, float)[free] if np.ndim(lam) else float(lam)
     groups = {k: _rows(obs, k) for k in ("count", "lower", "upper")}
     sub = {k: (Pf[l], y, 1 / s ** 2) for k, (l, y, s) in groups.items() if len(l)}
 
@@ -142,34 +154,49 @@ def estimate(P, x0, obs: list[Observation], lam: float = 1.0, uncertainty: bool 
             out[k] = (A, r, w)
         return out
 
-    def objective(z):
-        f = lam * np.sum(z * np.log(z / p0) - z + p0)
-        g = lam * np.log(z / p0)
+    # Solved for u = log(z / x0): positivity comes free and the problem stays well conditioned when prior values
+    # span orders of magnitude (with relative prior weights the KL term becomes (2/cv^2)(e^u u - e^u + 1), the same
+    # for every pair, where in z its curvature lam / z would range over twelve orders of magnitude).
+    def objective(u):
+        z = p0 * np.exp(u)
+        f = np.sum(lam * (z * u - z + p0))
+        g = lam * u
         for A, r, w in residuals(z).values():
             f += np.sum(w * r ** 2)
             g += 2 * (A.T @ (w * r))
-        return f, g
+        return f, g * z
 
-    # start from the prior: feasible, and where the answer ends up for pairs no observation touches
-    res = minimize(objective, p0.copy(), jac=True, method="L-BFGS-B", bounds=[(EPS, None)] * len(p0),
-                   options={"maxiter": 5000, "ftol": 1e-12, "gtol": 1e-8})
-    z = res.x
+    # start from the prior (u = 0): where the answer stays for pairs no observation touches
+    res = minimize(objective, np.zeros(len(p0)), jac=True, method="L-BFGS-B", bounds=[(-30, 30)] * len(p0),
+                   options={"maxiter": 5000, "maxfun": 20000, "ftol": 1e-13, "gtol": 1e-9})
+    z = p0 * np.exp(res.x)
     x = np.zeros_like(x0)
     x[free] = z
     flows = P @ x
 
-    se = share = None
-    if uncertainty and free.sum() <= max_dense:
-        # Hessian of the objective: 2 A' W A over the active rows (equality rows always, bounds when binding)
-        # plus lam / z from the KL term. The objective is -2 log posterior, so the covariance is 2 H^-1.
-        H = np.diag(lam / z)
+    se = share = B = None
+    if uncertainty:
+        # Hessian of the objective: D + B'B, D = lam / z from the KL term and B = sqrt(2 W) A over the active rows
+        # (counts always, bounds where binding). The objective is -2 log posterior, so the covariance is 2 H^-1.
+        # Only its diagonal is needed, and there are far fewer active rows m than OD pairs n, so by Woodbury
+        #   H^-1 = D^-1 - D^-1 B' (I + B D^-1 B')^-1 B D^-1
+        # costs an m x m solve instead of inverting n x n.
+        d = lam / z
+        blocks = []
         for k, (A, r, w) in residuals(z).items():
             active = np.ones(len(r), bool) if k == "count" else r != 0
             if active.any():
-                Aa = A[active]
-                H += 2 * (Aa.T @ diags(w[active]) @ Aa).toarray()
-        cov = 2 * np.linalg.inv(H)
-        var_post = np.clip(np.diag(cov), 0, None)
+                blocks.append(diags(np.sqrt(2 * w[active])) @ A[active])
+        if blocks:
+            from scipy.sparse import vstack
+            B = vstack(blocks).toarray() if sum(b.shape[0] for b in blocks) <= max_active else None  # (beyond that, skipped)
+        else:
+            B = np.zeros((0, len(z)))
+        if B is not None:
+            BD = B / d
+            M = np.eye(B.shape[0]) + BD @ B.T
+            var_post = np.clip(2 * (1 / d - np.sum(BD * np.linalg.solve(M, BD), axis=0)), 0, None)
+    if B is not None:
         var_prior = 2 * z / lam
         se = np.zeros_like(x0)
         share = np.zeros_like(x0)
@@ -182,7 +209,7 @@ def estimate(P, x0, obs: list[Observation], lam: float = 1.0, uncertainty: bool 
         l, y, s = groups[k]
         if len(l):
             violations += int(np.sum(sign * (y - flows[l]) > 2 * s))
-    return Estimate(x, se, share, flows, geh_summary(flows[cl], cy), violations, bool(res.success), lam,
+    return Estimate(x, se, share, flows, geh_summary(flows[cl], cy), violations, bool(res.success), lam_all,
                     {"iterations": int(res.nit), "message": str(res.message), "objective": float(res.fun)})
 
 
@@ -210,7 +237,8 @@ def select_lambda(P, x0, obs: list[Observation], grid=(0.01, 0.03, 0.1, 0.3, 1, 
     return best[0], scores
 
 
-def estimate_bilevel(net, x0, obs: list[Observation], lam: float = 1.0, iters: int = 30, tol: float = 1e-3):
+def estimate_bilevel(net, x0, obs: list[Observation], lam: float = 1.0, iters: int = 30, tol: float = 1e-3,
+                     assign_iter: int = 200, assign_gap: float = 1e-4, log=None):
     """Alternate UE assignment (route choice under the current OD) and estimation until the OD vector settles.
     The plain alternation oscillates (more demand -> other routes -> other fit); the route choice is therefore
     averaged over the rounds (method of successive averages), which damps it to a fixed point."""
@@ -218,11 +246,14 @@ def estimate_bilevel(net, x0, obs: list[Observation], lam: float = 1.0, iters: i
     x = np.asarray(x0, float)
     P_avg, history = None, []
     for k in range(iters):
-        _, P, gap = assign(net, x)
+        _, P, gap = assign(net, x, max_iter=assign_iter, gap=assign_gap)
         P_avg = P if P_avg is None else P_avg + (P - P_avg) / (k + 1)
         est = estimate(P_avg, x0, obs, lam, uncertainty=False)
         change = float(np.abs(est.x - x).sum() / max(x.sum(), EPS))
-        history.append({"iteration": k, "assignment_gap": gap, "od_change": change, "fit": est.fit})
+        history.append({"iteration": k, "assignment_gap": gap, "od_change": change, "fit": est.fit,
+                        "bound_violations": est.bound_violations})
+        if log:
+            log(history[-1])
         x = est.x
         if change < tol:
             break

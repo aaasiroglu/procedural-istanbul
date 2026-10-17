@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from scipy.sparse import csr_matrix, lil_matrix
+from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import dijkstra
 
 
@@ -23,18 +23,23 @@ class Network:
     head: np.ndarray       # link end node
     t0: np.ndarray         # free-flow travel time (any unit, minutes by convention)
     capacity: np.ndarray   # veh/h
-    zones: np.ndarray      # node index of each zone centroid
+    zones: np.ndarray      # node index of each zone centroid (where its trips start)
     alpha: float = 0.15    # BPR: t = t0 * (1 + alpha * (v/c)^beta)
     beta: float = 4.0
+    # node where each zone's trips end, if not the centroid: a separate sink with only incoming connectors keeps
+    # routes from cutting through a zone centroid (in at one connector, out at another)
+    sinks: np.ndarray | None = None
 
     def __post_init__(self):
         self.tail, self.head = np.asarray(self.tail, int), np.asarray(self.head, int)
         self.t0, self.capacity = np.asarray(self.t0, float), np.asarray(self.capacity, float)
         self.zones = np.asarray(self.zones, int)
+        self.sinks = self.zones if self.sinks is None else np.asarray(self.sinks, int)
         pairs = list(zip(self.tail, self.head))
         if len(set(pairs)) != len(pairs):
             raise ValueError("parallel links between the same two nodes are not supported; split one with a node")
-        self.link_of = {p: e for e, p in enumerate(pairs)}
+        # link index + 1 by (tail, head), sparse: 0 means no link
+        self.link_matrix = csr_matrix((np.arange(1, len(pairs) + 1), (self.tail, self.head)), shape=(self.n_nodes, self.n_nodes))
 
     @property
     def n_links(self) -> int:
@@ -58,19 +63,28 @@ def all_or_nothing(net: Network, cost: np.ndarray, demand: np.ndarray):
     graph = csr_matrix((cost, (net.tail, net.head)), shape=(net.n_nodes, net.n_nodes))
     _, pred = dijkstra(graph, directed=True, indices=net.zones, return_predecessors=True)
     Z = len(net.zones)
-    incidence = lil_matrix((net.n_links, Z * Z))
+    link_index = net.link_matrix
+    rows, cols = [], []
     for i in range(Z):
+        p = pred[i]
+        # the link into every node of origin i's shortest-path tree, then each destination's path is its chain
+        into = np.full(net.n_nodes, -1)
+        reached = p >= 0
+        if reached.any():  # (a gateway that only lets traffic out reaches nothing)
+            into[reached] = np.asarray(link_index[p[reached], np.flatnonzero(reached)]).ravel() - 1
         for j in range(Z):
             if i == j:
                 continue
-            node, target = net.zones[j], net.zones[i]
-            if pred[i, node] < 0:
-                raise ValueError(f"zone {j} cannot be reached from zone {i}")
+            node, target = net.sinks[j], net.zones[i]
+            w = i * Z + j
+            if p[node] < 0:
+                if demand[w] > 0:
+                    raise ValueError(f"zone {j} cannot be reached from zone {i}, yet has trips from it")
+                continue  # (e.g. a one-way gateway that only lets traffic in)
             while node != target:
-                prev = pred[i, node]
-                incidence[net.link_of[(prev, node)], i * Z + j] = 1.0
-                node = prev
-    incidence = incidence.tocsr()
+                rows.append(into[node]); cols.append(w)
+                node = p[node]
+    incidence = csr_matrix((np.ones(len(rows)), (rows, cols)), shape=(net.n_links, Z * Z))
     return incidence @ demand, incidence
 
 

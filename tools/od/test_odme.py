@@ -4,7 +4,7 @@ honestly what it does not know?   uv run python tools/od/test_odme.py"""
 import numpy as np
 
 from assignment import Network, assign
-from odme import Observation, TriangularFD, cross_validate, estimate, estimate_bilevel, geh, select_lambda
+from odme import Observation, TriangularFD, cross_validate, estimate, estimate_bilevel, geh, prior_weights, select_lambda
 
 rng = np.random.default_rng(7)
 passed = 0
@@ -103,6 +103,11 @@ ok("standard errors are not overconfident", inside.mean() > 0.6, f"{inside.mean(
 blind = estimate(P_true, x0, [], lam=1.0)
 ok("without observations the estimate is the prior", np.allclose(blind.x, x0, rtol=1e-5))
 ok("without observations the data share is zero", np.allclose(blind.data_share[offdiag], 0, atol=1e-6))
+rel = estimate(P_true, x0, [], lam=prior_weights(x0, 0.8))
+ok("relative prior: standard error is cv times the prior", np.allclose(rel.se[offdiag], 0.8 * x0[offdiag], rtol=1e-3))
+rel_fit = estimate(P_true, x0, obs, lam=prior_weights(x0, 1.0))
+ok("relative prior also recovers uncounted flows", geh(rel_fit.flows[uncounted], flow_true[uncounted]).mean() < 0.6 * g_prior,
+   f"mean GEH {g_prior:.2f} -> {geh(rel_fit.flows[uncounted], flow_true[uncounted]).mean():.2f} (cv 1.0)")
 
 # ---------------------------------------------------------------- bilevel: route choice re-estimated with the OD
 # Routes now unknown too: OD cells are no longer expected to beat the prior, the network flows are.
