@@ -29,7 +29,7 @@ Gerçek O-D'si bilinen sentetik bir şehirde (`npm run test:od`) linklerin %30'u
 | İBB canlı hız akışı | Çalışıyor (yalnızca `npm run dev` proxy'siyle) |
 | İBB hız arşivi | ✅ 5 dakikada bir Parquet (`npm run archive:ibb`) |
 | SUMO ağı | ✅ OSM'den koridor ağı; köprü, metrobüs ayrık şeridi, 293 sinyalli kavşak; İBB segmentlerinin %95.5'i kenarlara eşlendi ([tools/sumo](tools/sumo/README.md)) |
-| Ters O-D tahmini | ✅ Python, test edildi. Henüz SUMO ağına bağlanmadı (sıradaki adım) |
+| Ters O-D tahmini | ✅ Canlı İBB hızlarından koridorun ilk O-D tahmini (75 H3 zonu ve 20 geçit, SUMO `od2trips` çıktısı). Talep düzeyi sayım olmadan belirlenemiyor ([tools/od](tools/od/README.md)) |
 | Tarayıcıdaki trafik | Görsel: araçlar kameranın çevresinde, rotalar rastgele. Analiz için kullanılmamalı |
 | Panellerdeki H3 / tahmin / maliyet değerleri | **Gösterim amaçlı**, elle girilmiş sabitler. Veriden hesaplanmıyor |
 | Talep, kalibrasyon, öneri motoru | Planlandı |
@@ -38,7 +38,7 @@ Gerçek O-D'si bilinen sentetik bir şehirde (`npm run test:od`) linklerin %30'u
 
 1. **Kapsam ve arşiv:** Koridor sınırı ✅, canlı hız arşivi ✅
 2. **Ağ:** OSM'den SUMO ağı ✅, İBB segment eşlemesi ✅. Duman testindeki kilitlenme noktaları ile Zincirlikuyu örgülenmesi ve Mecidiyeköy viyadüğü netedit ile doğrulanacak
-3. **Talep:** Prior O-D, tahmin, hold-out GEH raporu
+3. **Talep:** İlk O-D tahmini ✅. Sırada köprü sayımlarıyla talep düzeyinin sabitlenmesi, hold-out GEH raporu ve tahminin SUMO'da koşturulması var
 4. **Sınıflandırma:** HCM LOS, tekrarlayan ve tekrarlamayan tıkanıklık, darboğaz aktivasyonu
 5. **3D:** Tarayıcı SUMO yörüngelerini oynatır, köprü gerçek ölçüleriyle modellenir
 6. **Öneriler:** Sürücüye kalkış saati, mod ve köprü seçimi; uzmana darboğaz sıralaması ve senaryo karşılaştırması
