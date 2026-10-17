@@ -19,6 +19,8 @@ public/ortho/
 data/archive/
 # SUMO networks and scenarios (tools/sumo): re-create with the build scripts
 data/sumo/
+# OD estimates (npm run od:corridor)
+data/od/
 
 # local settings and secrets
 .env
