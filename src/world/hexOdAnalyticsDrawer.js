@@ -305,8 +305,8 @@ export class HexOdAnalyticsDrawer {
           </div>
           <div class="hod-kpi-card">
             <div class="hod-kpi-title">GEH Başarımı</div>
-            <div class="hod-kpi-val" style="color: #34d399;" id="hod-kpi-geh">%96.2</div>
-            <div class="hod-kpi-sub">GEH &lt; 5.0</div>
+            <div class="hod-kpi-val" style="color: #34d399;" id="hod-kpi-geh">—</div>
+            <div class="hod-kpi-sub">GEH &lt; 5.0 · doğrulanmadı</div>
           </div>
           <div class="hod-kpi-card">
             <div class="hod-kpi-title">CO2 Oranı</div>
@@ -525,7 +525,7 @@ export class HexOdAnalyticsDrawer {
       : 34500;
     this.el.querySelector('#hod-kpi-flow').textContent = flowVal.toLocaleString();
 
-    const gehVal = this.gehReport ? `%${this.gehReport.screenlinesUnder5Pct}` : '%94.8';
+    const gehVal = this.gehReport ? `%${this.gehReport.screenlinesUnder5Pct}` : '—';
     this.el.querySelector('#hod-kpi-geh').textContent = gehVal;
 
     const co2Val = this.selectedTaz ? this.selectedTaz.co2GPerKm : 185.0;

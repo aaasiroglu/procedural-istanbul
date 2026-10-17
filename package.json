@@ -15,7 +15,8 @@
     "preview": "node tools/pipeline/preview.mjs",
     "deploy": "node tools/deploy.mjs",
     "test": "node tools/tests/tileformat.test.mjs && node tools/tests/road-markings.test.mjs && node tools/tests/predictive-routing.test.mjs",
-    "archive:ibb": "uv run tools/archive/ibb_speeds.py"
+    "archive:ibb": "uv run tools/archive/ibb_speeds.py",
+    "test:od": "uv run python tools/od/test_odme.py"
   },
   "license": "MIT",
   "dependencies": {

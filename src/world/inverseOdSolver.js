@@ -1,13 +1,14 @@
 /**
- * INVERSE ORIGIN-DESTINATION (OD) MATRIX SOLVER & GEH VALIDATION ENGINE
+ * PRIOR (GRAVITY) OD MATRIX FOR THE BROWSER VIEW
  * src/world/inverseOdSolver.js
  *
- * Implements:
- * 1. Gravity Prior Matrix Formulation: q_{ij}^{(0)} = O_i * A_j * exp(-beta * c_{ij})
- * 2. Bilevel Information-Theoretic Entropy Refinement (Furness-Bregman balancing with link flow multipliers)
- * 3. GEH Screenline Validation Gate: GEH = sqrt(2 * (M - C)^2 / (M + C)), checking % GEH < 5.0
- * 4. 24-Hour Diurnal D_{ij}(t) & 7-Day Historical Time Series Generator
- * 5. Multi-Modal Split Engine: Private Car (İBB Loop/FCD), GTFS Transit (Metro/Metrobüs), VRP Freight
+ * Only a prior: it uses no observation, so it is not an inverse (observation-fitted) estimate and carries no GEH.
+ * The estimate from link observations, with standard errors and hold-out GEH, is tools/od/odme.py.
+ *
+ * 1. Gravity prior: q_{ij}^{(0)} = O_i * A_j * exp(-beta * c_{ij})
+ * 2. Furness balancing to the zone productions and attractions
+ * 3. 24-Hour Diurnal D_{ij}(t) & 7-Day Historical Time Series Generator
+ * 4. Multi-Modal Split Engine: Private Car (İBB Loop/FCD), GTFS Transit (Metro/Metrobüs), VRP Freight
  */
 
 import { getDiurnalFactors } from './h3HexTazEngine.js';
@@ -137,9 +138,9 @@ export class InverseOdSolver {
       }
     }
 
-    // 3. Screenline Calibration and GEH Gate
+    // 3. Corridors. No GEH here: this prior is fitted to no observation, so there is nothing to compare it with.
+    // The observation-based estimate and its hold-out GEH come from tools/od (Python).
     const corridors = [];
-    const gehValues = [];
     const minThreshold = n > 50 ? 8 : 1; // Prune micro-flows for large networks to prevent memory bloat
 
     for (let i = 0; i < n; i++) {
@@ -147,11 +148,6 @@ export class InverseOdSolver {
         if (i === j) continue;
         const trips = Math.round(balanced[i][j]);
         if (trips < minThreshold) continue;
-
-        // Ground-truth simulated screenline count with slight stochastic sensor perturbation
-        const simulatedObs = Math.round(trips * (0.94 + 0.12 * Math.sin(i * 3 + j * 7)));
-        const geh = calculateGeh(trips, simulatedObs);
-        gehValues.push(geh);
 
         const dKm = this.distanceMatrix[i][j];
         const freeFlow = this.impedanceMatrix[i][j];
@@ -171,30 +167,16 @@ export class InverseOdSolver {
           congestedMinutes: congested,
           tripsPerHour: trips,
           modalSplit,
-          geh,
+          geh: null,
           zTotalCostTL: zCost
         });
       }
     }
 
-    const totalLines = gehValues.length;
-    const passingCount = gehValues.filter((g) => g < 5.0).length;
-    const screenlinesUnder5Pct = totalLines > 0 ? Number(((passingCount / totalLines) * 100).toFixed(1)) : 100.0;
-    const meanGeh = totalLines > 0 ? Number((gehValues.reduce((a, b) => a + b, 0) / totalLines).toFixed(2)) : 0.0;
-    const maxGeh = totalLines > 0 ? Number(Math.max(...gehValues).toFixed(2)) : 0.0;
-
-    const gehReport = {
-      totalScreenlines: totalLines,
-      screenlinesUnder5Pct,
-      meanGeh,
-      maxGeh,
-      passedValidation: screenlinesUnder5Pct >= 85.0
-    };
-
     return {
       matrix: balanced,
       corridors,
-      gehReport
+      gehReport: null // not validated
     };
   }
 
