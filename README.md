@@ -1,180 +1,85 @@
-# 🌉 Istanbul GeoTwin 3D & AI Mobility Engine
-### *Gerçek Zamanlı 3D İstanbul Ulaşım Dijital İkizi & Yapay Zekâ Destekli Nicel Trafik Tahminleme Platformu*
+# Procedural Istanbul
 
-[![Node.js CI](https://img.shields.io/badge/Node.js-v20%2B-green.svg)](https://nodejs.org/)
-[![Three.js](https://img.shields.io/badge/Three.js-r186-black.svg)](https://threejs.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Open Data](https://img.shields.io/badge/Open%20Data-100%25%20OSM%20%26%20IBB-orange.svg)](https://data.ibb.gov.tr/)
-[![Standards](https://img.shields.io/badge/Standards-H3%20%7C%20COPERT%205.9%20%7C%20CityGML-purple.svg)](https://h3geo.org/)
+**Maslak – Levent – Mecidiyeköy – Çağlayan – Beşiktaş – 15 Temmuz Köprüsü** koridorunun tarayıcıda çalışan 3D dijital ikizi. Amaç, koridordaki trafiği gerçek veriyle simüle etmek, literatüre dayalı olarak sınıflandırmak ve iki ayrı kitleye öneri üretmek: **sürücü/yolcu** ile **belediye/trafik uzmanı**.
 
----
+3D motor, Yong Su'nun [Tokyo](https://github.com/jeantimex/tokyo) projesinden (MIT) türetilmiştir. İstanbul verisi, ulaşım modeli ve analitik katman bu repoda geliştirilmektedir.
 
-## 📌 Proje Özeti / Overview
+## Neyi farklı yapıyor
 
-**Istanbul GeoTwin**, İstanbul metropolünün en kritik arterlerinden biri olan **Mecidiyeköy · Şişli · Gayrettepe · Levent · Boğaziçi Köprü Yolu Koridoru** başta olmak üzere kentsel ulaşım ağını, mikroskobik trafik akışını ve makro düzeydeki talep matrislerini tarayıcı üzerinde gerçek zamanlı 3D olarak simüle eden, tamamen **%100 Açık Veri ve Açık Kaynak Kodlu** bir Dijital İkiz (Digital Twin) ve karar destek sistemidir.
+Projenin araştırma katkısı, **hız verisinden talep (O-D) matrisi çıkarma** problemine yaklaşımıdır. İBB'nin canlı akışı her yol kesimi için hız ve sıkışıklık sınıfı verir, araç sayısı vermez. Gerçek sayımlar azdır (ör. köprü geçişleri). Bu yapı, hız verisini olduğundan daha kesin göstermeden kullanmaya dayanır.
 
-Proje; klasik statik GIS haritacılığını aşarak; **Uber H3 Heksagonal TAZ (Trafik Analiz Bölgeleri)**, **Momepy & NetworkX kentsel morfoloji topolojisi**, **PySAL mekânsal otokorelasyonu**, **COPERT 5.9 Tier 3 emisyon hesaplamaları** ve **Zamana Bağlı A\* Kestirimci Rota & Maliyet Tahmini** algoritmalarını doğrudan 60 FPS WebGL grafik motoru ile birleştirir.
+| Fikir | Ne demek | Durum |
+|---|---|---|
+| **Hız = sansürlü gözlem** | Üçgen temel diyagramda serbest akış hızındaki bir yol 0 ile kapasite arasında herhangi bir akımı taşıyabilir. Bu yüzden hız sadece *üst sınır* verir. Ancak sıkışık daldaki hız bir akım verir, kuyruk da talebin bunu aştığını gösterir; bu durumda hız *alt sınır* olur. Hızlar sahte sayıma çevrilmez, tek taraflı kısıt olarak modele girer. | ✅ `tools/od/odme.py` |
+| **Veri payı** | Her O-D çifti için tahminin ne kadarının veriden, ne kadarının varsayımdan (prior) geldiği hesaplanır (Laplace yaklaşımı, standart hata). Veriyle belirlenemeyen talep açıkça işaretlenir. | ✅ |
+| **Dürüst doğrulama** | GEH, modelin uydurulduğu sayımlarda değil, **dışarıda bırakılan** sayımlarda ölçülür (çapraz doğrulama). Prior ağırlığı da bu skorla seçilir. | ✅ |
+| **Bilevel tahmin** | Rota seçimi talebe bağlıdır. UE ataması ile tahmin dönüşümlü çalışır, salınım ardışık ortalamalarla (MSA) sönümlenir. | ✅ |
+| **Çok kaynaklı çapalar** | Köprü geçiş sayıları (kesin), İstanbulkart saatlik binişleri (mod payı) ve İBB hızları (sansürlü) aynı tahmine girer. | Planlandı |
+| **Simülasyondan gerçeğe ters çözücü** | SUMO ile üretilen binlerce (O-D → hız) örneğiyle eğitilen bir sinir ağı, canlı hızdan O-D'yi anlık tahmin eder. Yukarıdaki tahminci bu ağın referansı ve denetçisi olur. | Araştırma |
+| **Gölge simülasyon** | Kaza veya kapanma anında SUMO durumu çatallanır ve birkaç müdahale politikası gerçek zamandan hızlı koşturulup karşılaştırılır. Kararı simülasyon verir, dil modeli yalnızca sonucu anlatır. | Planlandı |
+| **Matrakçı görünümü** | Koridorun Matrakçı Nasuh minyatür kartografyasından esinlenen alternatif çizimi (`src/matrakci`). | Prototip |
 
-```mermaid
-flowchart TD
-    subgraph DataSources["100% Açık Veri Kaynakları (Open Data)"]
-        OSM["OpenStreetMap (Overpass API)<br>Yol Ağı, Binalar, Raylar, Sinyaller"]
-        IBB["İBB Açık Veri Portalı & UYM<br>Anlık Hız, Yoğunluk İndeksi, Kaza Sensörleri"]
-        DEM["Copernicus & SRTM DEM<br>5m Yüksek Çözünürlüklü Zemin Kotları"]
-    end
+Gerçek O-D'si bilinen sentetik bir şehirde (`npm run test:od`) linklerin %30'u sayıldı, kalanlarda yalnızca hız kullanıldı. Tahminci, hiç sayılmayan linklerin ortalama akım hatasını prior'a göre **GEH 5.6'dan 2.2'ye** (rotalar biliniyorken) ve **3.8'e** (rotalar da tahmin edilirken) indiriyor. Rotaları prior'a sabitleyen kısa yol GEH 8.0 veriyor. Gerçek değerlerin %96'sı 2.5 standart hata içinde kalıyor. Tek tek O-D hücrelerindeki kazanç ise küçük ve bu açıkça raporlanıyor: 36 sayımla 90 O-D çifti tam belirlenemez.
 
-    subgraph Compiler["Çevrimdışı Derleyici (Offline Pipeline)"]
-        MeshEngine["Procedural Mesher (drape.js, roadprofile.mjs)<br>Asfalt Yol Giydirme, Şerit Çizgileri, Viyadükler"]
-        BldgGen["OSM 3D Procedural Extrusion<br>6,800+ Koridor Binası, Kat/Yükseklik"]
-        SpatialGraph["Momepy & NetworkX Dual Graph<br>Kavşak Kesişimleri, Dönüş Şeritleri, İBB Segment Füzyonu"]
-    end
+## Durum
 
-    subgraph CoreEngine["3D WebGL & AI Çekirdeği (Client Runtime)"]
-        Three["Three.js WebGL & Post-Processing<br>Gölge, Atmosfer, Işık Haritaları (lamplight)"]
-        Streamer["Dinamik Streaming & Worker Havuzu<br>172 Tile, Çoklu Web Worker Desteği"]
-        TrafficSim["Mikroskobik Trafik & Akıllı Sinyalizasyon<br>Araç Takip (IDM), İBB Anlık Hız Eşleme"]
-        VRP["VRP & Dinamik Acil Durum Tahliye<br>Filo Optimizasyonu, Olay Simülasyonu"]
-    end
-
-    subgraph Analytics["İleri Nicel Ulaşım Analitiği (Kepler.gl / Deck.gl Standartları)"]
-        H3TAZ["Uber H3 Heksagon Katmanı (Çözünürlük 8/9)<br>Hizmet Düzeyi (LOS), Emisyon, GEH İstatistiği"]
-        ODArcs["Dinamik Başlangıç-Varış (OD) Yayları<br>3D Bezier Parçacık Akış Matrisi"]
-        PredictiveRouter["A* & COPERT 5.9 Tahminleyici Yönlendirici<br>Tıklanan İki Nokta Arası Süre, Yakıt, CO2 & Dışsallık Maliyeti"]
-        CrisisSim["Kriz & Olay Simülatörü<br>Köprü Kapanması, Metrobüs Arızası, Doğal Afet Senaryoları"]
-    end
-
-    DataSources --> Compiler
-    Compiler --> CoreEngine
-    CoreEngine --> Analytics
-```
-
----
-
-## 🚀 Öne Çıkan Özellikler (Key Highlights)
-
-### 1. 🏙️ Mecidiyeköy–Levent–Köprü Yolu 3D Koridoru (Flagship Corridor)
-* **6.800+ 3D Prosedürel Bina:** OpenStreetMap bina ayak izleri, kat adedi (`building:levels`) ve kullanım türlerine (`office`, `commercial`, `apartments`) göre tam ölçekli 3D olarak ekstrüde edilmiştir. Zorlu Center, Cevahir AVM, Kanyon, Sapphire, Torun Center gibi simge yapılar yükseklik ve konumlarıyla yer alır.
-* **172 Tile Kesintisiz Streaming:** 3.000m × 3.000m koridor alanı, Web Worker havuzu (`Streamer`) ile sıfır gecikmeyle arka planda sahneye akar; kamera hareket ettiğinde patlama/silinme yapmaz.
-* **Mühendislik Standartlarında Viyadükler & Köprüler:** D-100 (E-5), Barbaros katılımı ve köprü yaklaşım viyadükleri, zemin açıklığı $\ge 2.5\text{m}$ olan net ayaklar, kutu kirişler ve parapetlerle gerçek kotlarında modellenmiştir.
-
-### 2. 🔷 Uber H3 Heksagonal TAZ & OD Akış Matrisi (Kepler.gl / Deck.gl Standartları)
-* **Uber H3 Grid Sistemi:** İstanbul Koridoru, uluslararası mekânsal analiz standardı olan H3 heksagonlarına (Çözünürlük 8/9) bölünmüştür.
-* **Tematik Kentsel Metrikler:**
-  * **Hizmet Düzeyi (LOS - Level of Service):** Serbest akıştan (Yeşil - LOS A) şok dalgalı tıkanıklığa (Siber Mor - LOS F) kadar dinamik renk haritası.
-  * **GEH İstatistiği:** Simüle edilen araç hacimleri ile gözlemlenen İBB sayımları arasındaki uyum doğruluk katsayısı ($GEH < 5.0$).
-  * **CO2 & Emisyon Hacmi:** Bölge başına saatlik sera gazı ve partikül madde yayılımı ($g/km$).
-  * **Toplumsal Dışsallık Maliyeti ($Z_{Total}$):** Zaman kaybı, hava kirliliği, kaza riski ve gürültünün toplam ekonomik karşılığı (TL/Saat).
-* **3D OD Flow Arcs (Parçacıklı Akış Yayları):** Tıklanan bir H3 hücresinden diğer tüm bölgelere yönelen insan ve araç hareketliliği kuadratik Bezier eğrileri ve akan parçacıklarla görselleştirilir.
-
-### 3. 🧠 Zamana Bağlı & Kestirimci Rota Yönlendirici (A* Predictive Router)
-* **Haritada Seçilen Herhangi İki Nokta Arası Rota:** Dashboard üzerindeki `[📍 Haritadan Güzergah Seç]` butonu ile haritada tıklanan herhangi bir A ve B noktası arasındaki en uygun rota hesaplanır.
-* **COPERT 5.9 Tier 3 Bilimsel Tüketim Modeli:**
-  $$FC = \frac{a + c \cdot v + e \cdot v^2}{1 + b \cdot v + d \cdot v^2}$$
-  $$E_{CO2} = FC \times 44/12 \times r_{C/H}$$
-* **Gelecek Zamanlı Trafik Tahmini:** Seçilen saat (00:00 - 23:00), gün tipi (Hafta İçi, Cuma Akşamı, Hafta Sonu) ve dış parametreler (Yağmur, Kar, Kaza, Ramazan/Tatil) hesaba katılarak rota süresi, gecikme ve toplam maliyet ($Z_{Total}$) kestirilir.
-
-### 4. 🚨 Dinamik Kriz & Afet Simülatörü (What-If Resilience Engine)
-* **Köprü Bağlantı Kazası:** Boğaziçi Köprüsü katılımında şerit kapanması simüle edildiğinde trafik D-100 ve Büyükdere aksına akar; tıkanıklık yayılımı anlık gözlemlenir.
-* **Metrobüs Arızası:** Mecidiyeköy–Zincirlikuyu metrobüs hattındaki kesintide toplu taşıma yolcularının alternatif hatlara ve taksilere yönelimi simüle edilir.
-* **Metro Kesintisi:** M2 Yenikapı–Hacıosman veya M11 Gayrettepe–İstanbul Havalimanı hatlarındaki arızalarda kentsel stres matrisi güncellenir.
-
----
-
-## 🔬 Bilimsel Metodoloji & Açık Kaynak Standartları
-
-Bu proje, dünyadaki en saygın kentsel ağ analiz kütüphaneleri ve metodolojileri ile %100 uyumludur:
-
-| Standart / Kütüphane | Kullanım Alanı ve Metodolojik Entegrasyon |
+| Katman | Durum |
 |---|---|
-| **[momepy](https://docs.momepy.org/)** | Primal/Dual hat grafiği, kavşak morfolojik yoğunluğu ve sokak ağı bağlantısallık analitiği. |
-| **[NetworkX](https://networkx.org/)** | Çok kriterli (zaman, maliyet, emisyon) A* en kısa yol ve rota dayanıklılık algoritmaları. |
-| **[PySAL / libpysal](https://pysal.org/libpysal/)** | Mekânsal ağırlık matrisleri ($W$), Queen/Rook komşulukları ve mekânsal otokorelasyon (Moran's I). |
-| **[TUM Road2CityGML3](https://tum-gis.github.io/road2citygml3/)** | Çok katmanlı yol alanları (Carriageway, Sidewalk, Traffic Island) ve 3D LOD2/LOD3 semantik yol mekânları. |
-| **[Uber H3](https://h3geo.org/)** | Ayrık küresel ızgara sistemi (DGGS) ile altıgen kentsel trafik analiz zonları (TAZ). |
-| **[EEA COPERT 5.9](https://www.emisia.com/utilities/copert/)** | Tier 3 mikro düzey yakıt tüketimi, CO2, NOx ve PM2.5 emisyon hesaplama formülleri. |
+| 3D şehir (yollar, binalar, arazi, atmosfer) | Çalışıyor. Bina yükseklikleri OSM'den, etiket yoksa varsayılan kat sayısından geliyor |
+| İBB canlı hız akışı | Çalışıyor (yalnızca `npm run dev` proxy'siyle) |
+| İBB hız arşivi | ✅ 5 dakikada bir Parquet (`npm run archive:ibb`) |
+| Ters O-D tahmini | ✅ Python, test edildi. Henüz gerçek koridor ağına bağlanmadı |
+| Tarayıcıdaki trafik | Görsel: araçlar kameranın çevresinde, rotalar rastgele. Analiz için kullanılmamalı |
+| Panellerdeki H3 / tahmin / maliyet değerleri | **Gösterim amaçlı**, elle girilmiş sabitler. Veriden hesaplanmıyor |
+| SUMO simülasyonu, kalibrasyon, öneri motoru | Planlandı |
 
----
+## Yol haritası
 
-## 🛠️ Kurulum & Yerel Çalıştırma (Quickstart)
+1. **Kapsam ve arşiv:** Koridor sınırı ✅, canlı hız arşivi ✅
+2. **Ağ:** OSM + İBB ağından SUMO ağı. Zincirlikuyu örgülenmesi, Mecidiyeköy viyadüğü, metrobüs ayrık şeridi elle düzeltilir
+3. **Talep:** Prior O-D, tahmin, hold-out GEH raporu
+4. **Sınıflandırma:** HCM LOS, tekrarlayan ve tekrarlamayan tıkanıklık, darboğaz aktivasyonu
+5. **3D:** Tarayıcı SUMO yörüngelerini oynatır, köprü gerçek ölçüleriyle modellenir
+6. **Öneriler:** Sürücüye kalkış saati, mod ve köprü seçimi; uzmana darboğaz sıralaması ve senaryo karşılaştırması
 
-### Gereksinimler
-* [Node.js](https://nodejs.org/) (v18 veya üzeri önerilir)
-* [npm](https://www.npmjs.com/) (v9 veya üzeri)
-* Modern WebGL2 destekli bir internet tarayıcısı (Chrome, Edge, Firefox, Safari)
+## Çalıştırma
 
-### Adım Adım Kurulum
+Gereksinimler: Node.js 20+, Python 3.10+ ve [uv](https://docs.astral.sh/uv/).
 
 ```bash
-# 1. Depoyu klonlayın
-git clone https://github.com/<kullanici-adiniz>/procedural-istanbul.git
-cd procedural-istanbul
-
-# 2. Bağımlılıkları yükleyin
 npm install
-
-# 3. Gerekli doku kütüphanesini indirin (CC0 Poly Haven - 14 MB, tek seferlik)
-node tools/assets/fetch_textures.mjs
-
-# 4. Geliştirme sunucusunu başlatın
-npm run dev
+node tools/assets/fetch_textures.mjs        # CC0 dokular, bir kez
+npm run fetch -- --area=koridor             # OSM ve DEM
+npm run compile -- --area=koridor           # 3D karolar (public/tiles/koridor)
+npm run dev                                 # http://localhost:5280/?area=koridor
 ```
 
-Uygulama varsayılan olarak **`http://localhost:5280/?area=koridor`** adresinde açılacaktır.
-
-### Testleri Çalıştırma
-Ağ geometrisi, zemin kotu hizalamaları, rota algoritmaları ve matematiksel motorların doğruluğunu test etmek için:
+Genişletilmiş koridor eskisinin yaklaşık altı katı büyüklükte. Derleme 4 GB'tan fazla bellek isteyebilir.
 
 ```bash
-npm test
-```
-*Tüm 4 birim test paketi (Tileformat, Road Markings, Predictive Routing & Urban Morphology) yeşil geçer.*
-
----
-
-## ⚙️ Veri Derleme Hattı (Data Pipeline)
-
-Yeni bir alan eklemek veya mevcut koridoru güncellemek için derleyici komutları:
-
-```bash
-# Koridor ham verilerini derleyip 3D tile binary'lerini üretme
-npm run compile -- --area=koridor
-
-# 10km İBB trafik ızgarasını hazırlama ve derleme (İsteğe bağlı)
-npm run prepare:ibb-grid
-npm run compile:ibb-grid
+npm run archive:ibb                         # İBB canlı hızlarını data/archive/ibb altına arşivler
+npm test                                    # 3D veri hattı testleri
+npm run test:od                             # ters O-D testleri
 ```
 
-### Derlenmiş Çıktı Yapısı (`public/tiles/koridor/`)
+Arşivin yapısı ve sorgu örnekleri için bkz. [tools/archive/README.md](tools/archive/README.md).
 
-| Dosya | İçerik ve Açıklama |
-|---|---|
-| `manifest.json` | Merkez koordinatları, sınır kutusu (bounding box), 172 tile listesi, yükseklik modeli bilgisi |
-| `t_<x>_<z>.bin` | 256m tile binary dosyası: 3D bina geometrileri, asfalt yüzeyler, şerit boyaları, ağaçlar, sokak lambaları |
-| `terrain.bin` | Float32 formatında 5 metre aralıklı yüksek hassasiyetli sayısal yükseklik modeli (DEM) |
-| `roads.json` | Kotlu yol grafiği (zemin, köprü, tünel, viyadük), sinyalle optimize edilmiş kavşaklar ve İBB hız eşlemeleri |
+## Yapı
 
----
+```text
+src/world, src/shared   3D motor ve tarayıcı arayüzü
+src/matrakci            Matrakçı görünümü
+tools/pipeline          OSM / İBB / DEM → 3D karolar
+tools/archive           İBB canlı veri arşivi (Python)
+tools/od                Ters O-D tahmini ve UE ataması (Python)
+```
 
-## 🎮 Kontroller & Arayüz Rehberi
+`GEO_TWIN_MIMARISI.md` ve `METODOLOJI_VE_MIMARI.md` hedef mimariyi anlatır. Anlattıkları her şey henüz uygulanmış değildir.
 
-* **Kamera Hareketi:** Sol tık + Sürükle (Pan / Kaydırma), Sağ tık + Sürükle (Açı / Orbit), Fare Tekerleği (Zoom / Yakınlaşma).
-* **Klavye:** `W`, `A`, `S`, `D` veya Yön Tuşları (Kamerayı zemin üzerinde uçurma, `Shift` ile hızlı uçuş), `N` (Gündüz / Gece geçişi).
-* **Bina İnceleme:** Herhangi bir 3D binaya tıklayarak yükseklik, kat adedi, taban kotu ve fonksiyonel kullanım bilgilerini HUD üzerinde görüntüleme.
-* **Modern Analitik Paneli (Sağ Üst / Sol Menü):**
-  * **🔷 H3 Heksagon TAZ Katmanı:** Uber H3 ızgarasını açar/kapatır; metrikleri değiştirir (Hizmet Düzeyi, GEH, Emisyon, Maliyet).
-  * **📍 Rota Çizici (A* Predictive Routing):** Haritada tıklanan iki nokta arasındaki anlık ve gelecekteki rotayı, seyahat süresini ve COPERT 5.9 maliyetini hesaplar.
-  * **📈 OD Akış Yayları:** Seçilen bölgenin diğer bölgelerle olan seyahat arzusunu ve akış yoğunluğunu 3D partiküllerle gösterir.
-  * **🚨 Kriz Simülatörü:** Köprü kazası, metrobüs arızası ve şerit kapanması senaryolarını canlı simüle eder.
+## Lisans ve kaynaklar
 
----
+Kod MIT lisanslıdır (© 2026 Yong Su ve katkıcılar). Kullanılan veri ve varlıklar:
 
-## 📄 Lisans & Telif Hakları (License & Attribution)
-
-* **Kaynak Kod:** [MIT Lisansı](LICENSE) kapsamında açık kaynaklıdır.
-* **Yol & Bina Verileri:** © [OpenStreetMap](https://www.openstreetmap.org/) Katılımcıları (ODbL).
-* **Trafik & Ulaşım Sensör Verileri:** © [İstanbul Büyükşehir Belediyesi (İBB) Açık Veri Portalı](https://data.ibb.gov.tr/) & İBB UYM.
-* **Dokular & Varlıklar:** [Poly Haven](https://polyhaven.com/) (CC0), [ez-tree](https://github.com/dgreenheck/ez-tree) (MIT), [takram three-geospatial](https://github.com/takram-design-engineering/three-geospatial) (MIT).
-
----
-
-*Geliştirici Notu: Bu çalışma; modern kentsel analitik, açık kaynaklı coğrafi bilgi sistemleri (GIS) ve yeni nesil 3D WebGL teknolojilerinin kesişiminde İstanbul için üretilmiş öncü bir ulaşım dijital ikizi referans uygulamasıdır.*
+- Yol ve bina verisi: © OpenStreetMap katkıcıları (ODbL)
+- Trafik verisi: © İBB Açık Veri ve UYM
+- Varlıklar: Poly Haven (CC0), ez-tree ve takram three-geospatial (MIT)
