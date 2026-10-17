@@ -17,6 +17,8 @@ public/textures/
 public/ortho/
 # İBB live traffic archive (npm run archive:ibb): grows ~20 MB a day
 data/archive/
+# SUMO networks and scenarios (tools/sumo): re-create with the build scripts
+data/sumo/
 
 # local settings and secrets
 .env

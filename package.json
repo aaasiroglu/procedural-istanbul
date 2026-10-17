@@ -16,7 +16,10 @@
     "deploy": "node tools/deploy.mjs",
     "test": "node tools/tests/tileformat.test.mjs && node tools/tests/road-markings.test.mjs && node tools/tests/predictive-routing.test.mjs",
     "archive:ibb": "uv run tools/archive/ibb_speeds.py",
-    "test:od": "uv run python tools/od/test_odme.py"
+    "test:od": "uv run python tools/od/test_odme.py",
+    "sumo:net": "uv run --group sumo python tools/sumo/build_net.py",
+    "sumo:map-ibb": "uv run --group sumo python tools/sumo/map_ibb.py",
+    "sumo:smoke": "uv run --group sumo python tools/sumo/smoke_test.py"
   },
   "license": "MIT",
   "dependencies": {

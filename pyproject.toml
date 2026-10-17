@@ -9,5 +9,15 @@ dependencies = [
   "pyarrow>=15",
 ]
 
+[dependency-groups]
+# SUMO network build and simulation (tools/sumo); uv run --group sumo ...
+sumo = [
+  "eclipse-sumo==1.27.1",
+  "sumolib==1.27.1",
+  "sumo-data==1.27.1",
+  "rtree>=1.2",       # spatial index sumolib uses for edge lookups
+  "pyproj>=3.6",      # lon/lat <-> network coordinates
+]
+
 [tool.uv]
 package = false
