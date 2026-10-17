@@ -95,7 +95,7 @@ export class NaturalIncidentEngine {
   async queryGemini(text, overrideCoords) {
     const prompt = `Kullanıcı bildirimi: "${text}".
 Koordinat biliniyorsa: ${overrideCoords ? JSON.stringify(overrideCoords) : 'Bilinmiyor, metinden çıkar'}.
-İstanbul Mecidiyeköy - Şişli - Gayrettepe - Levent - Zincirlikuyu - 15 Temmuz Şehitler Köprüsü koridoru sınırlarında (Lon: 28.98..29.03, Lat: 41.05..41.09) bir akıllı şehir olayı olarak analiz et ve SADECE aşağıdaki JSON şemasına uygun yanıt ver:
+İstanbul Maslak - Levent - Mecidiyeköy - Çağlayan - Beşiktaş - 15 Temmuz Şehitler Köprüsü koridoru sınırlarında (Lon: 28.975..29.048, Lat: 41.038..41.118) bir akıllı şehir olayı olarak analiz et ve SADECE aşağıdaki JSON şemasına uygun yanıt ver:
 {
   "locationName": "string",
   "incidentType": "fire" | "accident" | "flood" | "breakdown" | "roadwork" | "hazard",

@@ -39,9 +39,11 @@ export const AREAS = {
     radius: 1,
   },
   koridor: {
-    name: 'Mecidiyeköy · Şişli · Gayrettepe · Levent · Köprü Yolu',
+    name: 'Maslak · Levent · Mecidiyeköy · Çağlayan · Beşiktaş · 15 Temmuz Köprüsü',
     origin: [29.0080, 41.0680], // Zincirlikuyu / Gayrettepe intersection hub
-    bbox: { south: 41.056, north: 41.082, west: 28.992, east: 29.028 },
+    // Study area, about 5.9 x 8.9 km: Beşiktaş (S), Maslak / İTÜ (N), Çağlayan / Kağıthane (W) and the bridge with
+    // its Asian approach to Beylerbeyi (E). Six times the old corridor: compile may need more than 4 GB of heap.
+    bbox: { south: 41.038, north: 41.118, west: 28.975, east: 29.048 },
     view: '0,0,600,210,32',
   },
 };
