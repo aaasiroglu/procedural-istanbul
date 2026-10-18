@@ -44,7 +44,10 @@ export function readPlaces(file, project) {
     const kind = t.shop ? 'shop' : t.amenity && PALETTE[t.amenity] ? t.amenity : t.tourism === 'hotel' ? 'hotel' : t.office ? 'office'
       : t.amenity && /restaurant|food|cafe|bar|pub|izakaya|cinema|theatre|clinic|hospital|school|library|post_office|studio/.test(t.amenity) ? 'shop' : null;
     const [x, z] = project(lon, lat);
-    const level = Number.parseInt(t.level, 10);
+    // the tenant's floor: level, else addr:floor or level:ref ("Zemin"/"Z" is the ground floor, "2;3" the
+    // first of several; a basement shop still signs at street level)
+    const raw = String(t.level ?? t['addr:floor'] ?? t['level:ref'] ?? '').trim();
+    const level = /^(z|zemin|g|ground|e)$/i.test(raw) ? 0 : Number.parseInt(raw.split(/[;,]/)[0], 10);
     if (kind) out.push({ name: t.name, x, z, kind, level: Number.isFinite(level) ? level : null, building: false, brand: t.brand ?? '', cuisine: t.cuisine ?? '' });
     else if (t.building && e.type !== 'node') out.push({ name: t.name, x, z, kind: 'office', level: null, building: true });
   }
@@ -166,8 +169,10 @@ export function placeSigns(places, buildings, facesStreet) {
       continue;
     }
 
-    // which floor: OSM's level, else the ground floor
-    const floor = p.level != null ? Math.max(0, Math.min(floors - 1, p.level)) : 0;
+    // which floor: OSM's level where mapped; otherwise shops and the like are at street level and offices
+    // somewhere above it, as in an Istanbul block (a stable pick per office)
+    const floor = p.level != null ? Math.max(0, Math.min(floors - 1, p.level))
+      : p.kind === 'office' && floors >= 3 ? 1 + Math.floor(h01 * (floors - 2)) : 0;
     const text = p.name.length > 16 ? p.name.slice(0, 15) + '…' : p.name;
     const width = Math.min(6.5, Math.max(1.9, 0.9 + ems(text) * 0.52)), h = floor === 0 ? 0.82 : 0.7;
     const yFascia = b.base + floor * floorH + (floor === 0 ? Math.min(3.05, floorH - 0.45) : floorH - 0.5);
