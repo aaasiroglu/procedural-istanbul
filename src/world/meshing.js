@@ -187,7 +187,7 @@ export function roadMesh(areas, grid, surface, walls = [], drape = createDraper(
 // PLATEAU usage code -> facade category.
 function category(usage, height, seed) {
   if (usage === 411 || usage === 415) return CAT.HOUSE;
-  if (usage === 412) return height > 60 ? CAT.GLASS : seed < 0.3 ? CAT.MIXED : CAT.APARTMENT; // (a third with shops below)
+  if (usage === 412) return height > 60 ? CAT.GLASS : CAT.APARTMENT; // (shops below only where OSM has them: usage 413)
   if (usage === 413 || usage === 414) return CAT.MIXED;
   if (usage >= 401 && usage <= 404) return height > 45 || (height > 24 && seed < 0.25) ? CAT.GLASS : CAT.COMMERCIAL;
   if (usage >= 421 && usage <= 454) return CAT.PUBLIC;

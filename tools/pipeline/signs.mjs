@@ -178,6 +178,9 @@ export function placeSigns(places, buildings, facesStreet) {
     const yFascia = b.base + floor * floorH + (floor === 0 ? Math.min(3.05, floorH - 0.45) : floorH - 0.5);
     const wantBlade = floors >= 3 && h01 < (p.kind === 'shop' || p.kind === 'office' ? 0.18 : 0.42);
     const c = wantBlade ? null : claim(w, floor, t, width);
+    // a residential block with a shop, café or pharmacy on its ground floor is mixed use: it gets a shopfront
+    // (src/world/meshing.js draws one for usage 413), so the sign hangs over glass, not over a flat's window
+    if (floor === 0 && p.kind !== 'office' && b.src && [411, 412, 415].includes(b.src.usage)) b.src.usage = b.usage = 413;
     if (c != null && yFascia + h / 2 < b.base + b.height) {
       const [x, z] = at(c, 0.12);
       signs.push({ style: SIGN.FASCIA, color, x, z, y: yFascia, nx: w.nx, nz: w.nz, w: width, h, text });

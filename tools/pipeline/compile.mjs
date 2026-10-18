@@ -663,7 +663,8 @@ log(`lattice towers (OSM): ${lattice}`);
 
 // ---------------------------------------------------------------- signboards
 const places = readPlaces(path.join(area.rawDir, 'osm_poi.json'), proj.project);
-const signBuildings = [...tiles.values()].flatMap((t) => t.buildings.map((b) => ({ ring: b.polygons[0][0], base: b.base, height: b.height, usage: b.usage, storeys: b.storeys < 255 ? b.storeys : 0 })));
+// (src: the tile's own building, so a block found to have shops on its ground floor can be given a shopfront)
+const signBuildings = [...tiles.values()].flatMap((t) => t.buildings.map((b) => ({ ring: b.polygons[0][0], base: b.base, height: b.height, usage: b.usage, storeys: b.storeys < 255 ? b.storeys : 0, src: b })));
 const signs = placeSigns(places, signBuildings, (x, z) => idx.road.has(x, z));
 // Billboards, screens and banners are invented, not mapped data: --no-ads leaves them out.
 const ads = process.argv.includes('--no-ads') ? [] : placeAds(signBuildings); // (the origin is the Scramble Crossing)

@@ -262,13 +262,12 @@ const FACADE_MAIN = /* glsl */ `
     // the lintel shades the top of the opening
     diffuseColor.rgb *= 1.0 - 0.35 * inWin * (1.0 - smoothstep(0.0, 0.18, wmax.y - pm.y)) * (1.0 - far);
 
-    // sign band over shopfronts
+    // a plain fascia over the shopfronts: the colour and the name come from the real signs (OSM's shops,
+    // tools/pipeline/signs.mjs), so a band without a shop behind it stays a dark cornice, not a blank board
     if (shop) {
-      float sign = box(fy, 0.84, 0.985, wy) * box(fx, 0.03, 0.97, wx) * valid * step(0.25, hash12(room + 57.0));
-      vec3 sc = mix(hue(hash12(room + 71.0)), vec3(0.95), 0.35 * step(0.6, hash12(room + 83.0)));
-      diffuseColor.rgb = mix(diffuseColor.rgb, sc * 0.75, sign);
-      gEmissive += sign * sc * uNight * 1.6;
-      gRough = mix(gRough, 0.4, sign);
+      float band = box(fy, 0.84, 0.985, wy) * box(fx, 0.03, 0.97, wx) * valid;
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.16, 0.16, 0.17), band);
+      gRough = mix(gRough, 0.55, band);
     }
   }
 }
