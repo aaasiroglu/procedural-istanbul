@@ -67,8 +67,10 @@ ASSUMPTIONS = {
     "gateway_outbound_use_of_capacity": 0.35,
     "gravity_beta_per_min": 0.08,
     "prior_cv": 1.0,                            # prior uncertainty of every OD pair: +-100 % of its value
+    "zone_factor_sd": 1.0,                      # each zone's production / attraction factor: log-normal, sd 1 (x2.7)
     "observed_road_types_excluded": ["residential", "living_street", "unclassified"],
 }
+UNINTERRUPTED = {"motorway", "trunk", "motorway_link", "trunk_link"}  # roads the fundamental diagram describes
 MAJOR = {"motorway", "trunk", "primary", "secondary", "motorway_link", "trunk_link", "primary_link", "secondary_link"}
 LOCAL = {"residential", "living_street", "unclassified", "tertiary", "tertiary_link"}
 RESIDENTIAL = {"apartments", "residential", "house", "detached", "terrace", "dormitory", "semidetached_house"}
@@ -335,6 +337,13 @@ def observations(net, rows, mapping_csv: Path, edge_link, links, counts_csv: str
         fd = TriangularFD(vf=vf, capacity=cap_lane, kj=a["jam_density_veh_km_lane"], lanes=lanes)
         if int(r["C"]) <= 2:
             obs = Observation(link, fd.capacity * lanes, fd.rel_sd * fd.capacity * lanes, "upper", f"İBB {s} C{r['C']}")
+        elif links[link]["kind"] not in UNINTERRUPTED:
+            # The fundamental diagram describes uninterrupted flow. On a signalised street a low speed is as much
+            # the red phase as a queue, so it says nothing sure about demand: no bound (validated against İBB's
+            # counts: these bounds inflated demand by a third and broke the fit, tools/od/README.md).
+            stats["lower_skipped_interrupted_flow"] += 1
+            role[s] = "congested_street_unused"
+            continue
         else:
             obs = fd.observe(link, float(r["V"]), free_ratio=10)  # (C >= 3: İBB says queueing, take the congested branch)
             obs.source = f"İBB {s} C{r['C']} {r['V']} km/h"
@@ -452,11 +461,20 @@ def main() -> None:
 
     lam = prior_weights(x0, ASSUMPTIONS["prior_cv"])
     from assignment import assign
-    flow0, _, _ = assign(network, x0, max_iter=40, gap=1e-3)
+    flow0, P0, _ = assign(network, x0, max_iter=40, gap=1e-3)
+    # a count on links no route of the model can use (a road outside its zones' reach) cannot be explained by any
+    # matrix: set aside and reported, rather than left to pull on the rest
+    unusable = [o for o in obs if o.kind == "count" and all(P0[l].nnz == 0 for l in links_of(o))]
+    obs = [o for o in obs if o not in unusable]
+    for o in unusable:
+        print(f"  count without any route through it, set aside: {o.source}")
+    obs_stats["count"] = obs_stats.get("count", 0) - len(unusable)
+    obs_stats["count_set_aside_no_route"] = len(unusable)
     viol_prior = sum(1 for o in obs if (o.kind == "lower" and o.value - observed(o, flow0) > 2 * o.sd) or (o.kind == "upper" and observed(o, flow0) - o.value > 2 * o.sd))
 
     print("bilevel estimate …")
-    est = estimate_bilevel(network, x0, obs, lam, iters=args.rounds, assign_iter=40, assign_gap=1e-3,
+    factors = {"zones": len(zones), "factor_sd": ASSUMPTIONS["zone_factor_sd"]}
+    est = estimate_bilevel(network, x0, obs, lam, iters=args.rounds, assign_iter=40, assign_gap=1e-3, **factors,
                            log=lambda h: print(f"  round {h['iteration']}: OD change {h['od_change']:.4f}, gap {h['assignment_gap']:.1e}, bound violations {h['bound_violations']}"))
 
     Z = len(zones)
@@ -473,7 +491,7 @@ def main() -> None:
         for i, o in enumerate(counts):
             from odme import estimate as fit_once
             rest = [q for q in obs if q is not o]
-            held[i] = observed(o, fit_once(P, x0, rest, lam, uncertainty=False).flows)
+            held[i] = observed(o, fit_once(P, x0, rest, lam, uncertainty=False, **factors).flows)
             print(f"  held out {i + 1}/{len(counts)}: {o.source[:48]} count {o.value:.0f}, predicted {held[i]:.0f}")
         prior_m = [observed(o, flow0) for o in counts]
         fit_m = [observed(o, est.flows) for o in counts]

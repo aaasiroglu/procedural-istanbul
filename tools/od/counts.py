@@ -37,6 +37,19 @@ COUNTING = {"motorway", "trunk", "primary", "secondary", "tertiary", "motorway_l
 SNAP = 45.0          # metres: how far from the point the counted road may be
 HALF_SCREEN = 40.0   # metres each side of the point the screenline reaches across the road
 BASE32 = "0123456789bcdefghjkmnpqrstuvwxyz"
+EXPRESSWAY = {"motorway", "trunk"}
+EXPRESS_REACH = 60.0  # metres: how far an expressway sensor may stand from the carriageway it counts
+# Sensors that count on an expressway: by name (D100 / 15 Temmuz = O-1, TEM / FSM = O-2), or by a volume no
+# street carries. Several stand beside a street that is nearer than the expressway they count.
+EXPRESS_NAMES = ("D100", "TEM ", "FSM ", "15 Temmuz")
+EXPRESS_VOLUME = 80_000  # vehicles a day
+# Sensors whose coverage the screenline rule gets wrong, from the audit of 18 October 2026 (see tools/od/README.md):
+#   skip: what it counts cannot be told from the network; direction: it counts one carriageway only (heading,
+#   degrees from east, counter-clockwise, in network coordinates)
+OVERRIDES = {
+    "443": {"skip": "FSM toll plaza: counts the toll lanes only (81 000 a day where the bridge entrance beside it counts 224 000)"},
+    "417": {"direction": 0, "why": "before the FSM toll plaza: the Asia-bound carriageway only (98 000 a day, half the two-way entrance count)"},
+}
 
 
 def geohash(lat: float, lon: float, precision: int = 6) -> str:
@@ -57,13 +70,26 @@ def kind(e) -> str:
     return (e.getType() or "").replace("highway.", "")
 
 
-def screenline(net, x, y, half=HALF_SCREEN):
+def screenline(net, x, y, half=HALF_SCREEN, express=False, label=""):
     """The car edges a sensor at (x, y) counts (both directions of its road), and the nearest road."""
-    near = [(e, d) for e, d in net.getNeighboringEdges(x, y, SNAP) if e.allows("passenger") and kind(e) in COUNTING]
+    if express:
+        near = [(e, d) for e, d in net.getNeighboringEdges(x, y, EXPRESS_REACH) if e.allows("passenger") and kind(e) in EXPRESSWAY]
+    else:
+        near = []
+    near = near or [(e, d) for e, d in net.getNeighboringEdges(x, y, SNAP) if e.allows("passenger") and kind(e) in COUNTING]
     if not near:
         return None, None
-    # the road itself rather than a ramp beside it: a link wins only when clearly nearer
-    road, _ = min(near, key=lambda ed: ed[1] + (20 if kind(ed[0]).endswith("_link") else 0))
+    # the road the sensor is named after, if its name says (Büyükdere, Barbaros …); else the road itself rather
+    # than a ramp beside it: a link wins only when clearly nearer
+    # (only when the sensor names a street: "… Büyükdere Cd.", or a name that starts with the street's; a district
+    # or junction named like a street, "Levent 1", is not one, and ramps never are)
+    def names_street(e):
+        word = ((e.getName() or "").split() or [""])[0]
+        return not kind(e).endswith("_link") and len(word) > 3 and (
+            (label.startswith(word) and kind(e) in {"motorway", "trunk", "primary"})
+            or (word in label and any(t in label for t in (" Cd", "Cad", "Bulvar", "Blv"))))
+    named = [ed for ed in near if names_street(ed[0])]
+    road, _ = min(named or near, key=lambda ed: ed[1] + (20 if kind(ed[0]).endswith("_link") else 0))
     # its heading where the point projects onto it
     shape = road.getShape()
     best = min(zip(shape, shape[1:]), key=lambda ab: point_segment(x, y, *ab[0], *ab[1]))
@@ -89,11 +115,28 @@ def screenline(net, x, y, half=HALF_SCREEN):
                     counted.append((e, cos > 0))
                 break
     # a divided road whose other carriageway lies further off: look wider before settling for one direction
-    if counted and len({way for _, way in counted}) == 1 and half < 3 * HALF_SCREEN and not all(e.getFromNode() in (o.getToNode() for o, _ in counted) for e, _ in counted):
-        wider, _ = screenline(net, x, y, half * 1.8)
+    if counted and len({way for _, way in counted}) == 1 and half < 3 * HALF_SCREEN:
+        wider, _ = screenline(net, x, y, half * 1.8, express, label)
         if wider and len(wider) > len(counted):
             return wider, road
+    # a direction the line missed (it fell between two edges at a junction, or the other carriageway lies
+    # beyond it): the nearest edge of the same road running that way
+    same = [(e, d) for e, d in net.getNeighboringEdges(x, y, 2 * half) if e.allows("passenger") and not e.getFunction()
+            and (kind(e) == kind(road) or (name and e.getName() == name))]
+    for sign in (1, -1):
+        if any(way == (sign > 0) for _, way in counted):
+            continue
+        way = [(e, d) for e, d in same if sign * heading_cos(e, tx, ty) > 0.8]
+        if way:
+            counted.append((min(way, key=lambda ed: ed[1])[0], sign > 0))
     return [e for e, _ in counted], road
+
+
+def heading_cos(e, tx, ty):
+    s = e.getShape()
+    dx, dy = s[-1][0] - s[0][0], s[-1][1] - s[0][1]
+    l = math.hypot(dx, dy) or 1
+    return dx / l * tx + dy / l * ty
 
 
 def point_segment(px, py, ax, ay, bx, by):
@@ -156,11 +199,17 @@ def main() -> None:
                 continue
             hourly.append(total * hours[args.hour] / sum(hours.values()))
         x, y = net.convertLonLat2XY(s["lon"], s["lat"])
-        edges, road = screenline(net, x, y)
-        entry = {"sensor": no, "name": s["name"], "lon": s["lon"], "lat": s["lat"], "days": len(hourly),
-                 "road": road.getName() if road else None, "edges": [e.getID() for e in edges or []]}
+        override = OVERRIDES.get(no, {})
+        express = s["name"].startswith(EXPRESS_NAMES) or "15 Temmuz" in s["name"] or statistics.median(daily[no].values()) > EXPRESS_VOLUME
+        edges, road = (None, None) if "skip" in override else screenline(net, x, y, express=express, label=s["name"])
+        if edges and "direction" in override:
+            a = math.radians(override["direction"])
+            edges = [e for e in edges if heading_cos(e, math.cos(a), math.sin(a)) > 0.7]
+        entry = {"sensor": no, "name": s["name"], "lon": s["lon"], "lat": s["lat"], "days": len(hourly), "expressway": express,
+                 "road": road.getName() if road else None, "road_type": kind(road) if road else None,
+                 "edges": [e.getID() for e in edges or []], **({"override": override} if override else {})}
         if len(hourly) < 2 or not edges:
-            entry["skipped"] = "fewer than 2 days with counts and density" if len(hourly) < 2 else "no counting road within reach"
+            entry["skipped"] = override.get("skip") or ("fewer than 2 days with counts and density" if len(hourly) < 2 else "no counting road within reach")
             report.append(entry)
             continue
         value = statistics.median(hourly)
@@ -180,7 +229,7 @@ def main() -> None:
     (out / f"{stem}.json").write_text(json.dumps(report, ensure_ascii=False, indent=2))
     print(f"{len(rows)} of {len(sensors)} sensors -> {out / (stem + '.csv')}")
     for e in report:
-        print(f"  {e['sensor']:>4} {e['name'][:42]:42} " + (f"{e['value']:>6} ±{e['sd']:<5} veh/h  {len(e['edges'])} edges  ({e['days']} days, {e['share_of_day']:.1%} of the day)" if "value" in e else f"skipped: {e['skipped']}"))
+        print(f"  {e['sensor']:>4} {e['name'][:40]:40} " + (f"{e['value']:>6} ±{e['sd']:<5} veh/h  {len(e['edges'])} edges on {e['road']} ({e['road_type']}), {e['days']} days" if "value" in e else f"skipped: {e['skipped'][:70]}"))
 
 
 if __name__ == "__main__":

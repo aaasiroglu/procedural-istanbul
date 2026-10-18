@@ -109,6 +109,17 @@ rel_fit = estimate(P_true, x0, obs, lam=prior_weights(x0, 1.0))
 ok("relative prior also recovers uncounted flows", geh(rel_fit.flows[uncounted], flow_true[uncounted]).mean() < 0.6 * g_prior,
    f"mean GEH {g_prior:.2f} -> {geh(rel_fit.flows[uncounted], flow_true[uncounted]).mean():.2f} (cv 1.0)")
 
+# ---------------------------------------------------------------- correlated prior errors: zone factors
+# A prior wrong by zone (each origin's trips off by its own factor) is what a land-use model gets wrong; the
+# zone factors should let the counts fix that, where independent per-pair errors cannot.
+zone_bias = np.repeat(rng.lognormal(0, 0.5, Z), Z)
+x0z = x_true * zone_bias; x0z[np.arange(Z) * (Z + 1)] = 0
+plain = estimate(P_true, x0z, obs, lam=prior_weights(x0z, 0.5))
+factored = estimate(P_true, x0z, obs, lam=prior_weights(x0z, 0.5), zones=Z)
+g_plain, g_fact = geh(plain.flows[uncounted], flow_true[uncounted]).mean(), geh(factored.flows[uncounted], flow_true[uncounted]).mean()
+ok("zone factors recover a prior wrong by zone", g_fact < 0.8 * g_plain, f"uncounted mean GEH {g_plain:.2f} -> {g_fact:.2f}")
+ok("zone factors fit the counts", factored.fit["under5_pct"] >= plain.fit["under5_pct"], f"{plain.fit['under5_pct']:.0f} % -> {factored.fit['under5_pct']:.0f} %")
+
 # ---------------------------------------------------------------- a count across both directions of a road
 pair = [e for e in range(net.n_links) if (net.head[e], net.tail[e]) in zip(net.tail, net.head)][:2]
 e1 = pair[0]; e2 = [e for e in range(net.n_links) if net.tail[e] == net.head[e1] and net.head[e] == net.tail[e1]][0]

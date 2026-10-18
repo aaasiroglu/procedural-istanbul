@@ -142,9 +142,17 @@ def prior_weights(x0, cv: float) -> np.ndarray:
     return np.where(x0 > 0, 2 / (cv ** 2 * np.where(x0 > 0, x0, 1)), 0.0)
 
 
-def estimate(P, x0, obs: list[Observation], lam=1.0, uncertainty: bool = True, max_active: int = 4000) -> Estimate:
+def estimate(P, x0, obs: list[Observation], lam=1.0, uncertainty: bool = True, max_active: int = 4000,
+             zones: int | None = None, factor_sd: float = 1.0) -> Estimate:
     """MAP OD estimate for a fixed assignment matrix P (links x OD pairs). x0 > 0 where trips are possible;
-    pairs with x0 == 0 (e.g. the diagonal) stay at 0. lam: one prior weight, or one per OD pair (prior_weights)."""
+    pairs with x0 == 0 (e.g. the diagonal) stay at 0. lam: one prior weight, or one per OD pair (prior_weights).
+
+    zones: the number of zones Z (pairs ordered origin-major, w = i Z + j) to give the prior correlated errors:
+    x_ij = x0_ij exp(a_i + b_j + u_ij), a production factor per origin and an attraction factor per destination,
+    each with a normal prior of sd factor_sd (log scale), beside the pair's own deviation u_ij. A prior with
+    independent errors per pair is near certain about any sum of many pairs, a link's flow for one, since their
+    errors average out; but a prior's errors are not independent (a zone's trip rate wrong is wrong for all its
+    pairs), and the factors let the data correct a zone's whole traffic at the cost of one number."""
     P = csr_matrix(P)
     x0 = np.asarray(x0, float)
     free = x0 > 0
@@ -169,19 +177,41 @@ def estimate(P, x0, obs: list[Observation], lam=1.0, uncertainty: bool = True, m
     # Solved for u = log(z / x0): positivity comes free and the problem stays well conditioned when prior values
     # span orders of magnitude (with relative prior weights the KL term becomes (2/cv^2)(e^u u - e^u + 1), the same
     # for every pair, where in z its curvature lam / z would range over twelve orders of magnitude).
-    def objective(u):
-        z = p0 * np.exp(u)
-        f = np.sum(lam * (z * u - z + p0))
-        g = lam * u
+    n = len(p0)
+    if zones:
+        idx = np.flatnonzero(free)
+        ri, ci = idx // zones, idx % zones
+
+    def unpack(v):
+        u = v[:n]
+        s = v[n:n + zones][ri] + v[n + zones:][ci] if zones else 0.0
+        q = p0 * np.exp(s)  # the prior with its zone factors applied
+        return u, q, q * np.exp(u)
+
+    def objective(v):
+        u, q, z = unpack(v)
+        eu = np.exp(u)
+        K = lam * q * (eu * u - eu + 1)  # (= lam (z log(z/q) - z + q): KL of z from the factored prior)
+        f = np.sum(K)
+        gz = np.zeros(n)
         for A, r, w in residuals(z).values():
             f += np.sum(w * r ** 2)
-            g += 2 * (A.T @ (w * r))
-        return f, g * z
+            gz += 2 * (A.T @ (w * r))
+        gu = gz * z + lam * q * u * eu
+        if not zones:
+            return f, gu
+        a, b = v[n:n + zones], v[n + zones:]
+        f += np.sum(a ** 2 + b ** 2) / factor_sd ** 2
+        common = gz * z + K  # d f / d (a_i + b_j) for each pair: through z, and through q in K
+        ga = np.bincount(ri, common, zones) + 2 * a / factor_sd ** 2
+        gb = np.bincount(ci, common, zones) + 2 * b / factor_sd ** 2
+        return f, np.concatenate([gu, ga, gb])
 
-    # start from the prior (u = 0): where the answer stays for pairs no observation touches
-    res = minimize(objective, np.zeros(len(p0)), jac=True, method="L-BFGS-B", bounds=[(-30, 30)] * len(p0),
+    # start from the prior (everything 0): where the answer stays for pairs no observation touches
+    nv = n + (2 * zones if zones else 0)
+    res = minimize(objective, np.zeros(nv), jac=True, method="L-BFGS-B", bounds=[(-30, 30)] * n + [(-5, 5)] * (nv - n),
                    options={"maxiter": 5000, "maxfun": 20000, "ftol": 1e-13, "gtol": 1e-9})
-    z = p0 * np.exp(res.x)
+    _, _, z = unpack(res.x)
     x = np.zeros_like(x0)
     x[free] = z
     flows = P @ x
@@ -250,7 +280,7 @@ def select_lambda(P, x0, obs: list[Observation], grid=(0.01, 0.03, 0.1, 0.3, 1, 
 
 
 def estimate_bilevel(net, x0, obs: list[Observation], lam: float = 1.0, iters: int = 30, tol: float = 1e-3,
-                     assign_iter: int = 200, assign_gap: float = 1e-4, log=None):
+                     assign_iter: int = 200, assign_gap: float = 1e-4, log=None, **kw):
     """Alternate UE assignment (route choice under the current OD) and estimation until the OD vector settles.
     The plain alternation oscillates (more demand -> other routes -> other fit); the route choice is therefore
     averaged over the rounds (method of successive averages), which damps it to a fixed point."""
@@ -260,7 +290,7 @@ def estimate_bilevel(net, x0, obs: list[Observation], lam: float = 1.0, iters: i
     for k in range(iters):
         _, P, gap = assign(net, x, max_iter=assign_iter, gap=assign_gap)
         P_avg = P if P_avg is None else P_avg + (P - P_avg) / (k + 1)
-        est = estimate(P_avg, x0, obs, lam, uncertainty=False)
+        est = estimate(P_avg, x0, obs, lam, uncertainty=False, **kw)
         change = float(np.abs(est.x - x).sum() / max(x.sum(), EPS))
         history.append({"iteration": k, "assignment_gap": gap, "od_change": change, "fit": est.fit,
                         "bound_violations": est.bound_violations})
@@ -269,7 +299,7 @@ def estimate_bilevel(net, x0, obs: list[Observation], lam: float = 1.0, iters: i
         x = est.x
         if change < tol:
             break
-    final = estimate(P_avg, x0, obs, lam)
+    final = estimate(P_avg, x0, obs, lam, **kw)
     final.info["bilevel"] = history
     final.info["P"] = P_avg
     return final
