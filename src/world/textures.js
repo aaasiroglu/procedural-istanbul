@@ -17,6 +17,7 @@ export const WALL_LAYERS = [
   { key: 'wall_brick', scale: 0.85, detail: 0.8 },
   { key: 'wall_siding', scale: 1.6, detail: 0.6 },
   { key: 'roof', scale: 5.0, detail: 0.6 },
+  { key: 'roof_tile', scale: 2.4, detail: 0.85 },
 ];
 
 export const GROUND_LAYERS = [

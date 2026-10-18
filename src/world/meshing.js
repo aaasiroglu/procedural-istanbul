@@ -187,7 +187,7 @@ export function roadMesh(areas, grid, surface, walls = [], drape = createDraper(
 // PLATEAU usage code -> facade category.
 function category(usage, height, seed) {
   if (usage === 411 || usage === 415) return CAT.HOUSE;
-  if (usage === 412) return CAT.APARTMENT;
+  if (usage === 412) return height > 60 ? CAT.GLASS : seed < 0.3 ? CAT.MIXED : CAT.APARTMENT; // (a third with shops below)
   if (usage === 413 || usage === 414) return CAT.MIXED;
   if (usage >= 401 && usage <= 404) return height > 45 || (height > 24 && seed < 0.25) ? CAT.GLASS : CAT.COMMERCIAL;
   if (usage >= 421 && usage <= 454) return CAT.PUBLIC;
@@ -195,26 +195,33 @@ function category(usage, height, seed) {
   return height < 9 ? CAT.HOUSE : seed < 0.5 ? CAT.APARTMENT : CAT.COMMERCIAL;
 }
 
-// Istanbul wall finishes per category: [r, g, b, texture layer].
+// Istanbul wall finishes per category: [r, g, b, texture layer]. Apartment blocks are mostly rendered and
+// painted (cream, sand, ochre, pale apricot, dusty pink, off-white, a few greys); some older ones show brick;
+// offices are stone cladding or concrete; towers glass.
 const PALETTE = {
   [CAT.HOUSE]: [
-    [0.86, 0.83, 0.75, WALL.PLASTER], [0.9, 0.9, 0.87, WALL.PLASTER], [0.5, 0.4, 0.33, WALL.BRICK], [0.66, 0.66, 0.65, WALL.SIDING],
-    [0.3, 0.33, 0.37, WALL.SIDING], [0.78, 0.72, 0.62, WALL.PLASTER], [0.82, 0.8, 0.74, WALL.SIDING], [0.42, 0.36, 0.32, WALL.SIDING],
+    [0.9, 0.85, 0.74, WALL.PLASTER], [0.93, 0.9, 0.84, WALL.PLASTER], [0.86, 0.72, 0.58, WALL.PLASTER], [0.82, 0.78, 0.66, WALL.PLASTER],
+    [0.62, 0.42, 0.32, WALL.BRICK], [0.88, 0.8, 0.62, WALL.PLASTER],
   ],
   [CAT.APARTMENT]: [
-    [0.9, 0.89, 0.85, WALL.TILE], [0.82, 0.77, 0.68, WALL.TILE], [0.55, 0.4, 0.31, WALL.BRICK], [0.72, 0.72, 0.7, WALL.PLASTER],
-    [0.76, 0.66, 0.55, WALL.TILE], [0.62, 0.48, 0.38, WALL.BRICK],
+    [0.92, 0.88, 0.78, WALL.PLASTER], [0.9, 0.82, 0.66, WALL.PLASTER], [0.88, 0.76, 0.62, WALL.PLASTER], [0.86, 0.72, 0.64, WALL.PLASTER],
+    [0.94, 0.92, 0.88, WALL.PLASTER], [0.8, 0.79, 0.76, WALL.PLASTER], [0.84, 0.8, 0.7, WALL.TILE], [0.6, 0.43, 0.34, WALL.BRICK],
+    [0.82, 0.68, 0.5, WALL.PLASTER], [0.74, 0.76, 0.72, WALL.PLASTER],
   ],
-  [CAT.MIXED]: [[0.84, 0.82, 0.78, WALL.TILE], [0.6, 0.45, 0.36, WALL.BRICK], [0.72, 0.72, 0.71, WALL.CONCRETE], [0.88, 0.84, 0.74, WALL.TILE]],
+  [CAT.MIXED]: [[0.9, 0.86, 0.76, WALL.PLASTER], [0.88, 0.78, 0.64, WALL.PLASTER], [0.84, 0.82, 0.78, WALL.TILE], [0.62, 0.45, 0.36, WALL.BRICK], [0.86, 0.74, 0.66, WALL.PLASTER]],
   [CAT.COMMERCIAL]: [
-    [0.68, 0.69, 0.7, WALL.CONCRETE], [0.86, 0.86, 0.84, WALL.TILE], [0.76, 0.71, 0.63, WALL.TILE], [0.34, 0.35, 0.37, WALL.CONCRETE],
-    [0.56, 0.57, 0.59, WALL.CONCRETE], [0.8, 0.8, 0.79, WALL.PLASTER],
+    [0.82, 0.78, 0.7, WALL.TILE], [0.72, 0.72, 0.7, WALL.CONCRETE], [0.86, 0.84, 0.8, WALL.TILE], [0.4, 0.41, 0.43, WALL.CONCRETE],
+    [0.76, 0.7, 0.6, WALL.TILE],
   ],
-  [CAT.PUBLIC]: [[0.78, 0.76, 0.72, WALL.TILE], [0.64, 0.64, 0.62, WALL.CONCRETE], [0.7, 0.62, 0.54, WALL.BRICK]],
-  [CAT.GLASS]: [[0.5, 0.53, 0.56, WALL.CONCRETE], [0.62, 0.63, 0.64, WALL.CONCRETE], [0.32, 0.35, 0.38, WALL.CONCRETE]],
+  [CAT.PUBLIC]: [[0.86, 0.82, 0.74, WALL.TILE], [0.8, 0.78, 0.72, WALL.PLASTER], [0.7, 0.6, 0.5, WALL.BRICK]],
+  // Levent / Maslak towers: blue-green and silver curtain walls
+  [CAT.GLASS]: [[0.36, 0.46, 0.52, WALL.CONCRETE], [0.34, 0.46, 0.44, WALL.CONCRETE], [0.56, 0.6, 0.63, WALL.CONCRETE], [0.3, 0.36, 0.44, WALL.CONCRETE]],
 };
-// Metal and tile roofs on houses.
-const PITCHED_ROOFS = [[0.2, 0.21, 0.23], [0.22, 0.28, 0.36], [0.3, 0.22, 0.18], [0.42, 0.25, 0.2], [0.2, 0.28, 0.25], [0.34, 0.34, 0.35]];
+// Clay tile roofs, from fresh orange-red to weathered brown, and the odd lead-grey sheet.
+const TILE_ROOFS = [[0.66, 0.3, 0.19], [0.72, 0.36, 0.22], [0.6, 0.28, 0.2], [0.55, 0.32, 0.25], [0.68, 0.4, 0.28], [0.5, 0.27, 0.21]];
+const PITCHED_ROOFS = TILE_ROOFS;
+// Share of each category given a hipped tile roof (kırma çatı) where the footprint allows one.
+const TILED = { [CAT.HOUSE]: 0.9, [CAT.APARTMENT]: 0.72, [CAT.MIXED]: 0.6, [CAT.PUBLIC]: 0.35 };
 // Window bay width (m) per category; a whole number of bays is fitted to each wall.
 const BAY = { [CAT.HOUSE]: 3.4, [CAT.APARTMENT]: 3.3, [CAT.MIXED]: 3.2, [CAT.COMMERCIAL]: 3.0, [CAT.PUBLIC]: 3.4, [CAT.GLASS]: 1.5 };
 const HINT_LAYER = { [MATERIAL.TILE]: WALL.TILE, [MATERIAL.CONCRETE]: WALL.CONCRETE, [MATERIAL.PLASTER]: WALL.PLASTER, [MATERIAL.BRICK]: WALL.BRICK, [MATERIAL.METAL]: WALL.SIDING };
@@ -285,16 +292,20 @@ export function buildingMesh(buildings, tx, tz) {
     const outer = b.polygons[0][0];
     const area = b.polygons.reduce((s, rings) => s + rings.reduce((t, r) => t + ringArea(r), 0), 0);
 
-    // Houses with a simple footprint get a pitched roof; everything else a flat roof with a parapet.
+    // Istanbul: houses and most low and mid-rise blocks carry a hipped clay tile roof (kırma çatı) above the top
+    // floor, about 30 degrees; the rest are flat terraces with a parapet. Only simple, near-rectangular footprints
+    // get one (the roof is fitted to the footprint's rectangle).
+    const mosque = b.usage === 441;
     let roof = null, rise = 0;
-    if (cat === CAT.HOUSE && b.height < 13 && b.polygons.length === 1 && b.polygons[0].length === 1) {
+    if (!mosque && TILED[cat] && b.height < 40 && b.polygons.length === 1 && b.polygons[0].length === 1 && rnd() < TILED[cat]) {
       const rect = minAreaRect(outer);
-      if (rect && area / rect.area > 0.78 && rect.b > 1.8) {
-        rise = Math.min(2.6, rect.b * 0.5, b.height - 2.4);
+      if (rect && area / rect.area > 0.72 && rect.b > 2 && rect.b < 16) {
+        rise = Math.min(4.5, rect.b * 0.55);
         if (rise > 0.7) roof = rect;
       }
     }
-    const wallTop = roof ? top - rise : top;
+    const wallTop = top;
+    const ridge = top + rise;
     let wallH = wallTop - b.base; // (per wall for LOD2 shells)
     const parapet = roof ? 0 : cat === CAT.HOUSE ? 0.3 : b.height > 30 ? 1.2 : 0.75;
     const floors = b.storeys > 0 ? b.storeys : Math.max(1, Math.round(wallH / 3.2));
@@ -428,29 +439,92 @@ export function buildingMesh(buildings, tx, tz) {
     // ---- pitched roof over the bounding rectangle: hipped or gabled
     if (roof) {
       const { cx, cz, ax, az, a, b: hb } = roof, sx = -az, sz = ax, over = 0.4;
-      const c = lin(PITCHED_ROOFS[Math.floor(rnd() * PITCHED_ROOFS.length)]);
+      const c = lin(TILE_ROOFS[Math.floor(rnd() * TILE_ROOFS.length)].map((v) => Math.min(1, v * (0.9 + 0.2 * rnd()))));
       const eave = wallTop - (over * rise) / hb;
       const corner = (sa, sb) => [cx + ax * sa * (a + over) + sx * sb * (hb + over), eave, cz + az * sa * (a + over) + sz * sb * (hb + over)];
-      const hip = rnd() < 0.5 && a - hb > 0.3;
+      const hip = rnd() < 0.85 && a - hb > 0.3; // (hipped far more often than gabled)
       const reach = hip ? a - hb : a + over;
-      const r0 = [cx - ax * reach, top, cz - az * reach], r1 = [cx + ax * reach, top, cz + az * reach];
+      const r0 = [cx - ax * reach, ridge, cz - az * reach], r1 = [cx + ax * reach, ridge, cz + az * reach];
       const up = [0, 1, 0];
-      quad(corner(-1, 1), corner(1, 1), r1, r0, up, c, KIND.PITCHED_ROOF, WALL.SIDING);
-      quad(corner(1, -1), corner(-1, -1), r0, r1, up, c, KIND.PITCHED_ROOF, WALL.SIDING);
+      quad(corner(-1, 1), corner(1, 1), r1, r0, up, c, KIND.PITCHED_ROOF, WALL.ROOF_TILE);
+      quad(corner(1, -1), corner(-1, -1), r0, r1, up, c, KIND.PITCHED_ROOF, WALL.ROOF_TILE);
       if (hip) {
-        tri(corner(1, 1), corner(1, -1), r1, up, c, KIND.PITCHED_ROOF, WALL.SIDING);
-        tri(corner(-1, -1), corner(-1, 1), r0, up, c, KIND.PITCHED_ROOF, WALL.SIDING);
+        tri(corner(1, 1), corner(1, -1), r1, up, c, KIND.PITCHED_ROOF, WALL.ROOF_TILE);
+        tri(corner(-1, -1), corner(-1, 1), r0, up, c, KIND.PITCHED_ROOF, WALL.ROOF_TILE);
       } else {
         // gable walls close the triangle under the ridge
         for (const s of [-1, 1]) {
           const g = (sb) => [cx + ax * s * a + sx * sb * hb, wallTop, cz + az * s * a + sz * sb * hb];
-          tri(g(-1), g(1), [cx + ax * s * a, top, cz + az * s * a], [ax * s, 0, az * s], wallCol, KIND.SOLID, wallLayer);
+          tri(g(-1), g(1), [cx + ax * s * a, ridge, cz + az * s * a], [ax * s, 0, az * s], wallCol, KIND.SOLID, wallLayer);
         }
+      }
+      // a chimney or two through the tiles, and on blocks the lift housing poking out of the ridge
+      for (let ch = 0, n = 1 + Math.floor(rnd() * 2); ch < n; ch++) {
+        const t = (rnd() - 0.5) * 1.2 * Math.max(0.5, a - hb), o = (rnd() - 0.5) * hb * 0.6;
+        const x = cx + ax * t + sx * o, z = cz + az * t + sz * o;
+        box(x, z, ridge - rise * (Math.abs(o) / hb) - 0.3, ridge + 0.9, 0.35, 0.35, ax, az, wallCol, wallLayer);
+      }
+    }
+
+    // An upright prism of `sides` faces from radius r0 at y0 to r1 at y1 (r1 = 0: a cone), capped on top.
+    const prism = (x, z, y0, y1, r0, r1, sides, c, layer) => {
+      const P = (k, r, y) => [x + r * Math.cos((k / sides) * 2 * Math.PI), y, z + r * Math.sin((k / sides) * 2 * Math.PI)];
+      for (let k = 0; k < sides; k++) {
+        const m = ((k + 0.5) / sides) * 2 * Math.PI, out = [Math.cos(m), 0, Math.sin(m)];
+        if (r1 > 0.01) quad(P(k, r0, y0), P(k + 1, r0, y0), P(k + 1, r1, y1), P(k, r1, y1), out, c, KIND.SOLID, layer);
+        else tri(P(k, r0, y0), P(k + 1, r0, y0), [x, y1, z], out, c, KIND.SOLID, layer);
+        if (r1 > 0.01) tri(P(k, r1, y1), P(k + 1, r1, y1), [x, y1, z], [0, 1, 0], c, KIND.SOLID, layer);
+      }
+    };
+    // A dome of radius R on a drum: latitude bands of quads.
+    const dome = (x, z, y0, R, c, layer) => {
+      const sides = 20, bands = 7;
+      const P = (k, j) => { const t = (j / bands) * Math.PI / 2, r = R * Math.cos(t); return [x + r * Math.cos((k / sides) * 2 * Math.PI), y0 + R * Math.sin(t), z + r * Math.sin((k / sides) * 2 * Math.PI)]; };
+      for (let j = 0; j < bands; j++) for (let k = 0; k < sides; k++) {
+        const m = ((k + 0.5) / sides) * 2 * Math.PI, t = ((j + 0.5) / bands) * Math.PI / 2;
+        const out = [Math.cos(m) * Math.cos(t), Math.sin(t), Math.sin(m) * Math.cos(t)];
+        if (j === bands - 1) tri(P(k, j), P(k + 1, j), [x, y0 + R, z], out, c, KIND.SOLID, layer);
+        else quad(P(k, j), P(k + 1, j), P(k + 1, j + 1), P(k, j + 1), out, c, KIND.SOLID, layer);
+      }
+    };
+
+    // ---- a mosque: lead-covered dome on a drum over the prayer hall, and a minaret at one corner with its
+    // balcony (şerefe) and pointed cap (külah)
+    if (mosque) {
+      const rect = minAreaRect(outer);
+      if (rect) {
+        const lead = lin([0.43, 0.46, 0.49]), stone = lin([0.9, 0.87, 0.8]);
+        const R = Math.min(rect.b * 0.8, 13), drum = Math.max(1.2, R * 0.18);
+        prism(rect.cx, rect.cz, wallTop, wallTop + drum, R, R, 20, stone, WALL.TILE);
+        dome(rect.cx, rect.cz, wallTop + drum, R, lead, WALL.SIDING);
+        box(rect.cx, rect.cz, wallTop + drum + R, wallTop + drum + R + 1.8, 0.12, 0.12, 1, 0, lin([0.85, 0.7, 0.3]), WALL.SIDING); // alem
+        const sx = -rect.az, sz = rect.ax, mx = rect.cx + rect.ax * (rect.a - 1.6) + sx * (rect.b - 1.6), mz = rect.cz + rect.az * (rect.a - 1.6) + sz * (rect.b - 1.6);
+        const H = Math.min(58, Math.max(24, (wallTop - b.base) * 3 + R * 1.5)), base0 = b.base;
+        prism(mx, mz, base0, base0 + H, 1.25, 1.1, 12, stone, WALL.TILE);
+        prism(mx, mz, base0 + H * 0.78, base0 + H * 0.78 + 0.45, 1.9, 1.9, 12, stone, WALL.TILE);   // şerefe
+        prism(mx, mz, base0 + H, base0 + H + 5.5, 1.15, 0, 12, lead, WALL.SIDING);                 // külah
+      }
+    }
+
+    // ---- solar water heaters (a tilted collector with its white tank) on flat residential roofs, as on many
+    // Turkish rooftops; the collector faces south (+z)
+    if (!roof && !mosque && cat <= CAT.MIXED && area > 60 && rnd() < 0.35) {
+      const rings = b.polygons[0];
+      let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+      for (let e = 0; e < outer.length; e += 2) { x0 = Math.min(x0, outer[e]); x1 = Math.max(x1, outer[e]); z0 = Math.min(z0, outer[e + 1]); z1 = Math.max(z1, outer[e + 1]); }
+      for (let n = 1 + Math.floor(rnd() * 3), t = 0; n > 0 && t < 12; t++) {
+        const x = x0 + rnd() * (x1 - x0), z = z0 + rnd() * (z1 - z0);
+        if (!insideRings(x, z, rings) || edgeDistance(x, z, rings) < 1.6) continue;
+        const y = wallTop, w = 1.0, d = 1.0, lift = 1.2;
+        quad([x - w, y + 0.15, z + d * 0.6], [x + w, y + 0.15, z + d * 0.6], [x + w, y + lift, z - d * 0.4], [x - w, y + lift, z - d * 0.4],
+          [0, 0.77, 0.64], lin([0.1, 0.14, 0.24]), KIND.SOLID, WALL.SIDING);                      // collector glass
+        box(x, z - d * 0.62, y + lift - 0.05, y + lift + 0.5, w * 1.05, 0.26, 1, 0, lin([0.9, 0.9, 0.88]), WALL.PLASTER); // tank
+        n--;
       }
     }
 
     // ---- rooftop equipment on flat roofs: stair/lift housing, air conditioners, tanks, ducts
-    if (!roof && area > 70 && b.height > 7) {
+    if (!roof && !mosque && area > 70 && b.height > 7) {
       const rings = b.polygons[0];
       let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
       for (let e = 0; e < outer.length; e += 2) { x0 = Math.min(x0, outer[e]); x1 = Math.max(x1, outer[e]); z0 = Math.min(z0, outer[e + 1]); z1 = Math.max(z1, outer[e + 1]); }

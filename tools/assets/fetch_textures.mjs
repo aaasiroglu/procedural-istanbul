@@ -16,6 +16,7 @@ export const TEXTURES = {
   pavers: 'interlocking_concrete_pavers',
   grass: 'leafy_grass',
   roof: 'concrete_floor_worn_001',
+  roof_tile: 'clay_roof_tiles_02', // Marseille-pattern clay tiles: the red roofs of Istanbul's apartment blocks
   ground: 'concrete_pavement',
 };
 const MAPS = { diff: ['Diffuse'], nor: ['nor_gl'] };
