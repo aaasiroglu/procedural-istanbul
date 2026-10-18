@@ -338,30 +338,96 @@ if (fs.existsSync(lampFile)) {
 }
 
 // Fallback: If no PLATEAU building files were present (non-Japanese cities like Istanbul),
-// generate 3D procedural buildings directly from OSM building polygons
+// generate 3D procedural buildings directly from OSM building polygons.
+//
+// OSM's Simple 3D Buildings: a complex mapped as building:part ways (a podium, its towers, each with its own
+// height and min_height) is drawn from its parts, and its outline (the building=* way around them) is not drawn,
+// or a mall's whole footprint would rise to its tallest tower's height.
 if (nB === 0 && extraRaw) {
-  let osmBldgCount = 0;
-  for (const w of extraRaw.ways) {
-    if (!w.tags || !w.tags.building || w.tags.building === 'no' || w.tags.building === 'roof') continue;
-    if (!w.closed || w.pts.length < 4) continue;
+  const ringOf = (w) => {
+    if (!w.closed || w.pts.length < 4) return null;
     const polygon = cleanWorldRing(w.pts);
-    if (!polygon || Math.abs(areaEN(polygon)) < 0.5) continue;
-    const polys = [areaEN(polygon) > 0 ? polygon : polygon.reverse()];
-    const [cx, cz] = centroidOf([polys]);
-    if (!inBounds(cx, cz)) continue;
-
-    const storeys = parseInt(w.tags['building:levels'], 10) || (w.tags.building === 'apartments' ? 5 : w.tags.building === 'house' ? 2 : 4);
-    const height = parseFloat(w.tags.height) || storeys * 3.2;
-    const base = ground(cx, cz);
-    const flags = BFLAG.NO_SOLID;
-    const usage = w.tags.building === 'office' ? 401 : (w.tags.building === 'commercial' || w.tags.building === 'retail') ? 402 : w.tags.building === 'hotel' ? 403 : w.tags.building === 'house' ? 411 : w.tags.building === 'apartments' ? 412 : 415;
-
-    bstats.heights.push(height);
-    bstats.usage[usage] = (bstats.usage[usage] ?? 0) + 1;
-    tileFor(cx, cz).buildings.push({ usage, storeys, flags, base: r2(base), height: r2(height), measuredHeight: height, polygons: [polys], surfaces: [] });
-    osmBldgCount++;
+    if (!polygon || Math.abs(areaEN(polygon)) < 0.5) return null;
+    return areaEN(polygon) > 0 ? polygon : polygon.reverse();
+  };
+  const inside = (x, z, ring) => {
+    let c = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, zi] = ring[i], [xj, zj] = ring[j];
+      if ((zi > z) !== (zj > z) && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) c = !c;
+    }
+    return c;
+  };
+  const num = (v) => { const f = parseFloat(v); return Number.isFinite(f) ? f : NaN; };
+  const parts = [];
+  for (const w of extraRaw.ways) {
+    const t = w.tags;
+    if (!t || !t['building:part'] || t['building:part'] === 'no') continue;
+    const ring = ringOf(w);
+    if (ring) parts.push({ w, ring, c: centroidOf([[ring]]) });
   }
-  log(`buildings (OSM fallback): ${osmBldgCount} procedural 3D buildings generated from OpenStreetMap footprints`);
+  const outlines = [];
+  for (const w of extraRaw.ways) {
+    const t = w.tags;
+    if (!t || !t.building || t.building === 'no' || t.building === 'roof' || t['building:part']) continue;
+    const ring = ringOf(w);
+    if (!ring) continue;
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (const [x, z] of ring) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
+    outlines.push({ w, ring, box: [x0, x1, z0, z1], parts: 0 });
+  }
+  // each part belongs to the outline around its centroid (if any: parts are sometimes mapped without one)
+  for (const p of parts) {
+    const [x, z] = p.c;
+    p.parent = outlines.find((o) => x >= o.box[0] && x <= o.box[1] && z >= o.box[2] && z <= o.box[3] && inside(x, z, o.ring));
+    if (p.parent) p.parent.parts++;
+  }
+
+  // One extruded building from a ring, its tags, and (for a part) the outline's tags beneath them.
+  const extrude = (id, tags, ring) => {
+    const polys = [ring];
+    const [cx, cz] = centroidOf([polys]);
+    if (!inBounds(cx, cz)) return false;
+    // Istanbul: most footprints are only building=yes, without levels. A footprint that size is in Istanbul is
+    // almost always an apartment block of 4 to 8 storeys (a stable pick per way, so it does not change between
+    // compiles); small ones are houses or sheds; mosques, schools and the like keep their own kind.
+    const kind = tags.building, footprint = Math.abs(areaEN(ring));
+    const religious = kind === 'mosque' || tags.amenity === 'place_of_worship' || kind === 'religious';
+    const pick = (lo, hi) => lo + (Number(String(id).slice(-4)) % (hi - lo + 1));
+    const small = footprint < 90 || kind === 'house' || kind === 'detached' || kind === 'shed' || kind === 'garage';
+    const levels = parseInt(tags['building:levels'], 10);
+    const storeys = levels || (religious ? 2 : small ? pick(1, 3) : kind === 'office' ? pick(6, 14) : pick(4, 8));
+    const top = num(tags.height) || storeys * 3.1;
+    const bottom = num(tags.min_height) || (parseInt(tags['building:min_level'], 10) || 0) * 3.1;
+    const height = top - bottom;
+    if (!(height > 0.5)) return false;
+    const usage = religious ? 441
+      : kind === 'office' ? 401 : (kind === 'commercial' || kind === 'retail') ? 402 : kind === 'hotel' ? 403
+      : ['school', 'university', 'hospital', 'public', 'civic', 'government', 'college', 'kindergarten'].includes(kind) ? 421
+      : ['industrial', 'warehouse'].includes(kind) ? 450
+      : storeys <= 2 && small ? 411 : 412;
+    bstats.heights.push(top);
+    bstats.usage[usage] = (bstats.usage[usage] ?? 0) + 1;
+    tileFor(cx, cz).buildings.push({
+      usage, storeys: Math.max(1, Math.round(height / 3.1)), flags: BFLAG.NO_SOLID, base: r2(ground(cx, cz) + bottom),
+      height: r2(height), measuredHeight: height, polygons: [polys], surfaces: [],
+    });
+    return true;
+  };
+
+  let made = 0, fromParts = 0, replaced = 0;
+  for (const o of outlines) {
+    if (o.parts) { replaced++; continue; }
+    if (extrude(o.w.id, o.w.tags, o.ring)) made++;
+  }
+  for (const p of parts) {
+    // the part's kind is its outline's (a tower of an office complex is an office); its size is its own only
+    const { height, min_height, 'building:levels': _l, 'building:min_level': _m, ...inherited } = p.parent?.w.tags ?? {};
+    const tags = { building: 'yes', ...inherited, ...p.w.tags };
+    if (p.w.tags.building === undefined && inherited.building) tags.building = inherited.building;
+    if (extrude(p.w.id, tags, p.ring)) fromParts++;
+  }
+  log(`buildings (OSM fallback): ${made} from footprints, ${fromParts} from the parts of ${replaced} complexes (their outlines not drawn)`);
 }
 // pedestrian streets and paths in the open, as lines (stairs, bridges and passages are not streets)
 const walkLines = extraRaw.ways.filter((w) => ['pedestrian', 'footway', 'path'].includes(w.tags.highway) && !w.closed && !w.tags.bridge && !w.tags.tunnel
@@ -686,10 +752,15 @@ const manifest = {
   // street-level bridge decks: road polygons marked with a deck, and street objects, follow these instead of the terrain (src/shared/decks.js)
   decks,
   tiles: tileList,
-  attribution: [
+  // (credit only what this area was built from: PLATEAU and GSI exist in Japan only)
+  attribution: nB > 0 ? [
     '3D city model, roof photos, bridges, street furniture: Project PLATEAU, MLIT Japan (CC BY 4.0 compatible PLATEAU terms)',
     'Elevation: Geospatial Information Authority of Japan (GSI) DEM tiles',
     'Road network and railways: © OpenStreetMap contributors (ODbL 1.0)',
+  ] : [
+    'Buildings, roads and railways: © OpenStreetMap contributors (ODbL 1.0)',
+    'Elevation: Mapzen Terrain Tiles (SRTM, GMTED and others) via AWS Open Data',
+    'Traffic: © İBB Açık Veri / UYM',
   ],
 };
 fs.writeFileSync(path.join(area.outDir, 'manifest.json'), JSON.stringify(manifest, null, 1));

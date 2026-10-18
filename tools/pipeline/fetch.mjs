@@ -127,9 +127,11 @@ const OSM_QUERIES = {
   node["tourism"="information"]["information"~"^(map|board)$"]({bb});
   node["leisure"="picnic_table"]({bb});
   node["playground"]({bb});
-  way["building"]["building:colour"]({bb});
-  way["building"]["building:material"]({bb});
+  way["building"]({bb});
+  way["building:part"]({bb});
 );`,
+  // (every building, not only those with a mapped colour or material: outside Japan there is no PLATEAU, and
+  // these footprints are the buildings — compile.mjs extrudes them)
   // named places (shops, restaurants, offices, named buildings) and street furniture, as points:
   // "out center" gives ways and relations a single coordinate
   'osm_poi.json': `(
