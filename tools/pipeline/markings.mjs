@@ -81,8 +81,10 @@ export function buildMarkings({ edges, pos, idx, land, inBounds }) {
     const lw = median / lanes;
     const lines = []; // { o: lateral offset, kind, dashed }
     if (!e.oneway && lanes >= 2) {
-      const yellow = lanes === 2 && hash(e.way, 21) < 0.35;
-      lines.push({ o: 0, kind: yellow ? AREA.MARK_YELLOW : AREA.MARK_WHITE, dashed: lanes === 2 && !yellow });
+      // Turkey: the centre line is white, dashed where overtaking is allowed and solid where not (the yellow
+      // no-overtaking centre line is Japanese); wider roads get a solid white centre
+      const solid = lanes > 2 || hash(e.way, 21) < 0.35;
+      lines.push({ o: 0, kind: AREA.MARK_WHITE, dashed: !solid });
     }
     for (let k = 1; k < lanes; k++) {
       const o = -median / 2 + k * lw;
