@@ -44,7 +44,7 @@ from scipy.sparse.csgraph import dijkstra
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "sumo"))
 from assignment import Network  # noqa: E402
 from build_net import MIRRORS, USER_AGENT, area_bbox  # noqa: E402
-from odme import Observation, TriangularFD, estimate_bilevel, prior_weights  # noqa: E402
+from odme import Observation, TriangularFD, estimate_bilevel, geh, geh_summary, links_of, observed, prior_weights  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 ISTANBUL = ZoneInfo("Europe/Istanbul")
@@ -284,6 +284,11 @@ def gravity_prior(network: Network, zones, cells, pm: bool):
 
 # ---------------------------------------------------------------- 4: observations
 def live_speeds(path: str | None):
+    if path and path.endswith(".csv"):  # (the snapshot an earlier estimate saved: speeds.csv in its folder)
+        with open(path) as f:
+            rows = [{"T": r["type"], "S": int(r["segment_id"]), "V": int(r["speed_kph"]), "C": int(r["congestion"])} for r in csv.DictReader(f)]
+        stamp = Path(path).parent.name[:13]  # YYYYMMDD-HHMM
+        return rows, datetime.strptime(stamp, "%Y%m%d-%H%M").replace(tzinfo=ISTANBUL)
     if path:
         import pyarrow.parquet as pq
         rows = pq.read_table(path).to_pylist()
@@ -344,10 +349,12 @@ def observations(net, rows, mapping_csv: Path, edge_link, links, counts_csv: str
         for o in group:
             role[o.segment] = kind if o is chosen else f"redundant_{kind}"
     if counts_csv:
+        # (edge_id may list several edges, e.g. both carriageways under a sensor: the count is their flows' sum)
         with open(counts_csv) as f:
             for r in csv.DictReader(f):
-                if r["edge_id"] in edge_link:
-                    out.append(Observation(edge_link[r["edge_id"]], float(r["value"]), float(r["sd"]), "count", r.get("source", "count")))
+                ids = sorted({edge_link[e] for e in r["edge_id"].split() if e in edge_link})
+                if ids:
+                    out.append(Observation(tuple(ids), float(r["value"]), float(r["sd"]), "count", r.get("source", "count")))
                     stats["count"] += 1
     return out, dict(stats), role
 
@@ -383,7 +390,8 @@ def write_outputs(out: Path, net, network, zones, links, est, x0, prod, attr, ob
 
     obs_by_link = defaultdict(list)
     for o in obs:
-        obs_by_link[o.link].append(f"{o.kind}:{o.value:.0f}")
+        for l in links_of(o):
+            obs_by_link[l].append(f"{o.kind}:{o.value:.0f}")
     with open(out / "link_flows.csv", "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["edges", "type", "flow", "capacity", "v_c", "observations"])
@@ -421,6 +429,7 @@ def main() -> None:
     parser.add_argument("--speeds", help="a segment_speeds Parquet file from the archive (default: live)")
     parser.add_argument("--counts", help="CSV of counts: edge_id,value,sd[,source] (veh/h)")
     parser.add_argument("--rounds", type=int, default=8, help="bilevel rounds (default 8)")
+    parser.add_argument("--tag", default="", help="appended to the output folder's name (e.g. counts)")
     args = parser.parse_args()
 
     sumo_dir = ROOT / "data" / "sumo" / args.area
@@ -444,7 +453,7 @@ def main() -> None:
     lam = prior_weights(x0, ASSUMPTIONS["prior_cv"])
     from assignment import assign
     flow0, _, _ = assign(network, x0, max_iter=40, gap=1e-3)
-    viol_prior = sum(1 for o in obs if (o.kind == "lower" and o.value - flow0[o.link] > 2 * o.sd) or (o.kind == "upper" and flow0[o.link] - o.value > 2 * o.sd))
+    viol_prior = sum(1 for o in obs if (o.kind == "lower" and o.value - observed(o, flow0) > 2 * o.sd) or (o.kind == "upper" and observed(o, flow0) - o.value > 2 * o.sd))
 
     print("bilevel estimate …")
     est = estimate_bilevel(network, x0, obs, lam, iters=args.rounds, assign_iter=40, assign_gap=1e-3,
@@ -454,14 +463,35 @@ def main() -> None:
     ids = [z["id"] for z in zones]
     top = sorted(range(Z * Z), key=lambda k: -est.x[k])[:20]
     has_counts = obs_stats.get("count", 0) > 0
+    validation = None
+    if has_counts:
+        # GEH three ways: the prior, the estimate on the counts it was fitted to (a fit, not a test), and each
+        # count left out in turn and predicted by an estimate made without it (leave-one-out: the test)
+        counts = [o for o in obs if o.kind == "count"]
+        P = est.info["P"]
+        held = {}
+        for i, o in enumerate(counts):
+            from odme import estimate as fit_once
+            rest = [q for q in obs if q is not o]
+            held[i] = observed(o, fit_once(P, x0, rest, lam, uncertainty=False).flows)
+            print(f"  held out {i + 1}/{len(counts)}: {o.source[:48]} count {o.value:.0f}, predicted {held[i]:.0f}")
+        prior_m = [observed(o, flow0) for o in counts]
+        fit_m = [observed(o, est.flows) for o in counts]
+        validation = {
+            "prior": geh_summary(prior_m, [o.value for o in counts]),
+            "fit": geh_summary(fit_m, [o.value for o in counts]),
+            "held_out": geh_summary([held[i] for i in range(len(counts))], [o.value for o in counts]),
+            "per_count": [{"source": o.source, "count": o.value, "sd": o.sd, "prior": round(prior_m[i]), "fit": round(fit_m[i]),
+                           "held_out": round(held[i]), "geh_held_out": round(float(geh(held[i], o.value)), 2)} for i, o in enumerate(counts)],
+        }
     meta = {
         "area": args.area, "speeds_at": when.isoformat(), "period": "evening" if pm else "morning",
         "zones": {"h3": Z - n_gate, "gateways": n_gate, "od_pairs": Z * Z},
         "observations": obs_stats,
         "car_trips_per_hour": {"prior": float(x0.sum()), "estimate": float(est.x.sum())},
         "bound_violations": {"prior": viol_prior, "estimate": est.bound_violations, "of": len(obs),
-                             "on_links_no_route_uses": int(sum(1 for o in obs if est.info["P"][o.link].nnz == 0))},
-        "fit_on_counts": est.fit if has_counts else None,
+                             "on_links_no_route_uses": int(sum(1 for o in obs if all(est.info["P"][l].nnz == 0 for l in links_of(o))))},
+        "validation": validation,
         "data_share": None if est.data_share is None else {
             "trip_weighted_mean": float((est.data_share * est.x).sum() / max(est.x.sum(), 1e-9)),
             "pairs_over_half": int((est.data_share > 0.5).sum())},
@@ -475,9 +505,13 @@ def main() -> None:
                       "lon": round(z["lon"], 5), "lat": round(z["lat"], 5)} for z in zones if z["kind"] == "gateway"],
         "assumptions": ASSUMPTIONS,
     }
-    out = ROOT / "data" / "od" / args.area / when.strftime("%Y%m%d-%H%M")
+    out = ROOT / "data" / "od" / args.area / (when.strftime("%Y%m%d-%H%M") + (f"-{args.tag}" if args.tag else ""))
     write_outputs(out, net, network, zones, links, est, x0, prod, attr, obs, meta, rows, role)
     print(json.dumps({k: meta[k] for k in ("zones", "observations", "car_trips_per_hour", "bound_violations", "data_share", "level_of_demand")}, ensure_ascii=False, indent=2))
+    if validation:
+        for k in ("prior", "fit", "held_out"):
+            v = validation[k]
+            print(f"  GEH {k:9}: {v['under5_pct']:5.1f} % under 5, mean {v['mean']:.2f}, max {v['max']:.2f}  (n {v['n']})")
     print(f"→ {out}")
 
 

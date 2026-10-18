@@ -77,7 +77,7 @@ class TriangularFD:
 
 @dataclass
 class Observation:
-    link: int
+    link: int | tuple   # a link, or several whose flows add up to what was observed (a count across a divided road)
     value: float          # veh/h
     sd: float             # veh/h
     kind: str = "count"   # count | lower | upper
@@ -114,10 +114,22 @@ class Estimate:
     info: dict = field(default_factory=dict)
 
 
-def _rows(obs: list[Observation], kind: str):
+def links_of(o: Observation) -> tuple:
+    return tuple(o.link) if isinstance(o.link, (tuple, list)) else (o.link,)
+
+
+def observed(o: Observation, flows) -> float:
+    """The modelled value of an observation: its links' flows added up."""
+    return float(sum(flows[l] for l in links_of(o)))
+
+
+def _rows(obs: list[Observation], kind: str, n_links: int):
+    # S: one row per observation, a 1 for each of its links (so S @ flows is what each one modelled)
     sel = [o for o in obs if o.kind == kind]
-    return (np.array([o.link for o in sel], int), np.array([o.value for o in sel], float),
-            np.array([o.sd for o in sel], float))
+    r = [i for i, o in enumerate(sel) for _ in links_of(o)]
+    c = [l for o in sel for l in links_of(o)]
+    S = csr_matrix((np.ones(len(r)), (r, c)), shape=(len(sel), n_links))
+    return S, np.array([o.value for o in sel], float), np.array([o.sd for o in sel], float)
 
 
 def prior_weights(x0, cv: float) -> np.ndarray:
@@ -140,8 +152,8 @@ def estimate(P, x0, obs: list[Observation], lam=1.0, uncertainty: bool = True, m
     p0 = x0[free]
     lam_all = lam
     lam = np.asarray(lam, float)[free] if np.ndim(lam) else float(lam)
-    groups = {k: _rows(obs, k) for k in ("count", "lower", "upper")}
-    sub = {k: (Pf[l], y, 1 / s ** 2) for k, (l, y, s) in groups.items() if len(l)}
+    groups = {k: _rows(obs, k, P.shape[0]) for k in ("count", "lower", "upper")}
+    sub = {k: (csr_matrix(S @ Pf), y, 1 / s ** 2) for k, (S, y, s) in groups.items() if S.shape[0]}
 
     def residuals(z):
         out = {}
@@ -203,13 +215,13 @@ def estimate(P, x0, obs: list[Observation], lam=1.0, uncertainty: bool = True, m
         se[free] = np.sqrt(var_post)
         share[free] = np.clip(1 - var_post / var_prior, 0, 1)
 
-    cl, cy, _ = groups["count"]
+    Sc, cy, _ = groups["count"]
     violations = 0
     for k, sign in (("lower", 1), ("upper", -1)):
-        l, y, s = groups[k]
-        if len(l):
-            violations += int(np.sum(sign * (y - flows[l]) > 2 * s))
-    return Estimate(x, se, share, flows, geh_summary(flows[cl], cy), violations, bool(res.success), lam_all,
+        S, y, s = groups[k]
+        if S.shape[0]:
+            violations += int(np.sum(sign * (y - S @ flows) > 2 * s))
+    return Estimate(x, se, share, flows, geh_summary(Sc @ flows, cy), violations, bool(res.success), lam_all,
                     {"iterations": int(res.nit), "message": str(res.message), "objective": float(res.fun)})
 
 
@@ -225,7 +237,7 @@ def cross_validate(P, x0, obs: list[Observation], lam: float, folds: int = 5, se
         out = set(order[f::folds].tolist())
         fit = estimate(P, x0, [o for i, o in enumerate(obs) if i not in out], lam, uncertainty=False)
         for i in out:
-            held_m.append(fit.flows[obs[i].link])
+            held_m.append(observed(obs[i], fit.flows))
             held_c.append(obs[i].value)
     return geh_summary(held_m, held_c)
 

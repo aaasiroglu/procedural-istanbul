@@ -4,7 +4,7 @@ honestly what it does not know?   uv run python tools/od/test_odme.py"""
 import numpy as np
 
 from assignment import Network, assign
-from odme import Observation, TriangularFD, cross_validate, estimate, estimate_bilevel, geh, prior_weights, select_lambda
+from odme import Observation, TriangularFD, cross_validate, estimate, estimate_bilevel, geh, observed, prior_weights, select_lambda
 
 rng = np.random.default_rng(7)
 passed = 0
@@ -108,6 +108,14 @@ ok("relative prior: standard error is cv times the prior", np.allclose(rel.se[of
 rel_fit = estimate(P_true, x0, obs, lam=prior_weights(x0, 1.0))
 ok("relative prior also recovers uncounted flows", geh(rel_fit.flows[uncounted], flow_true[uncounted]).mean() < 0.6 * g_prior,
    f"mean GEH {g_prior:.2f} -> {geh(rel_fit.flows[uncounted], flow_true[uncounted]).mean():.2f} (cv 1.0)")
+
+# ---------------------------------------------------------------- a count across both directions of a road
+pair = [e for e in range(net.n_links) if (net.head[e], net.tail[e]) in zip(net.tail, net.head)][:2]
+e1 = pair[0]; e2 = [e for e in range(net.n_links) if net.tail[e] == net.head[e1] and net.head[e] == net.tail[e1]][0]
+both = Observation((e1, e2), flow_true[e1] + flow_true[e2], 0.02 * (flow_true[e1] + flow_true[e2]), "count", "screenline")
+fit2 = estimate(P_true, x0, [both], lam=prior_weights(x0, 1.0))
+ok("a two-direction count is matched by the sum of both links", abs(observed(both, fit2.flows) - both.value) < 3 * both.sd,
+   f"{observed(both, fit2.flows):.0f} vs {both.value:.0f}")
 
 # ---------------------------------------------------------------- bilevel: route choice re-estimated with the OD
 # Routes now unknown too: OD cells are no longer expected to beat the prior, the network flows are.

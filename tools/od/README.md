@@ -44,3 +44,34 @@ Bu tahmin bir başlangıç noktasıdır ve aşağıdaki sınırlar sonuçlarla b
 - **Bilevel döngü tam yakınsamadı.** 8 turdan sonra O-D değişimi hâlâ %1. `--rounds` artırılabilir.
 - **Prior varsayımları elle seçildi.** Kat sayısı, hane başına yolculuk, geçit kullanım payları, yeşil payı gibi değerlerin hepsi `summary.json` → `assumptions` alanında listelenir.
 - **Sıkışıklık sınıfı yorumu bir varsayım.** İBB sınıfı 3–5'i "kuyruk var" olarak okumak, İBB'nin sınıf tanımıyla doğrulanmalı.
+
+## Sayımlarla ilk doğrulama: 17 Ekim 2026, Cumartesi, 17:00–18:00
+
+```bash
+uv run --group sumo python tools/od/counts.py --area=koridor --month=2024-10 --weekday=5 --hour=17
+uv run --group sumo python tools/od/corridor.py --area=koridor --speeds data/od/koridor/20261017-1726/speeds.csv \
+  --counts data/od/koridor/counts_202410_d5_h17.csv --tag counts
+```
+
+**Veri:** İBB "Günlük Araç Sayımı" (2024), koridordaki 27 sensörden 23'ü. Her sensörde yola dik bir sayım kesiti, iki yönün tüm şeritleri. Günlük toplam, aynı gün ve aynı geohash hücresindeki prob araç sayısının saatlik payıyla saatliğe çevrildi ("Saatlik Trafik Yoğunluk", Ekim 2024). Sensör başına değer, Ekim 2024 Cumartesilerinin medyanı. Saatin günlük trafikteki payı %3.6–5.1 aralığında. Köprü (Avrupa girişi) iki yön toplam 8.494 araç/sa.
+
+**Sonuç: ölçüt karşılanmıyor.**
+
+| GEH < 5 oranı | Prior | Uyum | Dışarıda bırakılan (her sayım tek tek) |
+|---|---|---|---|
+| Sayımlar ve tüm hız sınırları (hattın şu anki hali) | %4.3 | %13.0 | %13.0 |
+| Aynı rotalarla, yalnızca sayımlar | | %22.7 | %18.2 |
+| Aynı rotalarla, sayımlar ve üst sınırlar | | %22.7 | %18.2 |
+| Aynı rotalarla, sayımlar ve tüm hız sınırları | | %4.5 | %0 |
+
+**Bulgular:**
+
+1. **Sinyalli arterlerde hız alt sınırları yanlış.** Talebi şişiriyor (88 bin → 117 bin) ve uyumu bozuyor. Üç sensörde alt sınırlar sayımın iki katını aşıyor. Sansürlü gözlem kuralı temel diyagrama dayanır ve bu yalnızca kesintisiz akışta geçerlidir. Sinyalli yolda düşük hız kırmızı ışık beklemesinden de gelir. Kural yalnızca otoyol ve trunk yollara uygulanmalı.
+2. **Yalnızca sayımlarla bile uyum düşük.** Sayımlar mevcut rota yapısıyla birbiriyle çelişiyor. Örnekler: FSM Avrupa Girişi 10.613 ile FSM Gişeler 3.759 aynı kenarlara eşlenmiş (gişe sensörü muhtemelen tek yön ölçüyor); Mecidiyeköy sensörü rotaların geçmediği kenara düşmüş (prior 89); Üsküdar Sahil Yolu'nun modelde rotası yok.
+
+**Düzeltme sırası:**
+
+1. Hız alt sınırlarını kesintisiz akış yollarıyla sınırlamak.
+2. Sensör eşlemelerini tek tek denetlemek: yön, gişe ve rampa sensörleri, aynı kenara düşen sensörler (`counts_*.json`).
+3. Atama ağına İBB 2020 modelinin kalibre kapasite ve BPR α/β değerlerini aktarmak; zon bağlantılarını gözden geçirmek.
+4. İBB'nin 540 zonlu O-D matrisini prior olarak kullanmak.

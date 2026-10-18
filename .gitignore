@@ -21,6 +21,8 @@ data/archive/
 data/sumo/
 # OD estimates (npm run od:corridor)
 data/od/
+# İBB open data downloads (data.ibb.gov.tr): re-create with the download scripts
+data/ibb-open/
 
 # local settings and secrets
 .env
