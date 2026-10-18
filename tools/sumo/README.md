@@ -48,3 +48,36 @@ Duman testinde teleportların çoğu, ışıksız kavşaklardaki "yield" kilitle
 - Dikilitaş–Fulya: Hakkı Yeten Caddesi / Emirhan Caddesi kavşakları (29.002 D, 41.051 K)
 
 Bu noktalar netedit ile şerit bağlantıları ve öncelik açısından incelenecek. Güncel liste her duman testinde `report.json` → `smoke.teleport_hotspots` alanına yazılır.
+
+## O-D tahmininin SUMO'da koşturulması
+
+```bash
+uv run --group sumo python tools/sumo/run_od.py --area=koridor          # en yeni tahmin, 90 dk, mezoskopik
+uv run --group sumo python tools/sumo/run_od.py --od-dir … --compare-only # koşmadan, önceki çıktıyla karşılaştır
+```
+
+### İlk koşu: 17 Ekim 2026, 17:26 tahmini
+
+Sonuç olumsuz: ağ kilitlendi.
+
+| | |
+|---|---|
+| Talep | 128.6 bin araç/sa, 90 dakikaya yayıldı: 192.551 araç |
+| Ağa girebilen | 102.735 araç. 89.813 araç giriş kuyruğunda kaldı, 79.851 araç sonunda hâlâ yoldaydı, yalnızca 22.887 araç varabildi |
+| Teleport | 4.954, hepsi sıkışma kaynaklı |
+| Hız | İBB medyanı 24 km/sa, simülasyon medyanı 2.9 km/sa. 10 km/sa altında kalan segmentler: İBB'de %3.7, simülasyonda %84 |
+| Hata | Tahminde kullanılan segmentlerde MAE 23.5 km/sa (simülasyon 20 km/sa yavaş), r = 0.37. Kullanılmayan yerel sokaklarda MAE 15.2 km/sa |
+| Süre | M1'de 3 saat 10 dakika, işlemci süresinin çoğu yeniden rotalama sorgularında |
+
+Muhtemel nedenler, kontrol sırasına göre:
+
+1. **Talep düzeyi sayımla sabitlenmemiş.** Statik atama BPR ile kapasite aşımına izin veriyor, dinamik model izin vermiyor.
+2. **İç zonların araçları dar noktadan giriyor.** Her zon, 3 bağlantı düğümünün çevresindeki birkaç yerel kenardan araç sokuyor; bu da giriş kuyruğunu açıklayabilir.
+3. **Ağ kusurları.** Duman testindeki kavşak kilitlenmeleri ile mezoskopik kavşak ayarları (`--meso-junction-control.limited`, `--meso-tls-flow-penalty`).
+
+Önerilen sonraki adımlar:
+
+- Talebi ölçekleyerek (ör. %25, %50, %75) ağın hangi düzeyde aktığını bulmak.
+- Zon girişlerini daha çok kenara yaymak.
+- Talep düzeyini köprü sayımıyla sabitlemek.
+- Daha kısa koşular (30 dk, tek rotalama iş parçacığı).
