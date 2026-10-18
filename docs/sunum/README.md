@@ -1,5 +1,9 @@
 # Akademik sunum (ara sonuç, Ekim 2026)
 
+**English (UPC SUMO & traffic modelling course):** [PRESENTATION_EN.md](PRESENTATION_EN.md) → [presentation_en.pdf](presentation_en.pdf), [presentation_en.html](presentation_en.html). 23 slides, SUMO-focused, clean theme with consistent margins.
+
+**Türkçe:**
+
 - [SUNUM.md](SUNUM.md): Kaynak dosya (Marp Markdown, 18 slayt)
 - [sunum.pdf](sunum.pdf), [sunum.html](sunum.html): Çıktılar
 - `img/`: Grafikler ([tools/report/figures.py](../../tools/report/figures.py) ile gerçek çıktılardan üretilir) ve 3D istemcinin ekran görüntüleri
