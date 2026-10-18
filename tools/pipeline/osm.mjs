@@ -47,7 +47,11 @@ function roadAttrs(t) {
     sidewalkWidth: Number.parseFloat(t['sidewalk:width']) || null,
     layer: intTag(t.layer) ?? (t.bridge && t.bridge !== 'no' ? 1 : 0),
     bridge: t.bridge && t.bridge !== 'no' ? 1 : 0,
-    tunnel: (t.tunnel && t.tunnel !== 'no') || (intTag(t.layer) != null && intTag(t.layer) < 0) ? 1 : 0,
+    // suspension, cable-stayed, arch …: how a bridge is carried (drawn with towers and cables, not piers)
+    bridgeStructure: t['bridge:structure'] ?? (['suspension', 'cable-stayed'].includes(t.bridge) ? t.bridge : null),
+    // Only a tagged tunnel is underground. A negative layer alone is an underpass in a cutting (Istanbul's alt
+    // geçitler), open to the sky; a building passage runs at street level through a building.
+    tunnel: t.tunnel && t.tunnel !== 'no' && t.tunnel !== 'building_passage' ? 1 : 0,
     name: t.name ?? null, nameEn: t['name:en'] ?? null, ref: t.ref ?? null,
   };
 }

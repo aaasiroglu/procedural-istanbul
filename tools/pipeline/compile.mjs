@@ -33,7 +33,7 @@ import { readModels, encodeMesh } from './meshes.mjs';
 import { bakePhotos } from './photos.mjs';
 import { SPORT, MATERIAL } from '../../src/shared/tileformat.js';
 import { inRings } from './landscape.mjs';
-import { profileRoads, flyover, BANK } from './roadprofile.mjs';
+import { profileRoads, flyover, smoothCurve, BANK } from './roadprofile.mjs';
 import { DECK_FLAG, CORRIDOR_MARGIN, projectOnDeck } from '../../src/shared/decks.js';
 
 const TERRAIN_STEP = 5; // metres, matches the GSI 5 m DEM
@@ -276,8 +276,12 @@ const roadsOut = {
   edges: graph.edges.map((edge) => {
     edge.span = spans.has(edge) ? 1 : 0; // a street-level bridge: treated as an ordinary road from here on
     edge.flyover = flyover(edge) ? 1 : 0; // carried on its own structure above the streets
-    const { ids, way, spanLength, spanEnds, ...e } = edge;
-    return { ...e, way, pts: ids.flatMap((id) => { const [x, z] = graph.pos(id); return [r2(x), r2(level.get(id)), r2(z)]; }) };
+    const { ids, way, spanLength, spanEnds, structure, ...e } = edge;
+    let pts = ids.flatMap((id) => { const [x, z] = graph.pos(id); return [x, level.get(id), z]; });
+    // elevated roads (viaducts and the ramps raised to them) follow rounded curves, not OSM's chords
+    const raised = ids.some((id) => { const [x, z] = graph.pos(id); return level.get(id) - ground(x, z) > 0.5; });
+    if (structure === 'viaduct' || (raised && !edge.span && !edge.tunnel)) pts = smoothCurve(pts);
+    return { ...e, way, pts: pts.map(r2) };
   }),
 };
 const byClass = {};
@@ -359,10 +363,18 @@ if (nB === 0 && extraRaw) {
     return c;
   };
   const num = (v) => { const f = parseFloat(v); return Number.isFinite(f) ? f : NaN; };
+  // Below ground, not a building one sees: metro stations and their halls (location=underground, or a station,
+  // car park or service structure on a negative layer), anything in a tunnel. A negative layer alone is not
+  // enough: in Istanbul hundreds of ordinary blocks on slopes carry layer=-1.
+  const underground = (t) => t.location === 'underground' || t.location === 'indoor' || !!t.tunnel
+    || (parseFloat(t.layer) < 0 && (['train_station', 'transportation', 'parking', 'service', 'station'].includes(t.building) || !!t.railway || !!t.public_transport || t.station === 'subway'))
+    || (parseInt(t['building:min_level'], 10) < 0 && !(parseInt(t['building:levels'], 10) > 0))
+    || !!t['bridge:support'] || t.man_made === 'bridge'; // (a bridge's towers and piers: src/world/flyovers.js draws those)
+  let buried = 0;
   const parts = [];
   for (const w of extraRaw.ways) {
     const t = w.tags;
-    if (!t || !t['building:part'] || t['building:part'] === 'no') continue;
+    if (!t || !t['building:part'] || t['building:part'] === 'no' || underground(t)) continue;
     const ring = ringOf(w);
     if (ring) parts.push({ w, ring, c: centroidOf([[ring]]) });
   }
@@ -370,6 +382,7 @@ if (nB === 0 && extraRaw) {
   for (const w of extraRaw.ways) {
     const t = w.tags;
     if (!t || !t.building || t.building === 'no' || t.building === 'roof' || t['building:part']) continue;
+    if (underground(t)) { buried++; continue; }
     const ring = ringOf(w);
     if (!ring) continue;
     let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
@@ -427,7 +440,7 @@ if (nB === 0 && extraRaw) {
     if (p.w.tags.building === undefined && inherited.building) tags.building = inherited.building;
     if (extrude(p.w.id, tags, p.ring)) fromParts++;
   }
-  log(`buildings (OSM fallback): ${made} from footprints, ${fromParts} from the parts of ${replaced} complexes (their outlines not drawn)`);
+  log(`buildings (OSM fallback): ${made} from footprints, ${fromParts} from the parts of ${replaced} complexes (their outlines not drawn), ${buried} underground structures left out`);
 }
 // pedestrian streets and paths in the open, as lines (stairs, bridges and passages are not streets)
 const walkLines = extraRaw.ways.filter((w) => ['pedestrian', 'footway', 'path'].includes(w.tags.highway) && !w.closed && !w.tags.bridge && !w.tags.tunnel

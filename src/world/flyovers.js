@@ -279,6 +279,7 @@ export async function buildFlyovers(url, ground, customParams = {}) {
     for (const c of cs) {
       if (
         !e.span &&
+        !e.bridgeStructure && // (a suspended or cable-stayed deck stands on its towers, not on piers)
         c.h > params.pierMinHeight &&
         Math.round(c.s / STEP) % Math.round(params.pierSpacing / STEP) === 1
       ) {
@@ -292,6 +293,65 @@ export async function buildFlyovers(url, ground, customParams = {}) {
           c.p[1] - 1.5,
           concrete
         );
+      }
+    }
+  }
+
+  // 7. Suspension and cable-stayed bridges (the 15 Temmuz Şehitler Köprüsü): two towers astride both
+  // carriageways, the main cables hanging between them and back to the anchorages, and hangers down to the deck
+  const towerPaint = [0.8, 0.82, 0.83];
+  const carried = new Map();
+  for (const item of elevatedList) {
+    if (!['suspension', 'cable-stayed'].includes(item.edge.bridgeStructure)) continue;
+    const key = item.edge.name ?? `#${item.idx}`;
+    (carried.get(key) ?? carried.set(key, []).get(key)).push(item);
+  }
+  for (const group of carried.values()) {
+    const ref = group.reduce((m, it) => (it.cs.at(-1).s > m.cs.at(-1).s ? it : m));
+    const L = ref.cs.at(-1).s;
+    if (L < 250) continue;
+    const mid = ref.cs[Math.floor(ref.cs.length / 2)];
+    // across the bridge: the band from the outer edge of one carriageway to the outer edge of the other
+    let lo = -ref.w, hi = ref.w;
+    for (const it of group) {
+      if (it === ref) continue;
+      const m = it.cs[Math.floor(it.cs.length / 2)];
+      const off = (m.p[0] - mid.p[0]) * mid.n[0] + (m.p[2] - mid.p[2]) * mid.n[2];
+      lo = Math.min(lo, off - it.w); hi = Math.max(hi, off + it.w);
+    }
+    const centre = (lo + hi) / 2, half = (hi - lo) / 2 + 1.6;
+    const at = (s) => ref.cs.reduce((b, c) => (Math.abs(c.s - s) < Math.abs(b.s - s) ? c : b));
+    const side = (c, l, y) => [c.p[0] + c.n[0] * (centre + l), y, c.p[2] + c.n[2] * (centre + l)];
+    // towers about a sixth of the way in from each end (the 15 Temmuz: 1074 m main span of 1560)
+    const s1 = L * 0.156, s2 = L * 0.844, main = s2 - s1;
+    const deckAt = (s) => at(s).p[1];
+    const top = Math.max(deckAt(s1), deckAt(s2)) + Math.max(40, main * 0.095);
+    for (const s of [s1, s2]) {
+      const c = at(s);
+      for (const l of [-half, half]) {
+        const [x, , z] = side(c, l, 0);
+        soup.box([x, 0, z], c.t, c.n, 3.2, 2.2, Math.min(0, ground(x, z)) - 2, top, towerPaint);
+      }
+      for (const y of [c.p[1] - 3, (c.p[1] + top) / 2, top - 5]) {
+        const [x, , z] = side(c, 0, 0);
+        soup.box([x, 0, z], c.t, c.n, 1.6, half, y - 1.8, y + 1.8, towerPaint);
+      }
+    }
+    // main cables: a parabola between the tower tops dipping to just above the deck, straight back spans
+    const cableY = (s) => {
+      if (s >= s1 && s <= s2) { const u = (s - (s1 + s2) / 2) / (main / 2); return deckAt(s) + 3 + (top - 1 - deckAt(s) - 3) * u * u; }
+      const [a, b] = s < s1 ? [0, s1] : [L, s2];
+      return deckAt(a) + 1.5 + ((top - 1 - deckAt(a) - 1.5) * (s - a)) / (b - a);
+    };
+    const STEPC = 9;
+    for (const l of [-half + 0.6, half - 0.6]) {
+      for (let s = 0; s + STEPC <= L + 1e-6; s += STEPC) {
+        const c0 = at(s), c1 = at(s + STEPC), y0 = cableY(s), y1 = cableY(s + STEPC);
+        soup.quad(side(c0, l, y0 - 0.5), side(c1, l, y1 - 0.5), side(c1, l, y1 + 0.5), side(c0, l, y0 + 0.5), towerPaint);
+        if (s > s1 && s < s2 && Math.round(s / STEPC) % 2 === 0) { // hangers
+          const yc = cableY(s), yd = deckAt(s) + 1;
+          if (yc - yd > 1) soup.quad(side(c0, l - 0.08, yd), side(c0, l + 0.08, yd), side(c0, l + 0.08, yc), side(c0, l - 0.08, yc), towerPaint);
+        }
       }
     }
   }
