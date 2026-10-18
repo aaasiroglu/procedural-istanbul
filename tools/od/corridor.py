@@ -305,6 +305,28 @@ def gravity_prior(network: Network, zones, cells, pm: bool):
     return x.ravel(), prod, attr, t
 
 
+def survey_blocks(x0, zones, path):
+    """Rescale the prior's four trip types (inside the area, out of it, into it, through it) to the shares the
+    household survey observed. Its sample touching the area is small (77 trip records for Istanbul's 17:00 hour in
+    2012), too small for single cells but enough for these shares; the total stays the prior's, the counts set it."""
+    Z = len(zones)
+    gate = np.array([z["kind"] == "gateway" for z in zones])
+    share = defaultdict(float)
+    with open(path) as f:
+        for r in csv.DictReader(f):
+            share[(r["o_kind"] == "gate", r["d_kind"] == "gate")] += float(r["vehicles"])
+    total = sum(share.values())
+    X = x0.reshape(Z, Z).copy()
+    T = X.sum()
+    for (og, dg), v in share.items():
+        block = np.ix_(gate == og, gate == dg)
+        if X[block].sum() > 0:
+            X[block] *= (v / total) * T / X[block].sum()
+    print("  survey trip types: " + ", ".join(f"{'gate' if og else 'zone'}→{'gate' if dg else 'zone'} {v / total:.0%}" for (og, dg), v in sorted(share.items())))
+    ASSUMPTIONS["prior_trip_type_shares"] = {f"{'gate' if og else 'zone'}->{'gate' if dg else 'zone'}": round(v / total, 3) for (og, dg), v in share.items()}
+    return X.ravel()
+
+
 # ---------------------------------------------------------------- 4: observations
 def live_speeds(path: str | None):
     if path and path.endswith(".csv"):  # (the snapshot an earlier estimate saved: speeds.csv in its folder)
@@ -460,6 +482,7 @@ def main() -> None:
     parser.add_argument("--counts", help="CSV of counts: edge_id,value,sd[,source] (veh/h)")
     parser.add_argument("--rounds", type=int, default=8, help="bilevel rounds (default 8)")
     parser.add_argument("--tag", default="", help="appended to the output folder's name (e.g. counts)")
+    parser.add_argument("--survey", help="survey_trips_h<hour>.csv (tools/od/survey_prior.py): rescale the prior's trip types to it")
     args = parser.parse_args()
 
     sumo_dir = ROOT / "data" / "sumo" / args.area
@@ -477,6 +500,8 @@ def main() -> None:
     print("land use …")
     cells = land_use(net, bbox, sumo_dir / "landuse.osm.json")
     x0, prod, attr, t = gravity_prior(network, zones, cells, pm)
+    if args.survey:
+        x0 = survey_blocks(x0, zones, args.survey)
     obs, obs_stats, role = observations(net, rows, sumo_dir / "ibb_edges.csv", edge_link, links, args.counts)
     print(f"  prior: {x0.sum():.0f} car trips/h; observations: {obs_stats}")
 

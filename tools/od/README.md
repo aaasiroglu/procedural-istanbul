@@ -105,3 +105,29 @@ Eşleşen kenarlarda İBB'nin kapasitesi, serbest akış hızı ve BPR katsayıl
 | Ek olarak İBB kapasite ve BPR | 12.2, %20.8 | 24.0, %0 |
 
 **Sonuç:** Link parametreleri darboğaz değil. Dışarıda bırakılan hata, prior'ın yapısından ve sensör tanımlarındaki çelişkiden kaynaklanıyor. Sıradaki adım 2012 hanehalkı anketinden gözleme dayalı bir otomobil O-D prior'ı kurmak.
+
+### 2012 hanehalkı anketi ile prior (18 Ekim 2026)
+
+`tools/od/survey_prior.py` şu adımları izliyor:
+
+1. 17:00'de başlayan otomobil ve taksi yolculuklarını, kişi ağırlığı ve otomobildeki kişi sayısıyla araç yolculuğuna çevirir.
+2. Mahalleleri muhtarlık konumlarıyla eşler (963 nokta).
+3. Her yolculuğu İBB 2020 ağında, yön kurallarına uyarak en kısa yoldan geçirip koridora giriş ve çıkış noktasını bulur.
+
+Şehir genelinde 735 yolculuk kaydı var; 532'si konumlandırılabildi, ancak koridora değen yalnızca 77. Genişletilmiş toplam 24.618 araç/sa. Bu örneklem hücre bazında bir matris için çok küçük, bu yüzden yalnızca yolculuk tipi paylarını kullanıyoruz:
+
+| Tip | Pay |
+|---|---|
+| İç–iç | %15 |
+| İçeriden dışarı | %39 |
+| Dışarıdan içeri | %20 |
+| Transit | %26 |
+
+Çekim modeli prior'ının dört bloğu bu paylara ölçekleniyor (`--survey`).
+
+| | Uyum (ortalama GEH, GEH < 5) | Dışarıda bırakılan |
+|---|---|---|
+| İBB kapasite ve BPR | 12.2, %20.8 | 24.0, %0 |
+| Ek olarak anket payları | 11.8, %25.0 | 23.2, %4.2 |
+
+Küçük bir iyileşme var, ancak dışarıda bırakılan hatanın baskın kaynağı hâlâ sensör tanımlarındaki çelişki (O-2 sensörleri, FSM).
