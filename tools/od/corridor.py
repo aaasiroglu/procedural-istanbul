@@ -304,6 +304,7 @@ def observations(net, rows, mapping_csv: Path, edge_link, links, counts_csv: str
             if s not in best or cov > best[s][1]:
                 best[s] = (r["edge_id"], cov)
     stats, per_link = Counter(), defaultdict(list)
+    role = {}  # segment -> how it entered the estimate (saved with it, so later checks can tell in-sample apart)
     for r in rows:
         s = int(r["S"])
         if s not in best:
@@ -311,6 +312,7 @@ def observations(net, rows, mapping_csv: Path, edge_link, links, counts_csv: str
         stats["segments_on_network"] += 1
         if r["T"] == "FE" or not r["C"] or not r["V"]:
             stats["skipped_closed_or_no_data"] += 1
+            role[s] = "closed_or_no_data"
             continue
         edge = net.getEdge(best[s][0])
         if best[s][0] not in edge_link:
@@ -320,6 +322,7 @@ def observations(net, rows, mapping_csv: Path, edge_link, links, counts_csv: str
             # (local streets: their speed reflects parking and access more than through demand, and a static
             # model sends next to no route along them, so their bounds would only be violated, never informative)
             stats["skipped_local_street"] += 1
+            role[s] = "local_street"
             continue
         lanes = edge.getLaneNumber()
         cap_lane = links[link]["cap"] / max(sum(net.getEdge(e).getLaneNumber() for e in links[link]["edges"]), 1)
@@ -330,24 +333,34 @@ def observations(net, rows, mapping_csv: Path, edge_link, links, counts_csv: str
         else:
             obs = fd.observe(link, float(r["V"]), free_ratio=10)  # (C >= 3: İBB says queueing, take the congested branch)
             obs.source = f"İBB {s} C{r['C']} {r['V']} km/h"
+        obs.segment = s
         per_link[(link, obs.kind)].append(obs)
     out = []
     for (link, kind), group in per_link.items():
         # several segments on one link: the tightest bound of each kind (they are not independent observations)
-        out.append(max(group, key=lambda o: o.value) if kind == "lower" else min(group, key=lambda o: o.value))
+        chosen = max(group, key=lambda o: o.value) if kind == "lower" else min(group, key=lambda o: o.value)
+        out.append(chosen)
         stats[kind] += 1
+        for o in group:
+            role[o.segment] = kind if o is chosen else f"redundant_{kind}"
     if counts_csv:
         with open(counts_csv) as f:
             for r in csv.DictReader(f):
                 if r["edge_id"] in edge_link:
                     out.append(Observation(edge_link[r["edge_id"]], float(r["value"]), float(r["sd"]), "count", r.get("source", "count")))
                     stats["count"] += 1
-    return out, dict(stats)
+    return out, dict(stats), role
 
 
 # ---------------------------------------------------------------- 5: outputs
-def write_outputs(out: Path, net, network, zones, links, est, x0, prod, attr, obs, meta):
+def write_outputs(out: Path, net, network, zones, links, est, x0, prod, attr, obs, meta, rows, role):
     out.mkdir(parents=True, exist_ok=True)
+    # the speed snapshot the estimate saw, and what each segment was to it
+    with open(out / "speeds.csv", "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["segment_id", "type", "speed_kph", "congestion", "role"])
+        for r in rows:
+            w.writerow([r["S"], r["T"], r["V"], r["C"], role.get(int(r["S"]), "off_network")])
     Z = len(zones)
     ids = [z["id"] for z in zones]
     with open(out / "od.csv", "w", newline="") as f:
@@ -392,7 +405,7 @@ def write_outputs(out: Path, net, network, zones, links, est, x0, prod, attr, ob
             lines.append("  </taz>")
     lines.append("</tazs>")
     (out / "taz.xml").write_text("\n".join(lines) + "\n")
-    rel = ['<data>', '  <interval id="estimate" begin="0" end="3600">']
+    rel = ['<data>', '  <interval begin="0" end="3600">']  # (no id: od2trips would take it for the vehicle type)
     for k in np.flatnonzero(est.x >= 0.5):
         i, j = divmod(int(k), Z)
         rel.append(f'    <tazRelation from="{ids[i]}" to="{ids[j]}" count="{est.x[k]:.1f}"/>')
@@ -425,7 +438,7 @@ def main() -> None:
     print("land use …")
     cells = land_use(net, bbox, sumo_dir / "landuse.osm.json")
     x0, prod, attr, t = gravity_prior(network, zones, cells, pm)
-    obs, obs_stats = observations(net, rows, sumo_dir / "ibb_edges.csv", edge_link, links, args.counts)
+    obs, obs_stats, role = observations(net, rows, sumo_dir / "ibb_edges.csv", edge_link, links, args.counts)
     print(f"  prior: {x0.sum():.0f} car trips/h; observations: {obs_stats}")
 
     lam = prior_weights(x0, ASSUMPTIONS["prior_cv"])
@@ -463,7 +476,7 @@ def main() -> None:
         "assumptions": ASSUMPTIONS,
     }
     out = ROOT / "data" / "od" / args.area / when.strftime("%Y%m%d-%H%M")
-    write_outputs(out, net, network, zones, links, est, x0, prod, attr, obs, meta)
+    write_outputs(out, net, network, zones, links, est, x0, prod, attr, obs, meta, rows, role)
     print(json.dumps({k: meta[k] for k in ("zones", "observations", "car_trips_per_hour", "bound_violations", "data_share", "level_of_demand")}, ensure_ascii=False, indent=2))
     print(f"→ {out}")
 
