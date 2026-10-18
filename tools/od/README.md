@@ -75,3 +75,20 @@ uv run --group sumo python tools/od/corridor.py --area=koridor --speeds data/od/
 2. Sensör eşlemelerini tek tek denetlemek: yön, gişe ve rampa sensörleri, aynı kenara düşen sensörler (`counts_*.json`).
 3. Atama ağına İBB 2020 modelinin kalibre kapasite ve BPR α/β değerlerini aktarmak; zon bağlantılarını gözden geçirmek.
 4. İBB'nin 540 zonlu O-D matrisini prior olarak kullanmak.
+
+### Düzeltmelerden sonra (18 Ekim 2026)
+
+Yapılan düzeltmeler: sensör eşlemesi denetlendi (25/27 sensör), hız alt sınırları yalnızca kesintisiz akış yollarında kullanılıyor, prior'a zon bazında üretim/çekim çarpanları eklendi.
+
+| GEH < 5 (ortalama GEH) | Prior | Uyum | Dışarıda bırakılan |
+|---|---|---|---|
+| İlk tur | %4.3 (37.6) | %13.0 (27.3) | %13.0 (35.6) |
+| Eşleme ve kesintisiz akış kuralı | %8.3 (32.1) | %8.3 (16.5) | %8.3 (23.8) |
+| Ek olarak zon çarpanları | %8.3 (32.1) | %20.8 (13.1) | %4.2 (23.4) |
+
+Ortalama hatalar belirgin biçimde düştü, ancak ölçüt (%85) hâlâ çok uzakta. Kalan hatanın iki ana kaynağı var:
+
+1. **Sayım tanımları birbiriyle çelişiyor.** Üç O-2 sensörü (TEM Harp Akademileri 8.171, TEM Levent 7.108, TEM Karanfilköy 4.291 araç/sa) modelde aynı akıma oturuyor (6.348). Aralarında rampa yoksa bu kadar farklı olamazlar. Karanfilköy muhtemelen tek yön sayıyor ya da ağda bu kesimin rampaları eksik. Sensörlerin yön ve şerit kapsamı İBB'den teyit edilmeli.
+2. **Geçitler ve ağ yapısı.** FSM Avrupa Girişi'nde model sayımın yarısını taşıyabiliyor (10.613'e karşı 5.249). Geçit prior'ı kapasiteye dayalı kaba bir varsayım.
+
+**Sıradaki adımlar:** İBB 2020 modelinin kalibre kapasite, BPR katsayıları ve 540 zonlu O-D'si (geçitler dahil) ile sensörlerin yön ve şerit tanımlarının teyidi.
