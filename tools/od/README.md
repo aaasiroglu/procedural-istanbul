@@ -92,3 +92,16 @@ Ortalama hatalar belirgin biçimde düştü, ancak ölçüt (%85) hâlâ çok uz
 2. **Geçitler ve ağ yapısı.** FSM Avrupa Girişi'nde model sayımın yarısını taşıyabiliyor (10.613'e karşı 5.249). Geçit prior'ı kapasiteye dayalı kaba bir varsayım.
 
 **Sıradaki adımlar:** İBB 2020 modelinin kalibre kapasite, BPR katsayıları ve 540 zonlu O-D'si (geçitler dahil) ile sensörlerin yön ve şerit tanımlarının teyidi.
+
+### İBB 2020 modelinin kapasite ve BPR değerleriyle (18 Ekim 2026)
+
+`tools/sumo/map_ibb_model.py`, İBB linklerini yön kontrolüyle SUMO kenarlarına eşliyor. İBB bölünmüş yolların her taşıt yolunu ayrı tek yönlü link olarak çiziyor; bu yüzden en yakın link çoğu zaman karşı yön oluyor ve eşleme yönü dikkate alıyor. Eşleşme oranları: otoyol %92, trunk %80, ana ve tali arter %77–78, konut sokağı %10 (İBB modelinde yerel sokak yok).
+
+Eşleşen kenarlarda İBB'nin kapasitesi, serbest akış hızı ve BPR katsayıları kullanılıyor. Eşleşmeyenler İBB'nin sınıf bazlı BPR değerini alıyor: otoyol/trunk α = 0.158 / β = 3.483, diğer yollar α = 0.924 / β = 3.464.
+
+| | Uyum (ortalama GEH, GEH < 5) | Dışarıda bırakılan |
+|---|---|---|
+| Zon çarpanları | 13.1, %20.8 | 23.4, %4.2 |
+| Ek olarak İBB kapasite ve BPR | 12.2, %20.8 | 24.0, %0 |
+
+**Sonuç:** Link parametreleri darboğaz değil. Dışarıda bırakılan hata, prior'ın yapısından ve sensör tanımlarındaki çelişkiden kaynaklanıyor. Sıradaki adım 2012 hanehalkı anketinden gözleme dayalı bir otomobil O-D prior'ı kurmak.

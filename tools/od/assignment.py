@@ -24,8 +24,8 @@ class Network:
     t0: np.ndarray         # free-flow travel time (any unit, minutes by convention)
     capacity: np.ndarray   # veh/h
     zones: np.ndarray      # node index of each zone centroid (where its trips start)
-    alpha: float = 0.15    # BPR: t = t0 * (1 + alpha * (v/c)^beta)
-    beta: float = 4.0
+    alpha: float | np.ndarray = 0.15  # BPR: t = t0 * (1 + alpha * (v/c)^beta), one value or one per link
+    beta: float | np.ndarray = 4.0
     # node where each zone's trips end, if not the centroid: a separate sink with only incoming connectors keeps
     # routes from cutting through a zone centroid (in at one connector, out at another)
     sinks: np.ndarray | None = None
@@ -35,6 +35,9 @@ class Network:
         self.t0, self.capacity = np.asarray(self.t0, float), np.asarray(self.capacity, float)
         self.zones = np.asarray(self.zones, int)
         self.sinks = self.zones if self.sinks is None else np.asarray(self.sinks, int)
+        n = len(self.tail)
+        self.alpha = np.broadcast_to(np.asarray(self.alpha, float), (n,)).copy()
+        self.beta = np.broadcast_to(np.asarray(self.beta, float), (n,)).copy()
         pairs = list(zip(self.tail, self.head))
         if len(set(pairs)) != len(pairs):
             raise ValueError("parallel links between the same two nodes are not supported; split one with a node")

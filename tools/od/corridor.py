@@ -66,6 +66,7 @@ ASSUMPTIONS = {
     "gateway_inbound_use_of_capacity": 0.55,    # peak direction
     "gateway_outbound_use_of_capacity": 0.35,
     "gravity_beta_per_min": 0.08,
+    "link_parameters": "İBB 2020 model (capacity, free-flow speed, BPR) on matched edges; else class capacity and İBB's BPR by class",
     "prior_cv": 1.0,                            # prior uncertainty of every OD pair: +-100 % of its value
     "zone_factor_sd": 1.0,                      # each zone's production / attraction factor: log-normal, sd 1 (x2.7)
     "observed_road_types_excluded": ["residential", "living_street", "unclassified"],
@@ -85,8 +86,17 @@ def lonlat_inside(bbox, lon, lat) -> bool:
 
 
 # ---------------------------------------------------------------- 1-2: zones and the assignment network
-def build(net, bbox):
+# İBB's calibrated BPR coefficients (2020 model): expressways and their ramps, and every other road; used as
+# they are where an edge matched an İBB link (tools/sumo/map_ibb_model.py), by class where it did not
+BPR_EXPRESS, BPR_STREET = (0.158, 3.483), (0.924, 3.464)
+
+
+def build(net, bbox, params_csv: Path | None = None):
     cap_lane, green = ASSUMPTIONS["capacity_veh_h_lane"], ASSUMPTIONS["green_share_at_signal"]
+    params = {}
+    if params_csv and params_csv.exists():
+        with open(params_csv) as f:
+            params = {r["edge_id"]: r for r in csv.DictReader(f)}
     cars = [e for e in net.getEdges() if e.allows("passenger") and not e.getFunction()]
     node_ids = sorted({n.getID() for e in cars for n in (e.getFromNode(), e.getToNode())})
     nid = {n: i for i, n in enumerate(node_ids)}
@@ -96,8 +106,15 @@ def build(net, bbox):
     link_of_pair, links, edge_link = {}, [], {}
     for e in cars:
         kind = road_type(e)
-        cap = e.getLaneNumber() * cap_lane.get(kind, 900) * (green if e.getToNode().getType() == "traffic_light" else 1)
-        t0 = e.getLength() / max(e.getSpeed(), 1) / 60
+        p = params.get(e.getID())
+        if p:  # İBB's own capacity (veh/h, this direction), free-flow speed and BPR coefficients
+            cap = float(p["capacity"])
+            t0 = e.getLength() / (float(p["free_kph"]) / 3.6 if float(p["free_kph"]) > 5 else max(e.getSpeed(), 1)) / 60
+            a, b = float(p["alpha"]), float(p["beta"])
+        else:
+            cap = e.getLaneNumber() * cap_lane.get(kind, 900) * (green if e.getToNode().getType() == "traffic_light" else 1)
+            t0 = e.getLength() / max(e.getSpeed(), 1) / 60
+            a, b = BPR_EXPRESS if kind in UNINTERRUPTED else BPR_STREET
         pair = (nid[e.getFromNode().getID()], nid[e.getToNode().getID()])
         if pair in link_of_pair:
             k = link_of_pair[pair]
@@ -106,7 +123,8 @@ def build(net, bbox):
             links[k]["edges"].append(e.getID())
         else:
             link_of_pair[pair] = len(links)
-            links.append({"tail": pair[0], "head": pair[1], "t0": t0, "cap": cap, "edges": [e.getID()], "kind": kind})
+            links.append({"tail": pair[0], "head": pair[1], "t0": t0, "cap": cap, "edges": [e.getID()], "kind": kind,
+                          "alpha": a, "beta": b, "ibb": bool(p)})
         edge_link[e.getID()] = link_of_pair[pair]
 
     # zones connect only to the largest strongly connected part of the road graph: from there every other zone
@@ -185,7 +203,10 @@ def build(net, bbox):
             tail.append(src); head.append(n); t0.append(0.5); cap.append(1e5)
         for n in ins:
             tail.append(n); head.append(snk); t0.append(0.5); cap.append(1e5)
-    network = Network(n_road + 2 * len(zones), tail, head, t0, cap, sources, sinks=sinks)
+    n_conn = len(tail) - len(links)  # (connectors: free flowing, alpha 0)
+    alpha = [l["alpha"] for l in links] + [0.0] * n_conn
+    beta = [l["beta"] for l in links] + [1.0] * n_conn
+    network = Network(n_road + 2 * len(zones), tail, head, t0, cap, sources, sinks=sinks, alpha=alpha, beta=beta)
     return network, zones, links, edge_link
 
 
@@ -445,9 +466,9 @@ def main() -> None:
     bbox = area_bbox(args.area)
     print("network …")
     net = sumolib.net.readNet(str(sumo_dir / f"{args.area}.net.xml.gz"), withInternal=False)
-    network, zones, links, edge_link = build(net, bbox)
+    network, zones, links, edge_link = build(net, bbox, sumo_dir / "ibb_model_edges.csv")
     n_gate = sum(z["kind"] == "gateway" for z in zones)
-    print(f"  {len(links)} links, {len(zones) - n_gate} H3 zones, {n_gate} gateways, {len(zones) ** 2} OD pairs")
+    print(f"  {len(links)} links ({sum(l['ibb'] for l in links)} with İBB 2020 capacity and BPR), {len(zones) - n_gate} H3 zones, {n_gate} gateways, {len(zones) ** 2} OD pairs")
 
     rows, when = live_speeds(args.speeds)
     pm = when.hour >= 12
