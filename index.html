@@ -339,7 +339,7 @@
     <script>
       // The city's name goes on the loading screen before anything else runs, so it never changes under the eye.
       (function () {
-        var id = new URLSearchParams(location.search).get('area') || 'istanbul', name = null;
+        var id = new URLSearchParams(location.search).get('area') || 'koridor', name = null;
         try { name = localStorage.getItem('procedural-istanbul:name:' + id); } catch (e) {}
         document.querySelector('#loader .city').textContent = name || id.charAt(0).toUpperCase() + id.slice(1);
       })();

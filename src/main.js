@@ -63,7 +63,9 @@ function createLandmarkTag(text, subtext) {
 installLampLight(); // (before any material is compiled)
 
 const params = new URLSearchParams(location.search);
-const AREA = params.get('area') || 'istanbul'; // (the first of the city switch)
+// the area asked for, else the first one compiled (tiles/areas.json, which compile.mjs keeps): asking for an area that
+// was never compiled would read the dev server's HTML fallback as the manifest
+const AREA = params.get('area') || (await fetch('tiles/areas.json').then((r) => (r.ok ? r.json() : null)).catch(() => null))?.[0]?.id || 'koridor';
 
 // The loading screen (index.html): the city's name, a bar and what is being done.
 const loader = {

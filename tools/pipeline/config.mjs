@@ -67,7 +67,7 @@ export function backdropBox({ origin: [lon, lat] }, backdrop) {
 
 export function resolveArea(argv = process.argv) {
   const arg = argv.find((a) => a.startsWith('--area='));
-  const id = arg ? arg.split('=')[1] : 'istanbul';
+  const id = arg ? arg.split('=')[1] : 'koridor';
   const area = AREAS[id] ?? IBB_GRID_AREAS[id];
   if (!area) throw new Error(`unknown area "${id}" (known: ${Object.keys(AREAS).join(', ')})`);
   const bbox = area.bbox ?? bboxAround(area.origin[0], area.origin[1], area.radius);
