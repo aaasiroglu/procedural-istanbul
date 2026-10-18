@@ -1,6 +1,6 @@
 // Procedural Istanbul client: streams the compiled city and renders it, under a free camera.
 //
-// URL parameters: ?area=tokyo  ?time=18.5 (Tokyo hour; default: now)  ?night=1  ?cam=x,z,distance,azimuthDeg,elevationDeg  ?radius=3000  ?traffic=0  ?ortho=0  ?clouds=0.25 (on, with that cover)  ?birds=150  ?cars=600
+// URL parameters: ?area=tokyo  ?time=18.5 (Tokyo hour; default: now)  ?night=1  ?cam=x,z,distance,azimuthDeg,elevationDeg  ?radius=3000  ?whole=1 (every tile at once)  ?traffic=0  ?ortho=0  ?clouds=0.25 (on, with that cover)  ?birds=150  ?cars=600
 import * as THREE from 'three';
 import { MapControls } from 'three/addons/controls/MapControls.js';
 import GUI from 'lil-gui';
@@ -82,7 +82,8 @@ const USAGE = {
 
 // ---------------------------------------------------------------- renderer, scene, camera
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+// (1.5 at most: on a Retina screen 2x quadruples the fragment work for little visible gain)
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.shadowMap.enabled = true;
@@ -123,7 +124,7 @@ const clockTime = {
 const materials = createMaterials(await loadTextures(renderer));
 const props = new Props();
 const signs = new Signs();
-const defaultRadius = AREA === 'koridor' ? 3500 : 900;
+const defaultRadius = 900; // (metres around the point looked at; the panel can ask for more, or the whole city)
 const streamer = new Streamer(scene, materials, props, signs, { base: `tiles/${AREA}`, radius: Number(params.get('radius')) || defaultRadius }); // (progressive by default: the control panel can ask for the whole city)
 loader.set(0.08, 'terrain');
 const manifest = await streamer.init();
@@ -267,7 +268,7 @@ let guiState, clockText, geoTwinUI, gui;
     get occlusion() { return ao.configuration.intensity > 0; }, set occlusion(v) { ao.configuration.intensity = v ? AO : 0; },
     bloom: true,
     // the whole city at once, or only what lies within the view radius of the point looked at (fewer tiles: more frames)
-    wholeCity: AREA === 'koridor', near: Number(params.get('radius')) || defaultRadius,
+    wholeCity: params.get('whole') === '1', near: Number(params.get('radius')) || defaultRadius,
     get whole() { return this.wholeCity; }, set whole(v) { this.wholeCity = v; streamer.radius = v ? 1e5 : this.near; },
     get radius() { return this.near; }, set radius(v) { this.near = v; if (!this.wholeCity) streamer.radius = v; },
   };
