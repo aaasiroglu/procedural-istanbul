@@ -58,11 +58,14 @@ def upstream(net, edge_id: str, hops: int) -> list[str]:
 
 def stats(path: Path) -> dict:
     root = ET.parse(path).getroot()
-    v, t = root.find("vehicles"), root.find("vehicleTripStatistics")
-    tel = root.find("teleports")
-    return {"inserted": int(v.get("inserted")), "running": int(v.get("running")), "waiting": int(v.get("waiting", 0)),
-            "arrived": int(t.get("count")), "mean_duration_s": float(t.get("duration")), "mean_time_loss_s": float(t.get("timeLoss")),
-            "teleports": int(tel.get("total")) if tel is not None else 0}
+    v, t, tel = root.find("vehicles"), root.find("vehicleTripStatistics"), root.find("teleports")
+    out = {"inserted": int(v.get("inserted")), "running": int(v.get("running")), "waiting_to_enter": int(v.get("waiting", 0)),
+           "teleports": int(tel.get("total")) if tel is not None else 0,
+           "real_time_factor": float(root.find("performance").get("realTimeFactor"))}
+    if t is not None:  # (written with --duration-log.statistics)
+        out.update({"arrived": int(t.get("count")), "mean_duration_s": float(t.get("duration")),
+                    "mean_time_loss_s": float(t.get("timeLoss")), "mean_depart_delay_s": float(t.get("departDelay", 0))})
+    return out
 
 
 def main() -> None:
@@ -106,7 +109,8 @@ def main() -> None:
 
     # 1: warm-up to the incident, state saved
     t0 = time.time()
-    subprocess.run(base + ["--begin", "0", "--end", str(T), "--device.rerouting.probability", "1", "--device.rerouting.period", "120",
+    subprocess.run(base + ["--begin", "0", "--end", str(T + 1),  # (state is written at the end of step T)
+                           "--device.rerouting.probability", "1", "--device.rerouting.period", "120",
                            "--save-state.times", str(T), "--save-state.files", str(out / "state.xml"),
                            "--log", str(out / "warmup.log")], check=True, cwd=out, capture_output=True)
     print(f"  warm-up {args.at} min simulated in {time.time() - t0:.0f} s; state saved")
@@ -131,30 +135,33 @@ def main() -> None:
                 extra += ["--device.rerouting.probability", "0"]
         t1 = time.time()
         subprocess.run(base + extra + ["--load-state", str(out / "state.xml"), "--begin", str(T), "--end", str(H),
-                                       "--statistic-output", str(d / "stats.xml"), "--log", str(d / "sumo.log")],
+                                       "--statistic-output", str(d / "stats.xml"), "--duration-log.statistics", "--log", str(d / "sumo.log")],
                        check=True, cwd=d, capture_output=True)
         wall = time.time() - t1
         s = stats(d / "stats.xml")
         s["wall_s"] = round(wall, 1)
         s["speedup_vs_real_time"] = round((H - T) / max(wall, 1e-3), 1)
         report["policies"][policy] = s
-        print(f"  {policy:12} arrived {s['arrived']:6d}, mean time loss {s['mean_time_loss_s']:6.0f} s, teleports {s['teleports']:4d}, "
-              f"{s['speedup_vs_real_time']:.0f}x real time")
+        s["backlog"] = s["running"] + s["waiting_to_enter"]  # still in the network or queued to enter at the end
+        print(f"  {policy:12} arrived {s.get('arrived', 0):6d}, backlog {s['backlog']:6d}, mean time loss {s.get('mean_time_loss_s', 0):6.0f} s, "
+              f"teleports {s['teleports']:4d}, {s['speedup_vs_real_time']:.1f}x real time")
 
-    # 3: the verdict, against the open-road reference
+    # 3: the verdict. The mean time loss covers only the vehicles that arrived (those stuck behind the closure are
+    # not in it), so the policies are ranked first on vehicles served and the backlog left, then on time loss.
     ref = report["policies"]["no_incident"]
     for p in ("unaware", "informed"):
         s = report["policies"][p]
-        s["extra_delay_veh_h"] = round((s["mean_time_loss_s"] * s["arrived"] - ref["mean_time_loss_s"] * ref["arrived"]) / 3600, 1)
-    best = min(("unaware", "informed"), key=lambda p: (report["policies"][p]["mean_time_loss_s"], -report["policies"][p]["arrived"]))
+        s["served_vs_open_road"] = s.get("arrived", 0) - ref.get("arrived", 0)
+        s["backlog_vs_open_road"] = s["backlog"] - ref["backlog"]
+    best = max(("unaware", "informed"), key=lambda p: (report["policies"][p].get("arrived", 0) - report["policies"][p]["backlog"],
+                                                      -report["policies"][p].get("mean_time_loss_s", 0)))
     report["recommended"] = best
     (out / "report.json").write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
     if args.narrate:
         u, i = report["policies"]["unaware"], report["policies"]["informed"]
-        print(f"\nClosing {report['edge_name'] or edge} at minute {args.at}: telling drivers upstream at once "
-              f"{'cuts' if i['mean_time_loss_s'] < u['mean_time_loss_s'] else 'does not cut'} the mean time loss "
-              f"({u['mean_time_loss_s']:.0f} s -> {i['mean_time_loss_s']:.0f} s) and gets {i['arrived'] - u['arrived']:+d} more vehicles through "
-              f"in {args.horizon} minutes. Recommended: {best}.")
+        print(f"\nClosing {report['edge_name'] or edge} at minute {args.at} for {args.horizon} minutes: against the open road, "
+              f"unaware drivers leave {u['backlog_vs_open_road']:+d} vehicles of backlog and informed drivers {i['backlog_vs_open_road']:+d}; "
+              f"informing gets {i.get('arrived', 0) - u.get('arrived', 0):+d} more vehicles through. Recommended: {best}.")
     print(f"→ {out / 'report.json'}")
 
 

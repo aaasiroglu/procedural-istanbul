@@ -271,6 +271,32 @@ Bu sonuç, talep düzeyinin ayrıca ölçülmesini (Katkı 3) doğrudan motive e
 
 ---
 
+## İki yeni modül: çok kaynaklı çapalar ve sinir ağı denetçisi
+
+<div class="cols">
+<div>
+
+### Çok kaynaklı çapalar
+
+- Çapa, bir linki değil **doğrudan bir O-D toplamını** kısıtlar: köprünün bir yönü, bir zon grubunun ürettiği yolculuklar.
+- **İstanbulkart:** koridordaki 31 raylı sistem ve metrobüs durağında 11:00–12:00'de 11.764 biniş.
+- Sayımlar koridor zonlarının üretimini 57,4 binden **15,6 bine** indirmişti; bağımsız İstanbulkart çapası (11,8 ± 11,9 bin) **bununla tutarlı**.
+
+</div>
+<div>
+
+### Simülasyondan gerçeğe sinir ağı
+
+- 300 simüle örnek (O-D → 712 linkte hız) ile eğitilen MLP; MAP tahmincisi **denetçi**.
+- Toplam talep için R² 0,15. Canlı veride MAP'in **4,8 katını** verdi.
+- Neden: statik model gerçek yavaşlamayı üretmiyor (hız oranı medyanı gerçekte 0,32, modelde 0,99).
+- **Denetçi bunu yakaladı** (`trustworthy: false`). Sırada SUMO'dan üretilen örnekler var.
+
+</div>
+</div>
+
+---
+
 <!-- _class: section -->
 
 # 3 · 3D dijital ikiz

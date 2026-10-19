@@ -27,7 +27,7 @@
 - **Research contribution: demand from speeds.** İBB reports speeds, not vehicle counts. The inverse OD estimator treats each speed as a *censored* observation: free flow gives an upper bound, a queue gives a lower bound. It runs bilevel with user-equilibrium assignment and reports, for every OD pair, how much of the estimate comes from data and how much from the prior. Validation uses GEH on **held-out** counts only.
 - **Honest about what is not known.** Panels that still show illustrative values are labelled as such, negative results are reported, and the total demand level carries its own identification measure.
 
-Slides (TR / EN): [docs/sunum](docs/sunum/README.md)
+**Technical report (TR, PDF):** [docs/rapor/teknik_rapor.pdf](docs/rapor/teknik_rapor.pdf) · **Slides (TR / EN):** [docs/sunum](docs/sunum/README.md)
 
 ## Mimari
 
@@ -42,7 +42,9 @@ flowchart LR
   A --> O[tools/od<br/>ters O-D tahmini]
   S --> O
   C[İBB sayım sensörleri<br/>köprü sayımları] --> O
+  K[İstanbulkart binişleri] --> O
   O --> R[SUMO koşusu<br/>GEH doğrulaması]
+  O --> G[Gölge simülasyon<br/>müdahale yarışı]
 ```
 
 ## Neyi farklı yapıyor
@@ -55,9 +57,10 @@ Projenin araştırma katkısı, **hız verisinden talep (O-D) matrisi çıkarma*
 | **Veri payı** | Her O-D çifti için tahminin ne kadarının veriden, ne kadarının varsayımdan (prior) geldiği hesaplanır (Laplace yaklaşımı, standart hata). Veriyle belirlenemeyen talep açıkça işaretlenir. | ✅ |
 | **Dürüst doğrulama** | GEH, modelin uydurulduğu sayımlarda değil, **dışarıda bırakılan** sayımlarda ölçülür (çapraz doğrulama). Prior ağırlığı da bu skorla seçilir. | ✅ |
 | **Bilevel tahmin** | Rota seçimi talebe bağlıdır. UE ataması ile tahmin dönüşümlü çalışır, salınım ardışık ortalamalarla (MSA) sönümlenir. | ✅ |
-| **Çok kaynaklı çapalar** | Köprü geçiş sayıları (kesin), İstanbulkart saatlik binişleri (mod payı) ve İBB hızları (sansürlü) aynı tahmine girer. | Planlandı |
-| **Simülasyondan gerçeğe ters çözücü** | SUMO ile üretilen binlerce (O-D → hız) örneğiyle eğitilen bir sinir ağı, canlı hızdan O-D'yi anlık tahmin eder. Yukarıdaki tahminci bu ağın referansı ve denetçisi olur. | Araştırma |
-| **Gölge simülasyon** | Kaza veya kapanma anında SUMO durumu çatallanır ve birkaç müdahale politikası gerçek zamandan hızlı koşturulup karşılaştırılır. Kararı simülasyon verir, dil modeli yalnızca sonucu anlatır. | Planlandı |
+| **Çok kaynaklı çapalar** | Köprü geçiş sayıları (kesin), İstanbulkart saatlik binişleri (mod payı) ve İBB hızları (sansürlü) aynı tahmine girer. Çapalar link yerine doğrudan O-D toplamlarını kısıtlar (`od_sum`). İstanbulkart çapası sayımlarla tutarlı çıktı. | ✅ `tools/od/anchors.py` |
+| **Simülasyondan gerçeğe ters çözücü** | SUMO ile üretilen binlerce (O-D → hız) örneğiyle eğitilen bir sinir ağı, canlı hızdan O-D'yi anlık tahmin eder. Yukarıdaki tahminci bu ağın referansı ve denetçisi olur. İlk sürüm statik atama örnekleriyle eğitildi ve denetçi onu reddetti (simülasyon-gerçek farkı); SUMO örnekleri sırada. | İlk sürüm `tools/od/neural_inverse.py` |
+| **Gölge simülasyon** | Kaza veya kapanma anında SUMO durumu çatallanır ve birkaç müdahale politikası gerçek zamandan hızlı koşturulup karşılaştırılır. Kararı simülasyon verir, dil modeli yalnızca sonucu anlatır. | İlk sürüm `tools/sumo/shadow.py` |
+| **Talep düzeyinin tanımlanabilirliği** | Tüm matrisin düzeyi ayrı bir çarpanla taşınır; profil eğriliğinden sayımların düzeyi gerçekten sabitleyip sabitlemediği ölçülür. Gerçek koridorda 23 sayım düzeyi sabitliyor (veri payı 0.81) ve prior'ın ~3 kat yüksek olduğunu gösteriyor. | ✅ |
 | **Matrakçı görünümü** | Koridorun Matrakçı Nasuh minyatür kartografyasından esinlenen alternatif çizimi (`src/matrakci`). | Prototip |
 
 Gerçek O-D'si bilinen sentetik bir şehirde (`npm run test:od`) linklerin %30'u sayıldı, kalanlarda yalnızca hız kullanıldı. Tahminci, hiç sayılmayan linklerin ortalama akım hatasını prior'a göre **GEH 5.6'dan 2.2'ye** (rotalar biliniyorken) ve **3.8'e** (rotalar da tahmin edilirken) indiriyor. Rotaları prior'a sabitleyen kısa yol GEH 8.0 veriyor. Gerçek değerlerin %96'sı 2.5 standart hata içinde kalıyor. Tek tek O-D hücrelerindeki kazanç ise küçük ve bu açıkça raporlanıyor: 36 sayımla 90 O-D çifti tam belirlenemez.
@@ -72,16 +75,17 @@ Ara sonuç sunumu (yöntem, sentetik ve gerçek veri sonuçları, olumsuz bulgul
 | İBB canlı hız akışı | Çalışıyor (yalnızca `npm run dev` proxy'siyle) |
 | İBB hız arşivi | ✅ 5 dakikada bir Parquet (`npm run archive:ibb`) |
 | SUMO ağı | ✅ OSM'den koridor ağı; köprü, metrobüs ayrık şeridi, 293 sinyalli kavşak; İBB segmentlerinin %95.5'i kenarlara eşlendi ([tools/sumo](tools/sumo/README.md)) |
-| Ters O-D tahmini | ✅ Canlı İBB hızlarından koridorun ilk O-D tahmini (75 H3 zonu ve 20 geçit, SUMO `od2trips` çıktısı). Talep düzeyi sayım olmadan belirlenemiyor ([tools/od](tools/od/README.md)) |
+| Ters O-D tahmini | ✅ Canlı İBB hızlarından koridorun ilk O-D tahmini (75 H3 zonu ve 20 geçit, SUMO `od2trips` çıktısı). İBB sayımlarıyla talep düzeyi sabitlendi (×0.30, veri payı 0.81); dışarıda bırakılan GEH < 5 oranı %8.7, dağılım hâlâ zayıf ([tools/od](tools/od/README.md)) |
 | Tarayıcıdaki trafik | Görsel: araçlar kameranın çevresinde, rotalar rastgele. Analiz için kullanılmamalı |
 | Panellerdeki H3 / tahmin / maliyet değerleri | **Gösterim amaçlı**, elle girilmiş sabitler. Veriden hesaplanmıyor |
-| Talep, kalibrasyon, öneri motoru | Planlandı |
+| Çok kaynaklı çapalar, gölge simülasyon, sinir ağı ters çözücü | İlk sürümler ([teknik rapor](docs/rapor/teknik_rapor.pdf)) |
+| Öneri motoru | Planlandı |
 
 ## Yol haritası
 
 1. **Kapsam ve arşiv:** Koridor sınırı ✅, canlı hız arşivi ✅
 2. **Ağ:** OSM'den SUMO ağı ✅, İBB segment eşlemesi ✅. Duman testindeki kilitlenme noktaları ile Zincirlikuyu örgülenmesi ve Mecidiyeköy viyadüğü netedit ile doğrulanacak
-3. **Talep:** İlk O-D tahmini ✅. Sırada köprü sayımlarıyla talep düzeyinin sabitlenmesi, hold-out GEH raporu ve tahminin SUMO'da koşturulması var
+3. **Talep:** İlk O-D tahmini ✅, talep düzeyinin sayımlarla sabitlenmesi ✅, dışarıda bırakılan GEH raporu ✅, İstanbulkart çapası ✅. Sırada zonlar arası dağılım (anket mod payı, KGM köprü yön sayımları) ve sabitlenmiş talebin SUMO'da kilitlenmeden koşması var
 4. **Sınıflandırma:** HCM LOS, tekrarlayan ve tekrarlamayan tıkanıklık, darboğaz aktivasyonu
 5. **3D:** Tarayıcı SUMO yörüngelerini oynatır, köprü gerçek ölçüleriyle modellenir
 6. **Öneriler:** Sürücüye kalkış saati, mod ve köprü seçimi; uzmana darboğaz sıralaması ve senaryo karşılaştırması
@@ -105,7 +109,10 @@ npm run sumo:net -- --area=koridor          # OSM → SUMO ağı (data/sumo/kori
 npm run sumo:map-ibb -- --area=koridor      # İBB segmentleri → SUMO kenarları
 npm run sumo:smoke -- --area=koridor        # kilitlenme / teleport testi
 npm run od:corridor -- --area=koridor       # canlı hızlardan O-D tahmini
+uv run --group sumo python tools/sumo/shadow.py --area=koridor --narrate   # gölge simülasyon
 ```
+
+Sayımlar, çapalar ve sinir ağı için tüm komutlar: [teknik rapor, Ek A](docs/rapor/teknik_rapor.pdf).
 
 Kurumsal bir TLS vekil sunucusunun arkasındaysanız `uv`'nin sistem sertifikalarını kullanması için `UV_NATIVE_TLS=1` tanımlayın.
 
@@ -126,8 +133,9 @@ src/world, src/shared   3D motor ve tarayıcı arayüzü
 src/matrakci            Matrakçı görünümü
 tools/pipeline          OSM / İBB / DEM → 3D karolar
 tools/archive           İBB canlı veri arşivi (Python)
-tools/od                Ters O-D tahmini ve UE ataması (Python)
-tools/sumo              SUMO ağı, İBB segment eşlemesi, duman testi (Python)
+tools/od                Ters O-D tahmini, UE ataması, çapalar, sinir ağı (Python)
+tools/sumo              SUMO ağı, İBB eşlemesi, dinamik koşu, gölge simülasyon (Python)
+docs/rapor, docs/sunum  Teknik rapor (PDF) ve sunumlar (TR / EN)
 ```
 
 [`docs/vizyon/`](docs/vizyon/) altındaki `GEO_TWIN_MIMARISI.md` ve `METODOLOJI_VE_MIMARI.md` hedef mimariyi anlatır. Anlattıkları her şey henüz uygulanmış değildir.
