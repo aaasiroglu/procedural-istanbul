@@ -26,6 +26,11 @@ ratio to the prior-only error says how much of that pair's value comes from data
 Validation. GEH on the counts the estimate was fitted to proves nothing. `cross_validate` refits with each fold of
 counts held out and scores the GEH on the held-out counts only; `select_lambda` picks lam by that score.
 
+Level of demand. Speed bounds and a land-use prior say little about how many trips there are in total. A global
+factor x = x0 exp(g + ...), with a log-normal prior of sd level_sd, carries that level; `level_identification`
+measures how far the data narrowed it (its profile curvature against the prior's): with no count it stays at the
+prior's width, and only counts that see a large share of all traffic, a bridge crossing above all, pin it down.
+
 Bilevel. P depends on x through congestion (route choice). `estimate_bilevel` alternates assignment and estimation
 until the OD vector settles (the iterative scheme of Spiess 1990 / Yang et al. 1992).
 """
@@ -143,7 +148,8 @@ def prior_weights(x0, cv: float) -> np.ndarray:
 
 
 def estimate(P, x0, obs: list[Observation], lam=1.0, uncertainty: bool = True, max_active: int = 4000,
-             zones: int | None = None, factor_sd: float = 1.0) -> Estimate:
+             zones: int | None = None, factor_sd: float = 1.0, level_sd: float | None = None,
+             fix_level: float | None = None, start=None) -> Estimate:
     """MAP OD estimate for a fixed assignment matrix P (links x OD pairs). x0 > 0 where trips are possible;
     pairs with x0 == 0 (e.g. the diagonal) stay at 0. lam: one prior weight, or one per OD pair (prior_weights).
 
@@ -152,7 +158,10 @@ def estimate(P, x0, obs: list[Observation], lam=1.0, uncertainty: bool = True, m
     each with a normal prior of sd factor_sd (log scale), beside the pair's own deviation u_ij. A prior with
     independent errors per pair is near certain about any sum of many pairs, a link's flow for one, since their
     errors average out; but a prior's errors are not independent (a zone's trip rate wrong is wrong for all its
-    pairs), and the factors let the data correct a zone's whole traffic at the cost of one number."""
+    pairs), and the factors let the data correct a zone's whole traffic at the cost of one number.
+
+    level_sd: a global factor exp(g) on every pair, prior N(0, level_sd^2) on g: the level of demand as one number
+    (info["level"]). fix_level holds g at that value (profiling, see level_identification); start: a warm start."""
     P = csr_matrix(P)
     x0 = np.asarray(x0, float)
     free = x0 > 0
@@ -182,9 +191,14 @@ def estimate(P, x0, obs: list[Observation], lam=1.0, uncertainty: bool = True, m
         idx = np.flatnonzero(free)
         ri, ci = idx // zones, idx % zones
 
+    nz = 2 * zones if zones else 0
+    use_level = level_sd is not None or fix_level is not None
+
     def unpack(v):
         u = v[:n]
-        s = v[n:n + zones][ri] + v[n + zones:][ci] if zones else 0.0
+        s = v[n:n + zones][ri] + v[n + zones:n + nz][ci] if zones else 0.0
+        if use_level:
+            s = s + v[n + nz]
         q = p0 * np.exp(s)  # the prior with its zone factors applied
         return u, q, q * np.exp(u)
 
@@ -198,18 +212,31 @@ def estimate(P, x0, obs: list[Observation], lam=1.0, uncertainty: bool = True, m
             f += np.sum(w * r ** 2)
             gz += 2 * (A.T @ (w * r))
         gu = gz * z + lam * q * u * eu
-        if not zones:
-            return f, gu
-        a, b = v[n:n + zones], v[n + zones:]
-        f += np.sum(a ** 2 + b ** 2) / factor_sd ** 2
-        common = gz * z + K  # d f / d (a_i + b_j) for each pair: through z, and through q in K
-        ga = np.bincount(ri, common, zones) + 2 * a / factor_sd ** 2
-        gb = np.bincount(ci, common, zones) + 2 * b / factor_sd ** 2
-        return f, np.concatenate([gu, ga, gb])
+        common = gz * z + K  # d f / d (a_i + b_j + g) for each pair: through z, and through q in K
+        parts = [gu]
+        if zones:
+            a, b = v[n:n + zones], v[n + zones:n + nz]
+            f += np.sum(a ** 2 + b ** 2) / factor_sd ** 2
+            parts += [np.bincount(ri, common, zones) + 2 * a / factor_sd ** 2,
+                      np.bincount(ci, common, zones) + 2 * b / factor_sd ** 2]
+        if use_level:
+            g = v[n + nz]
+            gg = np.sum(common)
+            if level_sd is not None:
+                f += g ** 2 / level_sd ** 2
+                gg += 2 * g / level_sd ** 2
+            parts.append(np.array([gg]))
+        return f, np.concatenate(parts)
 
     # start from the prior (everything 0): where the answer stays for pairs no observation touches
-    nv = n + (2 * zones if zones else 0)
-    res = minimize(objective, np.zeros(nv), jac=True, method="L-BFGS-B", bounds=[(-30, 30)] * n + [(-5, 5)] * (nv - n),
+    nv = n + nz + (1 if use_level else 0)
+    bounds = [(-30, 30)] * n + [(-5, 5)] * (nv - n)
+    if fix_level is not None:
+        bounds[-1] = (fix_level, fix_level)
+    v0 = np.zeros(nv) if start is None else np.array(start, float)
+    if fix_level is not None:
+        v0[-1] = fix_level
+    res = minimize(objective, v0, jac=True, method="L-BFGS-B", bounds=bounds,
                    options={"maxiter": 5000, "maxfun": 20000, "ftol": 1e-13, "gtol": 1e-9})
     _, _, z = unpack(res.x)
     x = np.zeros_like(x0)
@@ -251,8 +278,26 @@ def estimate(P, x0, obs: list[Observation], lam=1.0, uncertainty: bool = True, m
         S, y, s = groups[k]
         if S.shape[0]:
             violations += int(np.sum(sign * (y - S @ flows) > 2 * s))
-    return Estimate(x, se, share, flows, geh_summary(Sc @ flows, cy), violations, bool(res.success), lam_all,
-                    {"iterations": int(res.nit), "message": str(res.message), "objective": float(res.fun)})
+    info = {"iterations": int(res.nit), "message": str(res.message), "objective": float(res.fun), "v": res.x}
+    if use_level:
+        info["level"] = float(res.x[-1])
+    return Estimate(x, se, share, flows, geh_summary(Sc @ flows, cy), violations, bool(res.success), lam_all, info)
+
+
+def level_identification(P, x0, obs: list[Observation], lam, level_sd: float, step: float = 0.05, **kw) -> dict:
+    """How well the data pins down the level of demand: the curvature of the profile objective in the global
+    factor g (every other parameter re-optimised at g - step, g, g + step). The objective is -2 log posterior, so
+    var(g) = 2 / f''; data_share = 1 - var(g) / level_sd^2 (0: the level is the prior's, 1: the data's alone).
+    The SEs per pair do not show this: summed over many pairs their independent errors look precise."""
+    base = estimate(P, x0, obs, lam, uncertainty=False, level_sd=level_sd, **kw)
+    g = base.info["level"]
+    f = [estimate(P, x0, obs, lam, uncertainty=False, level_sd=level_sd, fix_level=g + d, start=base.info["v"], **kw).info["objective"]
+         for d in (-step, step)]
+    curv = max((f[0] + f[1] - 2 * base.info["objective"]) / step ** 2, 2 / level_sd ** 2)  # (never wider than the prior)
+    sd = float(np.sqrt(2 / curv))
+    return {"factor": float(np.exp(g)), "log_sd": sd, "ci95": [float(np.exp(g - 1.96 * sd)), float(np.exp(g + 1.96 * sd))],
+            "prior_log_sd": level_sd, "data_share": float(1 - sd ** 2 / level_sd ** 2),
+            "trips": float(base.x.sum())}
 
 
 def cross_validate(P, x0, obs: list[Observation], lam: float, folds: int = 5, seed: int = 0) -> dict:

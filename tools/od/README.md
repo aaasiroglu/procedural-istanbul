@@ -37,7 +37,7 @@ npm run od:corridor -- --area=koridor --speeds data/archive/ibb/segment_speeds/d
 
 Bu tahmin bir başlangıç noktasıdır ve aşağıdaki sınırlar sonuçlarla birlikte okunmalıdır.
 
-- **Talep düzeyi belirlenemiyor.** Hiç sayım verilmediği için toplam, prior ve hız sınırlarının izin verdiği yerde kalıyor. Talep düzeyini sabitlemek için en az bir gerçek sayım gerekir (KGM köprü geçişleri, `--counts`). Bunu `summary.json` → `level_of_demand` açıkça yazar.
+- **Talep düzeyi.** Tüm matrisin düzeyi ayrı bir küresel çarpanla (log-normal, sd 0.5) taşınır. `summary.json` → `level_of_demand` bu çarpanı, %95 aralığını ve **veri payını** (profil eğriliği ile prior genişliğinin oranı) yazar. Veri payı 0.8'in altındaysa düzey sabitlenmiş sayılmaz. Sentetik testte tek bir köprü benzeri kesit sayımı, zon çarpanları yokken düzeyin %94'ünü belirliyor; zon çarpanları serbestken (koridor ayarı) yalnızca %53'ünü, çünkü sayım, kestiği zonların büyütülmesiyle de karşılanabiliyor. Düzeyi gerçekten sabitlemek için birbirinden bağımsız zonları kesen birden çok sayım gerekir (köprü iki yön ayrı, O-1 ve O-2 kesitleri).
 - **Hold-out GEH yok.** Sayım olmadan çapraz doğrulama yapılamaz. Doğrulama, sayımlar eklendiğinde `cross_validate` ile yapılacak.
 - **Köprü akımları kontrol edilmedi.** Mertebe makul, ancak KGM saatlik sayımlarıyla karşılaştırılmadı.
 - **Statik atamanın sınırı.** Dönüş yasakları ve kuyruk yayılımı yok. Bunları SUMO rotalama ve simülasyonu ele alacak.

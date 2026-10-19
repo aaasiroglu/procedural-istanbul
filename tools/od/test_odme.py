@@ -4,7 +4,8 @@ honestly what it does not know?   uv run python tools/od/test_odme.py"""
 import numpy as np
 
 from assignment import Network, assign
-from odme import Observation, TriangularFD, cross_validate, estimate, estimate_bilevel, geh, observed, prior_weights, select_lambda
+from odme import (Observation, TriangularFD, cross_validate, estimate, estimate_bilevel, geh, level_identification, observed,
+                  prior_weights, select_lambda)
 
 rng = np.random.default_rng(7)
 passed = 0
@@ -127,6 +128,28 @@ both = Observation((e1, e2), flow_true[e1] + flow_true[e2], 0.02 * (flow_true[e1
 fit2 = estimate(P_true, x0, [both], lam=prior_weights(x0, 1.0))
 ok("a two-direction count is matched by the sum of both links", abs(observed(both, fit2.flows) - both.value) < 3 * both.sd,
    f"{observed(both, fit2.flows):.0f} vs {both.value:.0f}")
+
+# ---------------------------------------------------------------- level of demand: anchored by a big count only
+# The prior is 40 % low everywhere. Free-flow speeds (upper bounds) cannot say so; one screenline count across the
+# whole city's traffic can, and the level's identification should say which case is which.
+x0l = x_true * 0.6
+flows0 = P_true @ x0l
+uppers = [Observation(int(e), net.capacity[e], 0.15 * net.capacity[e], "upper", "speed") for e in range(net.n_links)]
+lam_l = prior_weights(x0l, 1.0)
+blind_l = level_identification(P_true, x0l, uppers, lam_l, level_sd=0.5, zones=Z)
+ok("speed bounds alone leave the level unidentified", blind_l["data_share"] < 0.2 and abs(blind_l["factor"] - 1) < 0.1,
+   f"factor {blind_l['factor']:.2f}, data share {blind_l['data_share']:.2f}")
+column = [e for e in range(net.n_links) if (net.tail[e] % N, net.head[e] % N) in ((2, 3), (3, 2))]
+bridge = Observation(tuple(column), float(flow_true[column].sum()), 0.03 * flow_true[column].sum(), "count", "screenline")
+anch = level_identification(P_true, x0l, uppers + [bridge], lam_l, level_sd=0.5)
+ok("one screenline count identifies the level", anch["data_share"] > 0.8, f"data share {anch['data_share']:.2f}, 95 % {anch['ci95'][0]:.2f}-{anch['ci95'][1]:.2f}")
+ok("and moves the total toward the truth", abs(anch["trips"] - x_true.sum()) < 0.5 * abs(x0l.sum() - x_true.sum()),
+   f"total {x0l.sum():.0f} -> {anch['trips']:.0f} (true {x_true.sum():.0f})")
+# with free zone factors the same count can be met by raising the zones that cross it: the level is then only
+# partly identified, and the measure has to say so rather than claim the count anchored it
+loose = level_identification(P_true, x0l, uppers + [bridge], lam_l, level_sd=0.5, zones=Z)
+ok("zone factors weaken what one count says about the level", loose["data_share"] < anch["data_share"] - 0.2,
+   f"data share {anch['data_share']:.2f} -> {loose['data_share']:.2f}")
 
 # ---------------------------------------------------------------- bilevel: route choice re-estimated with the OD
 # Routes now unknown too: OD cells are no longer expected to beat the prior, the network flows are.

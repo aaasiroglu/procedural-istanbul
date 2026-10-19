@@ -44,7 +44,8 @@ from scipy.sparse.csgraph import dijkstra
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "sumo"))
 from assignment import Network  # noqa: E402
 from build_net import MIRRORS, USER_AGENT, area_bbox  # noqa: E402
-from odme import Observation, TriangularFD, estimate_bilevel, geh, geh_summary, links_of, observed, prior_weights  # noqa: E402
+from odme import (Observation, TriangularFD, estimate_bilevel, geh, geh_summary, level_identification, links_of, observed,  # noqa: E402
+                  prior_weights)
 
 ROOT = Path(__file__).resolve().parents[2]
 ISTANBUL = ZoneInfo("Europe/Istanbul")
@@ -69,6 +70,8 @@ ASSUMPTIONS = {
     "link_parameters": "İBB 2020 model (capacity, free-flow speed, BPR) on matched edges; else class capacity and İBB's BPR by class",
     "prior_cv": 1.0,                            # prior uncertainty of every OD pair: +-100 % of its value
     "zone_factor_sd": 1.0,                      # each zone's production / attraction factor: log-normal, sd 1 (x2.7)
+    "demand_level_sd": 0.5,                     # the whole matrix's level: log-normal, sd 0.5 (x0.6 .. x1.6)
+    "level_identified_above": 0.8,              # data share of the level needed to call it anchored
     "observed_road_types_excluded": ["residential", "living_street", "unclassified"],
 }
 UNINTERRUPTED = {"motorway", "trunk", "motorway_link", "trunk_link"}  # roads the fundamental diagram describes
@@ -519,9 +522,15 @@ def main() -> None:
     viol_prior = sum(1 for o in obs if (o.kind == "lower" and o.value - observed(o, flow0) > 2 * o.sd) or (o.kind == "upper" and observed(o, flow0) - o.value > 2 * o.sd))
 
     print("bilevel estimate …")
-    factors = {"zones": len(zones), "factor_sd": ASSUMPTIONS["zone_factor_sd"]}
+    factors = {"zones": len(zones), "factor_sd": ASSUMPTIONS["zone_factor_sd"], "level_sd": ASSUMPTIONS["demand_level_sd"]}
     est = estimate_bilevel(network, x0, obs, lam, iters=args.rounds, assign_iter=40, assign_gap=1e-3, **factors,
                            log=lambda h: print(f"  round {h['iteration']}: OD change {h['od_change']:.4f}, gap {h['assignment_gap']:.1e}, bound violations {h['bound_violations']}"))
+
+    # how far the counts pinned the level of demand down (a count can also be met by the zones it crosses alone)
+    print("level of demand …")
+    level = level_identification(est.info["P"], x0, obs, lam, **factors)
+    level["identified"] = level["data_share"] >= ASSUMPTIONS["level_identified_above"]
+    print(f"  factor {level['factor']:.2f} (95 % {level['ci95'][0]:.2f}–{level['ci95'][1]:.2f}), data share {level['data_share']:.2f}")
 
     Z = len(zones)
     ids = [z["id"] for z in zones]
@@ -559,8 +568,10 @@ def main() -> None:
         "data_share": None if est.data_share is None else {
             "trip_weighted_mean": float((est.data_share * est.x).sum() / max(est.x.sum(), 1e-9)),
             "pairs_over_half": int((est.data_share > 0.5).sum())},
-        "level_of_demand": "anchored by counts" if has_counts else
-            "NOT identified: no counts were given, so the total rests on the prior and only moves where speed bounds push it",
+        "level_of_demand": {**level, "verdict":
+            "anchored by counts" if level["identified"] else
+            "partly identified: the counts are also met by changing the zones they cross, so the total still leans on the prior" if has_counts else
+            "NOT identified: no counts were given, so the total rests on the prior and only moves where speed bounds push it"},
         "bilevel": est.info.get("bilevel"),
         "top_pairs": [{"from": ids[k // Z], "to": ids[k % Z], "trips": round(float(est.x[k]), 1), "prior": round(float(x0[k]), 1),
                        "se": None if est.se is None else round(float(est.se[k]), 1),
