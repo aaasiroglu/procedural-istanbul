@@ -191,7 +191,7 @@ def main() -> None:
     netconvert(osm, net, log, bbox)
     result = report(net, log)
     result["bbox"] = bbox
-    (out / "report.json").write_text(json.dumps(result, ensure_ascii=False, indent=2))
+    (out / "report.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(result, ensure_ascii=False, indent=2))
     missing = [k for k, v in result["landmarks"].items() if not v["ok"]]
     if missing:

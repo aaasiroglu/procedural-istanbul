@@ -155,7 +155,7 @@ def main() -> None:
                          "coverage_m": round(coverage, 1), "edge_length_m": round(edge.getLength(), 1),
                          "mean_offset_m": round(sum(dists) / len(dists), 2)})
 
-    with open(out / "ibb_edges.csv", "w", newline="") as f:
+    with open(out / "ibb_edges.csv", "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=["segment_id", "edge_id", "samples", "coverage_m", "edge_length_m", "mean_offset_m"])
         writer.writeheader()
         writer.writerows(rows)
@@ -178,7 +178,7 @@ def main() -> None:
     report_path = out / "report.json"
     report = json.loads(report_path.read_text()) if report_path.exists() else {}
     report["ibb"] = summary
-    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2))
+    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 

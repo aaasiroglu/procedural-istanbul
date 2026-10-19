@@ -151,6 +151,17 @@ loose = level_identification(P_true, x0l, uppers + [bridge], lam_l, level_sd=0.5
 ok("zone factors weaken what one count says about the level", loose["data_share"] < anch["data_share"] - 0.2,
    f"data share {anch['data_share']:.2f} -> {loose['data_share']:.2f}")
 
+# ---------------------------------------------------------------- anchors on the matrix itself (od_sum)
+# A crossing count by direction (KGM's toll data) or a zone's trips from another source constrain a sum of OD
+# pairs, not a link: everything leaving zone 0 here, with the prior 40 % low.
+from_zone0 = tuple(range(1, Z))
+anchor = Observation(from_zone0, float(x_true[list(from_zone0)].sum()), 0.03 * x_true[list(from_zone0)].sum(), "od_sum", "zone 0 out")
+anchored = estimate(P_true, x0l, uppers + [anchor], lam_l, zones=Z)
+before, after = x0l[list(from_zone0)].sum(), anchored.x[list(from_zone0)].sum()
+ok("an od_sum anchor is met by the pairs it names", abs(after - anchor.value) < 2.5 * anchor.sd, f"{before:.0f} -> {after:.0f} (anchor {anchor.value:.0f})")
+ok("and leaves pairs it does not name near the prior", abs(anchored.x[Z:].sum() / x0l[Z:].sum() - 1) < 0.15,
+   f"other pairs x{anchored.x[Z:].sum() / x0l[Z:].sum():.2f}")
+
 # ---------------------------------------------------------------- bilevel: route choice re-estimated with the OD
 # Routes now unknown too: OD cells are no longer expected to beat the prior, the network flows are.
 bi = estimate_bilevel(net, x0, obs, lam)

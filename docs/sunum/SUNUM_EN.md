@@ -94,8 +94,7 @@ Interim results · October 2026
 <div class="cols">
 <div>
 
-![w:470](img/koridor-harita.png)
-<span class="small">Labels in Turkish: H3 zones, gateways (■), sensors by held-out GEH.</span>
+![w:500](img/koridor-harita-en.png)
 
 </div>
 <div>
@@ -221,8 +220,8 @@ On signalised arterials a low speed also comes from the red phase: lower bounds 
 <div class="cols">
 <div>
 
-![w:480](img/dislanan-sayimlar.png)
-<span class="small">Each count left out in turn: İBB count (x) vs. model prediction without it (y); green band GEH < 5.</span>
+![w:480](img/dislanan-sayimlar-en.png)
+<span class="small">Monday 11:00 run: each count left out in turn.</span>
 
 </div>
 <div>
@@ -259,6 +258,17 @@ On signalised arterials a low speed also comes from the red phase: lower bounds 
 This result directly motivates measuring the level of demand separately (Contribution 3).
 
 </div>
+
+---
+
+## Demand level on the real corridor: the counts anchor it
+
+![w:980](img/talep-duzeyi-koridor-en.png)
+
+- Live İBB speeds on Monday at 11:30 and October 2024 Monday counts for 11:00–12:00 (23 sensors).
+- Data share of the level **0.81**: for the first time the level is **anchored by counts** (threshold 0.8).
+- Level factor **0.30** (95 %: 0.19–0.46): the land-use prior overstates demand roughly **threefold**. This is the source of the gridlock in SUMO.
+- Held-out share with GEH < 5 is 8.7 % (mean 22.9): **the level is right, the distribution is still weak.**
 
 ---
 
@@ -335,7 +345,7 @@ This result directly motivates measuring the level of demand separately (Contrib
 ## Limitations
 
 - **The validation criterion is not met:** held-out share with GEH < 5 is 4.2 % (target 85 %).
-- **The demand level is only partly identified:** with free zone factors, a single bridge count anchors only half of it.
+- **The level is anchored, the distribution is not:** 23 counts anchor the level (data share 0.81), but a single bridge count cannot do so alone (0.53 in the synthetic test).
 - **A single time slice:** one Saturday 17:00 snapshot; day-type and hourly variation are not yet modelled.
 - **Static assignment:** no turn restrictions or queue spillback.
 - **Hand-picked assumptions:** every prior parameter is listed in `summary.json`.

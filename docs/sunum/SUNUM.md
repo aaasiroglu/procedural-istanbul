@@ -221,6 +221,7 @@ Sinyalli arterlerde düşük hız kırmızı ışıktan da gelir: buradaki alt s
 <div>
 
 ![w:480](img/dislanan-sayimlar.png)
+<span class="small">Pazartesi 11:00 koşusu: her sayım tek tek dışarıda bırakıldığında.</span>
 
 </div>
 <div>
@@ -256,6 +257,17 @@ Sinyalli arterlerde düşük hız kırmızı ışıktan da gelir: buradaki alt s
 Bu sonuç, talep düzeyinin ayrıca ölçülmesini (Katkı 3) doğrudan motive ediyor.
 
 </div>
+
+---
+
+## Gerçek koridorda talep düzeyi: sayımlar düzeyi sabitliyor
+
+![w:980](img/talep-duzeyi-koridor.png)
+
+- Pazartesi 11:30 canlı İBB hızları ve Ekim 2024 Pazartesi 11:00–12:00 sayımları (23 sensör).
+- Düzeyin veri payı **0,81**: düzey ilk kez **sayımlarla sabitlendi** (eşik 0,8).
+- Düzey çarpanı **0,30** (%95: 0,19–0,46): arazi kullanımından kurulan prior, talebi yaklaşık **üç kat yüksek** gösteriyor. SUMO'daki kilitlenmenin kaynağı bu.
+- Dışarıda bırakılan GEH < 5 oranı %8,7 (ortalama 22,9): **düzey doğru, dağılım hâlâ zayıf.**
 
 ---
 
@@ -332,7 +344,7 @@ Bu sonuç, talep düzeyinin ayrıca ölçülmesini (Katkı 3) doğrudan motive e
 ## Sınırlar
 
 - **Doğrulama ölçütü karşılanmıyor:** dışarıda bırakılan GEH < 5 oranı %4,2 (hedef %85).
-- **Talep düzeyi kısmen belirli:** tek köprü sayımı, zon çarpanları serbestken düzeyin ancak yarısını sabitliyor.
+- **Talep düzeyi sabit, dağılım değil:** 23 sayım düzeyi sabitliyor (veri payı 0,81), ancak tek bir köprü sayımı bunu tek başına yapamıyor (sentetik testte 0,53).
 - **Tek zaman dilimi:** yalnızca bir Cumartesi 17:00 görüntüsü; gün tipi ve saat değişkenliği henüz modellenmedi.
 - **Statik atama:** dönüş yasakları ve kuyruk yayılımı yok.
 - **Elle seçilmiş varsayımlar:** prior parametrelerinin tamamı `summary.json` içinde listeleniyor.

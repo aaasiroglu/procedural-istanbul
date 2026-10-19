@@ -98,7 +98,7 @@ def build(net, bbox, params_csv: Path | None = None):
     cap_lane, green = ASSUMPTIONS["capacity_veh_h_lane"], ASSUMPTIONS["green_share_at_signal"]
     params = {}
     if params_csv and params_csv.exists():
-        with open(params_csv) as f:
+        with open(params_csv, encoding="utf-8") as f:
             params = {r["edge_id"]: r for r in csv.DictReader(f)}
     cars = [e for e in net.getEdges() if e.allows("passenger") and not e.getFunction()]
     node_ids = sorted({n.getID() for e in cars for n in (e.getFromNode(), e.getToNode())})
@@ -216,7 +216,7 @@ def build(net, bbox, params_csv: Path | None = None):
 # ---------------------------------------------------------------- 3: the prior
 def overpass_json(query: str, path: Path) -> dict:
     if path.exists():
-        return json.loads(path.read_text())
+        return json.loads(path.read_text(encoding="utf-8"))
     data = urllib.parse.urlencode({"data": query}).encode()
     for attempt in range(3):
         for url in MIRRORS:
@@ -224,7 +224,7 @@ def overpass_json(query: str, path: Path) -> dict:
                 req = urllib.request.Request(url, data=data, headers={"User-Agent": USER_AGENT})
                 with urllib.request.urlopen(req, timeout=400) as r:
                     body = json.load(r)
-                path.write_text(json.dumps(body))
+                path.write_text(json.dumps(body), encoding="utf-8")
                 return body
             except Exception as error:
                 print(f"  {url}: {error}")
@@ -315,7 +315,7 @@ def survey_blocks(x0, zones, path):
     Z = len(zones)
     gate = np.array([z["kind"] == "gateway" for z in zones])
     share = defaultdict(float)
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         for r in csv.DictReader(f):
             share[(r["o_kind"] == "gate", r["d_kind"] == "gate")] += float(r["vehicles"])
     total = sum(share.values())
@@ -333,7 +333,7 @@ def survey_blocks(x0, zones, path):
 # ---------------------------------------------------------------- 4: observations
 def live_speeds(path: str | None):
     if path and path.endswith(".csv"):  # (the snapshot an earlier estimate saved: speeds.csv in its folder)
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             rows = [{"T": r["type"], "S": int(r["segment_id"]), "V": int(r["speed_kph"]), "C": int(r["congestion"])} for r in csv.DictReader(f)]
         stamp = Path(path).parent.name[:13]  # YYYYMMDD-HHMM
         return rows, datetime.strptime(stamp, "%Y%m%d-%H%M").replace(tzinfo=ISTANBUL)
@@ -351,7 +351,7 @@ def live_speeds(path: str | None):
 def observations(net, rows, mapping_csv: Path, edge_link, links, counts_csv: str | None):
     a = ASSUMPTIONS
     best = {}  # segment -> its edge with the longest coverage
-    with open(mapping_csv) as f:
+    with open(mapping_csv, encoding="utf-8") as f:
         for r in csv.DictReader(f):
             s, cov = int(r["segment_id"]), float(r["coverage_m"])
             if s not in best or cov > best[s][1]:
@@ -405,7 +405,7 @@ def observations(net, rows, mapping_csv: Path, edge_link, links, counts_csv: str
             role[o.segment] = kind if o is chosen else f"redundant_{kind}"
     if counts_csv:
         # (edge_id may list several edges, e.g. both carriageways under a sensor: the count is their flows' sum)
-        with open(counts_csv) as f:
+        with open(counts_csv, encoding="utf-8") as f:
             for r in csv.DictReader(f):
                 ids = sorted({edge_link[e] for e in r["edge_id"].split() if e in edge_link})
                 if ids:
@@ -414,18 +414,40 @@ def observations(net, rows, mapping_csv: Path, edge_link, links, counts_csv: str
     return out, dict(stats), role
 
 
+def read_anchors(path, zones):
+    """OD-sum anchors (tools/od/anchors.py): each row's from/to selectors become the OD pairs it adds up."""
+    Z = len(zones)
+
+    def select(sel):
+        if sel == "*":
+            return set(range(Z))
+        if sel == "h3":
+            return {k for k, z in enumerate(zones) if z["kind"] == "h3"}
+        ids = set(sel.split("|"))
+        return {k for k, z in enumerate(zones) if z["id"] in ids}
+
+    out = []
+    with open(path, encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            pairs = tuple(sorted(i * Z + j for i in select(r["from"]) for j in select(r["to"]) if i != j))
+            if pairs:
+                out.append(Observation(pairs, float(r["value"]), float(r["sd"]), "od_sum", r.get("source", "anchor")))
+                print(f"  anchor: {r['source'][:70]}  {float(r['value']):.0f} ± {float(r['sd']):.0f} over {len(pairs)} pairs")
+    return out
+
+
 # ---------------------------------------------------------------- 5: outputs
 def write_outputs(out: Path, net, network, zones, links, est, x0, prod, attr, obs, meta, rows, role):
     out.mkdir(parents=True, exist_ok=True)
     # the speed snapshot the estimate saw, and what each segment was to it
-    with open(out / "speeds.csv", "w", newline="") as f:
+    with open(out / "speeds.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["segment_id", "type", "speed_kph", "congestion", "role"])
         for r in rows:
             w.writerow([r["S"], r["T"], r["V"], r["C"], role.get(int(r["S"]), "off_network")])
     Z = len(zones)
     ids = [z["id"] for z in zones]
-    with open(out / "od.csv", "w", newline="") as f:
+    with open(out / "od.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["origin", "destination", "prior", "trips", "se", "data_share"])
         for k in np.flatnonzero(est.x > 0.5):
@@ -441,13 +463,15 @@ def write_outputs(out: Path, net, network, zones, links, est, x0, prod, attr, ob
             features.append({"type": "Feature", "properties": props, "geometry": {"type": "Polygon", "coordinates": [ring + ring[:1]]}})
         else:
             features.append({"type": "Feature", "properties": props, "geometry": {"type": "Point", "coordinates": [z["lon"], z["lat"]]}})
-    (out / "zones.geojson").write_text(json.dumps({"type": "FeatureCollection", "features": features}, ensure_ascii=False))
+    (out / "zones.geojson").write_text(json.dumps({"type": "FeatureCollection", "features": features}, ensure_ascii=False), encoding="utf-8")
 
     obs_by_link = defaultdict(list)
     for o in obs:
+        if o.kind == "od_sum":  # (an anchor on the matrix, not on any link)
+            continue
         for l in links_of(o):
             obs_by_link[l].append(f"{o.kind}:{o.value:.0f}")
-    with open(out / "link_flows.csv", "w", newline="") as f:
+    with open(out / "link_flows.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["edges", "type", "flow", "capacity", "v_c", "observations"])
         for k, l in enumerate(links):
@@ -467,14 +491,14 @@ def write_outputs(out: Path, net, network, zones, links, est, x0, prod, attr, ob
             lines += [f'    <tazSink id="{e}" weight="1"/>' for e in z["exiting"]]
             lines.append("  </taz>")
     lines.append("</tazs>")
-    (out / "taz.xml").write_text("\n".join(lines) + "\n")
+    (out / "taz.xml").write_text("\n".join(lines) + "\n", encoding="utf-8")
     rel = ['<data>', '  <interval begin="0" end="3600">']  # (no id: od2trips would take it for the vehicle type)
     for k in np.flatnonzero(est.x >= 0.5):
         i, j = divmod(int(k), Z)
         rel.append(f'    <tazRelation from="{ids[i]}" to="{ids[j]}" count="{est.x[k]:.1f}"/>')
     rel += ["  </interval>", "</data>"]
-    (out / "od.xml").write_text("\n".join(rel) + "\n")
-    (out / "summary.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2, default=float))
+    (out / "od.xml").write_text("\n".join(rel) + "\n", encoding="utf-8")
+    (out / "summary.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2, default=float), encoding="utf-8")
 
 
 def main() -> None:
@@ -483,6 +507,7 @@ def main() -> None:
     parser.add_argument("--area", default="koridor")
     parser.add_argument("--speeds", help="a segment_speeds Parquet file from the archive (default: live)")
     parser.add_argument("--counts", help="CSV of counts: edge_id,value,sd[,source] (veh/h)")
+    parser.add_argument("--anchors", help="CSV of OD-sum anchors: from,to,value,sd,source (tools/od/anchors.py)")
     parser.add_argument("--rounds", type=int, default=8, help="bilevel rounds (default 8)")
     parser.add_argument("--tag", default="", help="appended to the output folder's name (e.g. counts)")
     parser.add_argument("--survey", help="survey_trips_h<hour>.csv (tools/od/survey_prior.py): rescale the prior's trip types to it")
@@ -506,6 +531,9 @@ def main() -> None:
     if args.survey:
         x0 = survey_blocks(x0, zones, args.survey)
     obs, obs_stats, role = observations(net, rows, sumo_dir / "ibb_edges.csv", edge_link, links, args.counts)
+    if args.anchors:
+        obs += read_anchors(args.anchors, zones)
+        obs_stats["od_sum"] = sum(o.kind == "od_sum" for o in obs)
     print(f"  prior: {x0.sum():.0f} car trips/h; observations: {obs_stats}")
 
     lam = prior_weights(x0, ASSUMPTIONS["prior_cv"])
@@ -568,6 +596,8 @@ def main() -> None:
         "data_share": None if est.data_share is None else {
             "trip_weighted_mean": float((est.data_share * est.x).sum() / max(est.x.sum(), 1e-9)),
             "pairs_over_half": int((est.data_share > 0.5).sum())},
+        "anchors": [{"source": o.source, "value": o.value, "sd": o.sd, "prior": float(x0[list(o.link)].sum()),
+                     "estimate": float(est.x[list(o.link)].sum())} for o in obs if o.kind == "od_sum"],
         "level_of_demand": {**level, "verdict":
             "anchored by counts" if level["identified"] else
             "partly identified: the counts are also met by changing the zones they cross, so the total still leans on the prior" if has_counts else

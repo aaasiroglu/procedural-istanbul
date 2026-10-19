@@ -130,7 +130,7 @@ tools/od                Ters O-D tahmini ve UE ataması (Python)
 tools/sumo              SUMO ağı, İBB segment eşlemesi, duman testi (Python)
 ```
 
-`GEO_TWIN_MIMARISI.md` ve `METODOLOJI_VE_MIMARI.md` hedef mimariyi anlatır. Anlattıkları her şey henüz uygulanmış değildir.
+[`docs/vizyon/`](docs/vizyon/) altındaki `GEO_TWIN_MIMARISI.md` ve `METODOLOJI_VE_MIMARI.md` hedef mimariyi anlatır. Anlattıkları her şey henüz uygulanmış değildir.
 
 ## Lisans ve kaynaklar
 

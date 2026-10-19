@@ -129,7 +129,7 @@ def compare(args, od_dir, out, sumo_dir, net_path):
             for key in ((sample, "all"), (sample, kind), (sample, "congested" if int(r["congestion"]) >= 3 else "free")):
                 groups[key][0].append(v); groups[key][1].append(float(r["speed_kph"]))
 
-    with open(out / "segments.csv", "w", newline="") as f:
+    with open(out / "segments.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=["segment_id", "type", "speed_kph", "congestion", "role", "sim_kph", "note"])
         w.writeheader(); w.writerows(rows)
 
@@ -148,7 +148,7 @@ def compare(args, od_dir, out, sumo_dir, net_path):
         "segments_without_simulated_traffic": len(groups[("no_sim_traffic", "")][0]),
         "speed_comparison": {f"{a}/{b}": stats(*v) for (a, b), v in sorted(groups.items()) if a != "no_sim_traffic" and len(v[0]) >= 5},
     }
-    (out / "comparison.json").write_text(json.dumps(result, ensure_ascii=False, indent=2))
+    (out / "comparison.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 

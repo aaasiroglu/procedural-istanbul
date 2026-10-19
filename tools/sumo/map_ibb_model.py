@@ -99,7 +99,7 @@ def main() -> None:
                      "alpha": l["ALPHA"], "beta": l["BETA"], "lanes": l[f"SERIT_{d}"], "share": round(n / total, 2),
                      "type": (e.getType() or "").replace("highway.", "")})
     out = ROOT / "data" / "sumo" / args.area / "ibb_model_edges.csv"
-    with open(out, "w", newline="") as f:
+    with open(out, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0]))
         w.writeheader(); w.writerows(rows)
     by_type = Counter(r["type"] for r in rows)

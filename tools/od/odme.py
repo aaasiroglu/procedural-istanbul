@@ -82,10 +82,11 @@ class TriangularFD:
 
 @dataclass
 class Observation:
-    link: int | tuple   # a link, or several whose flows add up to what was observed (a count across a divided road)
+    link: int | tuple   # a link, or several whose flows add up to what was observed (a count across a divided road);
+                        # for kind "od_sum", the OD pairs (indices of x) whose trips add up to it
     value: float          # veh/h
     sd: float             # veh/h
-    kind: str = "count"   # count | lower | upper
+    kind: str = "count"   # count | lower | upper | od_sum (a total over OD pairs: a bridge direction, a zone's trips)
     source: str = ""      # free text: "KGM bridge", "speed", ...
 
 
@@ -171,6 +172,11 @@ def estimate(P, x0, obs: list[Observation], lam=1.0, uncertainty: bool = True, m
     lam = np.asarray(lam, float)[free] if np.ndim(lam) else float(lam)
     groups = {k: _rows(obs, k, P.shape[0]) for k in ("count", "lower", "upper")}
     sub = {k: (csr_matrix(S @ Pf), y, 1 / s ** 2) for k, (S, y, s) in groups.items() if S.shape[0]}
+    # anchors on the matrix itself (not through the assignment): rows select OD pairs directly
+    sums = [o for o in obs if o.kind == "od_sum"]
+    if sums:
+        S, y, s = _rows(sums, "od_sum", P.shape[1])
+        sub["od_sum"] = (csr_matrix(S[:, free]), y, 1 / s ** 2)
 
     def residuals(z):
         out = {}
@@ -253,7 +259,7 @@ def estimate(P, x0, obs: list[Observation], lam=1.0, uncertainty: bool = True, m
         d = lam / z
         blocks = []
         for k, (A, r, w) in residuals(z).items():
-            active = np.ones(len(r), bool) if k == "count" else r != 0
+            active = np.ones(len(r), bool) if k in ("count", "od_sum") else r != 0
             if active.any():
                 blocks.append(diags(np.sqrt(2 * w[active])) @ A[active])
         if blocks:

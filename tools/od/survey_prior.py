@@ -150,7 +150,7 @@ def main() -> None:
             stats["from outside" if not inside(*o) and inside(*d) else "to outside" if inside(*o) and not inside(*d) else "through"] += v
 
     dst = ROOT / "data" / "od" / args.area / f"survey_trips_h{args.hour}.csv"
-    with open(dst, "w", newline="") as f:
+    with open(dst, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["o_lon", "o_lat", "o_kind", "d_lon", "d_lat", "d_kind", "vehicles"])
         for o, ok, d, dk, v in out:

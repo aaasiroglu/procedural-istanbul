@@ -223,10 +223,10 @@ def main() -> None:
     out = ROOT / "data" / "od" / args.area
     out.mkdir(parents=True, exist_ok=True)
     stem = f"counts_{year}{month:02d}_d{args.weekday}_h{args.hour}"
-    with open(out / f"{stem}.csv", "w", newline="") as f:
+    with open(out / f"{stem}.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=["sensor", "name", "edge_id", "value", "sd", "source"])
         w.writeheader(); w.writerows(rows)
-    (out / f"{stem}.json").write_text(json.dumps(report, ensure_ascii=False, indent=2))
+    (out / f"{stem}.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"{len(rows)} of {len(sensors)} sensors -> {out / (stem + '.csv')}")
     for e in report:
         print(f"  {e['sensor']:>4} {e['name'][:40]:40} " + (f"{e['value']:>6} ±{e['sd']:<5} veh/h  {len(e['edges'])} edges on {e['road']} ({e['road_type']}), {e['days']} days" if "value" in e else f"skipped: {e['skipped'][:70]}"))

@@ -64,7 +64,7 @@ def main() -> None:
     report_path = out / "report.json"
     report = json.loads(report_path.read_text()) if report_path.exists() else {}
     report["smoke"] = result
-    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2))
+    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 

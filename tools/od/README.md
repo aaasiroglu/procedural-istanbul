@@ -131,3 +131,55 @@ Eşleşen kenarlarda İBB'nin kapasitesi, serbest akış hızı ve BPR katsayıl
 | Ek olarak anket payları | 11.8, %25.0 | 23.2, %4.2 |
 
 Küçük bir iyileşme var, ancak dışarıda bırakılan hatanın baskın kaynağı hâlâ sensör tanımlarındaki çelişki (O-2 sensörleri, FSM).
+
+### Talep düzeyi sayımlarla sabitlendi (19 Ekim 2026)
+
+```bash
+uv run --group sumo python tools/od/counts.py --area=koridor --month=2024-10 --weekday=0 --hour=11
+uv run --group sumo python tools/od/corridor.py --area=koridor --counts data/od/koridor/counts_202410_d0_h11.csv --tag counts-level
+```
+
+Pazartesi 11:30 canlı İBB hızları, Ekim 2024 Pazartesi 11:00–12:00 sayımları (23 sensör, biri rotası olmadığı için ayrıldı). Tüm matrisin düzeyi ayrı bir küresel çarpanla tahmin edildi (`level_of_demand`).
+
+| | |
+|---|---|
+| Düzey çarpanı | 0.30 (%95: 0.19–0.46); prior sd 0.5 |
+| Düzeyin veri payı | 0.81: sayımlarla sabitlendi (eşik 0.8) |
+| Toplam talep | Prior 117.9 bin, tahmin 61.6 bin araç/sa |
+| GEH < 5 (ortalama) | Prior %4.3 (37.8), uyum %17.4 (12.2), dışarıda bırakılan %8.7 (22.9) |
+
+Arazi kullanımı prior'ı talebi yaklaşık üç kat yüksek gösteriyor; daha önce SUMO'da görülen kilitlenmenin kaynağı bu. Düzey artık veriden geliyor, ancak dışarıda bırakılan GEH, talebin zonlar arasındaki dağılımının hâlâ zayıf olduğunu gösteriyor. Saatler farklı olduğu için bu sonuç Cumartesi 17:00 turlarıyla doğrudan karşılaştırılmamalı.
+
+### Çok kaynaklı çapalar: İstanbulkart (19 Ekim 2026)
+
+```bash
+uv run python tools/od/anchors.py --area=koridor --month=2024-10 --hour=11
+uv run --group sumo python tools/od/corridor.py --area=koridor --speeds data/od/koridor/20261019-1130-counts-level/speeds.csv \
+  --counts data/od/koridor/counts_202410_d0_h11.csv --anchors data/od/koridor/anchors_202410_h11.csv --tag anchors
+```
+
+Çapa, bağlantı akımı yerine doğrudan matristeki bir O-D toplamını kısıtlar (`odme` gözlem türü `od_sum`; sentetik testte karşılanıyor ve adı geçmeyen çiftler prior'da kalıyor). İBB "Saatlik Toplu Ulaşım" verisinde koridordaki 31 raylı sistem ve metrobüs durağında, hafta içi 11:00–12:00 saatinde 11.764 biniş var (eksiksiz 5 günün medyanı). Bunun koridor zonlarının ürettiği otomobil yolculuğuna oranı bir varsayım (1.0, log-sd 0.7) olduğu için çapa bilerek zayıf tutuldu. Otobüs satırları dışarıda bırakıldı, çünkü otobüslerde `town` alanı biniş yerini değil hattın ilçesini gösteriyor.
+
+| | Yalnızca sayımlar | Sayımlar ve İstanbulkart |
+|---|---|---|
+| Koridor zonlarının ürettiği yolculuk | 15.6 bin (prior 57.4 bin) | 15.6 bin (çapa 11.8 ± 11.9 bin) |
+| Düzeyin veri payı | 0.807 | 0.815 |
+| Dışarıda bırakılan GEH (ortalama) | 22.86 | 22.71 |
+
+Sayımlardan bağımsız bir kaynak, sayımların koridor içi talep için söylediğini doğruluyor. Oran hanehalkı anketinin zon bazındaki mod payından alınırsa çapa güçlenir. Köprünün yön bazlı sayımı (KGM) `--bridge-eu-as` ve `--bridge-as-eu` ile aynı yoldan girer; bu veri henüz elimizde yok.
+
+### Simülasyondan gerçeğe ters çözücü: ilk deneme (19 Ekim 2026)
+
+```bash
+uv run --group sumo --group ml python tools/od/neural_inverse.py --area=koridor --samples 300
+```
+
+Koridorun atama ağında 300 örnek üretildi. Her örnekte talep düzeyi ×0.15 ile ×1.5 arasında, zon çarpanları ve çift gürültüsü rastgele seçildi ve İBB'nin gözlediği 712 linkteki hız oranları okundu. Örnek başına süre 8.7 sn. Ağ, toplam talebin ve zon üretim/çekimlerinin logaritmasını tahmin eden bir MLP (256-128).
+
+| | |
+|---|---|
+| Dışarıda bırakılan örneklerde R² | Toplam 0.15, üretimler −0.41, çekimler −0.54 (toplam için medyan hata %7.9) |
+| Canlı görüntü (Pazartesi 11:30) | Ağ 295 bin araç/sa (eğitim aralığının tavanı), MAP tahmini 61.6 bin: oran 4.8 |
+| Simülasyon-gerçek farkı | Gerçek hız oranının medyanı 0.32, simülasyonunki 0.99. Linklerin %45'i simüle edilen %1–99 aralığının dışında |
+
+**Sonuç: ağ henüz kullanılamaz ve denetçi bunu yakalıyor.** Statik BPR ataması gerçek trafiğin yavaşlamasını üretmiyor: sinyaller, kuyruk ve hız sınırının altındaki serbest akış hızı modelde yok. Bu yüzden ağ hem az şey öğreniyor hem de gerçek veride eğitim aralığının dışına düşüyor. MAP tahmincisi referans olarak bu çıktıyı reddediyor (`report.json` → `trustworthy: false`). Sıradaki adım, örnekleri mezoskopik SUMO koşularından üretmek (`tools/sumo/run_od.py`, aynı diziler) ve hız oranını hız sınırına göre değil, gözlenen gece serbest akış hızına göre tanımlamak.

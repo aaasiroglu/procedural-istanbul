@@ -26,67 +26,7 @@ BLUE, ORANGE, GREEN, GREY, RED = "#2f6db5", "#e07b22", "#2e8b57", "#8a8f98", "#c
 
 
 def load(name):
-    return json.loads((OD / name / "summary.json").read_text())
-
-
-def heldout_scatter():
-    s = load("20261017-1726-counts-v3")["validation"]["per_count"]
-    fig, ax = plt.subplots(figsize=(6.4, 6))
-    c = [p["count"] for p in s]; m = [p["held_out"] for p in s]
-    top = max(c + m) * 1.1
-    import numpy as np
-    xs = np.linspace(1, top, 400)
-    # the band where GEH < 5 around the diagonal: |M - C| < 5 sqrt((M + C) / 2), solved for M
-    lo = [x + 12.5 - 5 * (x + 6.25) ** 0.5 for x in xs]; hi = [x + 12.5 + 5 * (x + 6.25) ** 0.5 for x in xs]
-    ax.fill_between(xs, lo, hi, color=GREEN, alpha=0.15, label="GEH < 5")
-    ax.plot([0, top], [0, top], color=GREY, lw=1)
-    ax.scatter(c, m, color=ORANGE, zorder=3, label="dışarıda bırakılan tahmin")
-    for p in s:
-        if p["geh_held_out"] > 30:
-            ax.annotate(p["source"].split(" ", 3)[-1].split(" (")[0][:22], (p["count"], p["held_out"]), fontsize=8, xytext=(4, 4), textcoords="offset points")
-    ax.set_xlim(0, top); ax.set_ylim(0, top)
-    ax.set_xlabel("İBB sayımı (araç/sa)"); ax.set_ylabel("Model, sayım görülmeden (araç/sa)")
-    ax.set_title("Her sayım tek tek dışarıda bırakıldığında")
-    ax.legend(frameon=False, loc="upper left")
-    fig.tight_layout(); fig.savefig(OUT / "dislanan-sayimlar.png"); plt.close(fig)
-
-
-def sumo_speeds():
-    rows = [r for r in csv.DictReader(open(OD / "20261017-1726" / "sim" / "segments.csv")) if r["sim_kph"]]
-    fig, ax = plt.subplots(figsize=(8, 4.2))
-    bins = range(0, 100, 4)
-    ax.hist([float(r["speed_kph"]) for r in rows], bins=bins, alpha=0.7, color=BLUE, label="İBB (17:26)")
-    ax.hist([float(r["sim_kph"]) for r in rows], bins=bins, alpha=0.7, color=RED, label="SUMO (mezoskopik)")
-    ax.set_xlabel("Segment hızı (km/sa)"); ax.set_ylabel("Segment sayısı")
-    ax.set_title("İlk dinamik koşu: ağ kilitlendi (medyan 2.9 km/sa, İBB 24 km/sa)")
-    ax.legend(frameon=False)
-    fig.tight_layout(); fig.savefig(OUT / "sumo-hizlar.png"); plt.close(fig)
-
-
-def corridor_map():
-    zones = json.loads((OD / "20261017-1726-counts-v3" / "zones.geojson").read_text())["features"]
-    s = {p["source"].split()[2]: p for p in load("20261017-1726-counts-v3")["validation"]["per_count"]}
-    sensors = json.loads((OD / "counts_202410_d5_h17.json").read_text())
-    fig, ax = plt.subplots(figsize=(7.2, 8))
-    for f in zones:
-        if f["geometry"]["type"] == "Polygon":
-            xs, ys = zip(*f["geometry"]["coordinates"][0])
-            ax.fill(xs, ys, color=BLUE, alpha=0.08 + 0.5 * min(1, f["properties"]["production"] / 1500), lw=0.4, ec="white")
-        else:
-            x, y = f["geometry"]["coordinates"]
-            ax.scatter([x], [y], marker="s", color=GREY, s=30)
-    for e in sensors:
-        p = s.get(e["sensor"])
-        if p:
-            g = p["geh_held_out"]
-            ax.scatter([e["lon"]], [e["lat"]], color=GREEN if g < 5 else ORANGE if g < 15 else RED, s=60, ec="black", lw=0.5, zorder=3)
-        else:
-            ax.scatter([e["lon"]], [e["lat"]], marker="x", color="black", s=40, zorder=3)
-    ax.plot([28.975, 29.048, 29.048, 28.975, 28.975], [41.038, 41.038, 41.118, 41.118, 41.038], color="black", lw=1)
-    ax.set_aspect(1 / 0.754)
-    ax.set_title("Koridor: 75 H3 zonu (koyu = çok üretim), 20 geçit (■)\nsensörler: dışarıda bırakılan GEH <5 / <15 / ≥15, × kullanılmadı", fontsize=11)
-    ax.set_xlabel("boylam"); ax.set_ylabel("enlem")
-    fig.tight_layout(); fig.savefig(OUT / "koridor-harita.png"); plt.close(fig)
+    return json.loads((OD / name / "summary.json").read_text(encoding="utf-8"))
 
 
 # ---------------------------------------------------------------- bilingual figures (no data/od needed)
@@ -258,14 +198,129 @@ def level_identification(lang="tr"):
     _save(fig, "talep-duzeyi", lang)
 
 
+def latest_run(with_counts=True):
+    """The newest OD estimate in data/od/koridor/ (with a validation block if with_counts), or None."""
+    runs = sorted(p for p in OD.glob("2*") if (p / "summary.json").exists())
+    if with_counts:
+        runs = [p for p in runs if load(p.name).get("validation")]
+    return runs[-1].name if runs else None
+
+
+def heldout_scatter(lang="tr", run=None):
+    import numpy as np
+    T = _t(lang)
+    s = load(run)["validation"]["per_count"]
+    fig, ax = plt.subplots(figsize=(6.4, 6))
+    c = [p["count"] for p in s]; m = [p["held_out"] for p in s]
+    top = max(c + m) * 1.1
+    xs = np.linspace(1, top, 400)
+    # the band where GEH < 5 around the diagonal: |M - C| < 5 sqrt((M + C) / 2), solved for M
+    lo = [x + 12.5 - 5 * (x + 6.25) ** 0.5 for x in xs]; hi = [x + 12.5 + 5 * (x + 6.25) ** 0.5 for x in xs]
+    ax.fill_between(xs, lo, hi, color=GREEN, alpha=0.15, label="GEH < 5")
+    ax.plot([0, top], [0, top], color=GREY, lw=1)
+    ax.scatter(c, m, color=ORANGE, zorder=3, label=T("dışarıda bırakılan tahmin", "held-out prediction"))
+    for p in s:
+        if p["geh_held_out"] > 30:
+            ax.annotate(p["source"].split(" ", 3)[-1].split(" (")[0][:22], (p["count"], p["held_out"]), fontsize=8, xytext=(4, 4), textcoords="offset points")
+    ax.set_xlim(0, top); ax.set_ylim(0, top)
+    ax.set_xlabel(T("İBB sayımı (araç/sa)", "İBB count (veh/h)")); ax.set_ylabel(T("Model, sayım görülmeden (araç/sa)", "Model without that count (veh/h)"))
+    ax.set_title(T("Her sayım tek tek dışarıda bırakıldığında", "Each count left out in turn"))
+    ax.legend(frameon=False, loc="upper left")
+    _save(fig, "dislanan-sayimlar", lang)
+
+
+def level_real(lang="tr", run=None):
+    """The corridor's level of demand: prior vs. posterior of the global factor, and the trips it implies."""
+    import numpy as np
+    T = _t(lang)
+    s = load(run); lv = s["level_of_demand"]
+    fig, (a, b) = plt.subplots(1, 2, figsize=(12, 4.3), gridspec_kw={"width_ratios": [1.4, 1]})
+    g = np.linspace(-2.2, 1.2, 500)
+    for mu, sd, colour, name in ((0.0, lv["prior_log_sd"], GREY, T("prior (sd 0,5)", "prior (sd 0.5)")),
+                                  (np.log(lv["factor"]), lv["log_sd"], BLUE, T("sayımlardan sonra", "after the counts"))):
+        a.fill_between(np.exp(g), np.exp(-0.5 * ((g - mu) / sd) ** 2), color=colour, alpha=0.3, label=name)
+    a.set_xscale("log"); a.set_xticks([0.2, 0.3, 0.5, 1, 2], ["0.2", "0.3", "0.5", "1", "2"])
+    a.axvline(1, color=GREY, lw=0.8, ls=":")
+    a.set_xlabel(T("talep düzeyi çarpanı e$^g$ (log ölçek)", "demand level factor e$^g$ (log scale)")); a.set_yticks([])
+    lo, hi = lv["ci95"]
+    a.set_title(T(f"Düzey çarpanı {lv['factor']:.2f} (%95: {lo:.2f}–{hi:.2f}), veri payı {lv['data_share']:.2f}".replace(".", ","),
+                  f"Level factor {lv['factor']:.2f} (95 %: {lo:.2f}–{hi:.2f}), data share {lv['data_share']:.2f}"), fontsize=11.5)
+    a.legend(frameon=False)
+    tr = s["car_trips_per_hour"]
+    vals = [tr["prior"] / 1000, tr["estimate"] / 1000]
+    b.bar(["Prior", T("Tahmin", "Estimate")], vals, color=[GREY, BLUE])
+    for i, v in enumerate(vals):
+        b.text(i, v + 1.5, f"{v:.1f}".replace(".", "," if lang == "tr" else "."), ha="center")
+    b.set_ylabel(T("bin araç/sa", "thousand veh/h")); b.set_title(T("Koridor toplam talebi", "Corridor total demand"))
+    _save(fig, "talep-duzeyi-koridor", lang)
+
+
+def sumo_speeds(lang="tr", run="20261017-1726"):
+    T = _t(lang)
+    rows = [r for r in csv.DictReader(open(OD / run / "sim" / "segments.csv", encoding="utf-8")) if r["sim_kph"]]
+    sim = sorted(float(r["sim_kph"]) for r in rows); obs = sorted(float(r["speed_kph"]) for r in rows)
+    fig, ax = plt.subplots(figsize=(8, 4.2))
+    bins = range(0, 100, 4)
+    ax.hist(obs, bins=bins, alpha=0.7, color=BLUE, label="İBB")
+    ax.hist(sim, bins=bins, alpha=0.7, color=RED, label=T("SUMO (mezoskopik)", "SUMO (mesoscopic)"))
+    ax.set_xlabel(T("Segment hızı (km/sa)", "Segment speed (km/h)")); ax.set_ylabel(T("Segment sayısı", "Segments"))
+    med_s, med_o = sim[len(sim) // 2], obs[len(obs) // 2]
+    ax.set_title(T(f"Dinamik koşu: medyan hız SUMO {med_s:.1f}, İBB {med_o:.0f} km/sa", f"Dynamic run: median speed SUMO {med_s:.1f}, İBB {med_o:.0f} km/h"))
+    ax.legend(frameon=False)
+    _save(fig, "sumo-hizlar", lang)
+
+
+def corridor_map(lang="tr", run=None):
+    T = _t(lang)
+    zones = json.loads((OD / run / "zones.geojson").read_text(encoding="utf-8"))["features"]
+    s = {p["source"].split()[2]: p for p in load(run)["validation"]["per_count"]}
+    sensors = json.loads(next(OD.glob("counts_*.json")).read_text(encoding="utf-8"))
+    fig, ax = plt.subplots(figsize=(7.2, 8))
+    n_h3 = n_gate = 0
+    for f in zones:
+        if f["geometry"]["type"] == "Polygon":
+            n_h3 += 1
+            xs, ys = zip(*f["geometry"]["coordinates"][0])
+            ax.fill(xs, ys, color=BLUE, alpha=0.08 + 0.5 * min(1, f["properties"]["production"] / 1500), lw=0.4, ec="white")
+        else:
+            n_gate += 1
+            x, y = f["geometry"]["coordinates"]
+            ax.scatter([x], [y], marker="s", color=GREY, s=30)
+    for e in sensors:
+        p = s.get(e["sensor"])
+        if p:
+            g = p["geh_held_out"]
+            ax.scatter([e["lon"]], [e["lat"]], color=GREEN if g < 5 else ORANGE if g < 15 else RED, s=60, ec="black", lw=0.5, zorder=3)
+        else:
+            ax.scatter([e["lon"]], [e["lat"]], marker="x", color="black", s=40, zorder=3)
+    ax.plot([28.975, 29.048, 29.048, 28.975, 28.975], [41.038, 41.038, 41.118, 41.118, 41.038], color="black", lw=1)
+    ax.set_aspect(1 / 0.754)
+    ax.set_title(T(f"Koridor: {n_h3} H3 zonu (koyu = çok üretim), {n_gate} geçit (■)\nsensörler: dışarıda bırakılan GEH <5 / <15 / ≥15, × kullanılmadı",
+                   f"Corridor: {n_h3} H3 zones (darker = more trips), {n_gate} gateways (■)\nsensors: held-out GEH <5 / <15 / ≥15, × not used"), fontsize=11)
+    ax.set_xlabel(T("boylam", "longitude")); ax.set_ylabel(T("enlem", "latitude"))
+    _save(fig, "koridor-harita", lang)
+
+
 if __name__ == "__main__":
     import sys
     for f in (synthetic, geh_rounds, road_profile, fundamental_diagram, pipeline, level_identification):
         for lang in ("tr", "en"):
             f(lang)
         print("ok", f.__name__, "(tr, en)")
-    if (OD / "20261017-1726-counts-v3").exists():  # (the rest needs the OD outputs of tools/od/corridor.py)
-        for f in (heldout_scatter, sumo_speeds, corridor_map):
-            f(); print("ok", f.__name__)
+    run = latest_run() if OD.exists() else None
+    if run:  # (the rest needs the OD outputs of tools/od/corridor.py)
+        for f in (heldout_scatter, corridor_map):
+            for lang in ("tr", "en"):
+                f(lang, run)
+            print("ok", f.__name__, run)
+        if isinstance(load(run).get("level_of_demand"), dict):
+            for lang in ("tr", "en"):
+                level_real(lang, run)
+            print("ok level_real", run)
+        sims = sorted(OD.glob("*/sim/segments.csv"))
+        if sims:
+            for lang in ("tr", "en"):
+                sumo_speeds(lang, sims[-1].parents[1].name)
+            print("ok sumo_speeds", sims[-1].parents[1].name)
     else:
-        print(f"skipped heldout_scatter, sumo_speeds, corridor_map: no {OD.relative_to(ROOT)}", file=sys.stderr)
+        print(f"skipped heldout_scatter, sumo_speeds, corridor_map: no estimate with counts in {OD.relative_to(ROOT)}", file=sys.stderr)
