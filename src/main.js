@@ -33,6 +33,7 @@ import { initIstanbul36TazGrid } from './world/h3HexTazEngine.js';
 import { RoadHeatmapLayer } from './world/roadHeatmapLayer.js';
 import { TrafficAnalyticsDashboard } from './world/trafficAnalyticsDashboard.js';
 import { HexOdAnalyticsDrawer } from './world/hexOdAnalyticsDrawer.js';
+import { RecommendationsPanel } from './world/recommendationsPanel.js';
 
 function createLandmarkTag(text, subtext) {
   const canvas = document.createElement('canvas');
@@ -404,6 +405,22 @@ let roadHeatmapLayer;
 let trafficAnalyticsDashboard;
 let hexOdAnalyticsDrawer;
 
+// The OD estimate behind the panels (tools/report/export_app_data.py); without it the panels fall back to the
+// gravity prior below, which is fitted to no observation.
+const odData = await fetch(`data/od/${AREA}.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+const zoneName = new Map((odData?.zones ?? []).map((z) => [z.id, z.kind === 'gateway' ? `Geçit ${z.id} (${z.name || 'sınır'})` : `H3 ${z.id.slice(0, 9)}…`]));
+const VALUE_OF_TIME_TL_H = 150; // (an assumption, for the corridor cost column only)
+const realOd = odData && {
+  corridors: odData.corridors.map((c) => ({
+    originId: c.o, destId: c.d, originName: zoneName.get(c.o), destName: zoneName.get(c.d),
+    distanceKm: c.km, freeFlowMinutes: c.free_min, congestedMinutes: c.load_min, tripsPerHour: Math.round(c.trips),
+    prior: c.prior, se: c.se, dataShare: c.share, geh: null,
+    // the estimate is of car trips: the mode bar shows them as such
+    modalSplit: { privateCarPct: 100, gtfsTransitPct: 0, vrpFreightPct: 0, carVolume: Math.round(c.trips), transitVolume: 0, freightVolume: 0 },
+    zTotalCostTL: Math.round(c.trips * (c.load_min ?? 0) / 60 * VALUE_OF_TIME_TL_H),
+  })),
+  gehReport: { screenlinesUnder5Pct: Number(odData.validation.held_out.under5_pct.toFixed(1)), meanGeh: odData.validation.held_out.mean },
+};
 odFlowArcsLayer = new OdFlowArcsLayer({ scene, proj, streamer });
 roadHeatmapLayer = new RoadHeatmapLayer({ scene, traffic, streamer });
 
@@ -411,6 +428,7 @@ h3GridLayer = new H3UberGridLayer({
   scene,
   proj,
   streamer,
+  zones: odData?.zones ?? null,
   onSelectHex: (cell) => {
     if (cell && h3GridLayer.visible) {
       const dir = hexOdAnalyticsDrawer ? hexOdAnalyticsDrawer.flowDirection : 'outflow';
@@ -428,8 +446,31 @@ h3GridLayer = new H3UberGridLayer({
   },
 });
 
-const odSolver = new InverseOdSolver(h3GridLayer.hexCells);
-let currentOdSolution = odSolver.solveInverseOdMatrix(clockTime.hour);
+const odSolver = realOd ? null : new InverseOdSolver(h3GridLayer.hexCells);
+// (the real estimate is one snapshot: hour and scenario controls do not change it)
+const solveOd = (hour, scenario) => realOd ?? odSolver.solveInverseOdMatrix(hour, scenario);
+let currentOdSolution = solveOd(clockTime.hour);
+
+// The recommendation panel and the real-data switches, near the top of the settings panel
+const focusOn = (x, z) => {
+  // move the whole view, not only where it looks: keep the camera's offset from the point looked at
+  const offset = camera.position.clone().sub(controls.target);
+  controls.target.set(x, streamer.ground(x, z), z);
+  camera.position.copy(controls.target).add(offset);
+  controls.update();
+};
+const recsPanel = odData ? new RecommendationsPanel({ data: odData, scene, proj, streamer, onFocus: focusOn }) : null;
+if (gui && odData) {
+  const analysis = gui.addFolder('Analiz (gerçek veri)');
+  const sw = {
+    get recs() { return recsPanel.isOpen; }, set recs(v) { recsPanel.setOpen(v); },
+    get zones() { return h3GridLayer.visible; },
+    set zones(v) { h3GridLayer.setVisible(v); if (!v) { odFlowArcsLayer.setVisible(false); hexOdAnalyticsDrawer?.close(); } },
+  };
+  analysis.add(sw, 'recs').name('öneriler paneli').listen();
+  analysis.add(sw, 'zones').name('O-D zonları (H3)').listen();
+  gui.$children.insertBefore(analysis.domElement, gui.$children.children[1]);
+}
 const tazLookup = new Map(h3GridLayer.hexCells.map((c) => [c.id, c]));
 
 hexOdAnalyticsDrawer = new HexOdAnalyticsDrawer({
@@ -439,7 +480,7 @@ hexOdAnalyticsDrawer = new HexOdAnalyticsDrawer({
   onHourChange: (hour) => {
     clockTime.live = false;
     clockTime.hour = hour;
-    currentOdSolution = odSolver.solveInverseOdMatrix(hour, trafficAnalyticsDashboard?.scenario);
+    currentOdSolution = solveOd(hour, trafficAnalyticsDashboard?.scenario);
     if (h3GridLayer.selectedHexId) {
       odFlowArcsLayer.updateArcs(currentOdSolution.corridors, h3GridLayer.selectedHexId, hexOdAnalyticsDrawer.flowDirection, tazLookup);
     }
@@ -507,7 +548,7 @@ trafficAnalyticsDashboard = new TrafficAnalyticsDashboard({
       scene.fog = null;
       atmosphere.coverage = 0.25;
     }
-    currentOdSolution = odSolver.solveInverseOdMatrix(trafficAnalyticsDashboard.selectedHour, trafficAnalyticsDashboard.scenario);
+    currentOdSolution = solveOd(trafficAnalyticsDashboard.selectedHour, trafficAnalyticsDashboard.scenario);
     if (h3GridLayer.selectedHexId) {
       odFlowArcsLayer.updateArcs(currentOdSolution.corridors, h3GridLayer.selectedHexId, hexOdAnalyticsDrawer.flowDirection, tazLookup);
       hexOdAnalyticsDrawer.updateData(h3GridLayer.selectedHex, currentOdSolution.corridors, currentOdSolution.gehReport);

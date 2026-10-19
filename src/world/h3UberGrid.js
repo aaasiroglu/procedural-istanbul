@@ -31,7 +31,8 @@ const CORRIDOR_SECTORS = [
 ];
 
 export class H3UberGridLayer {
-  constructor({ scene, proj, streamer, onSelectHex }) {
+  constructor({ scene, proj, streamer, onSelectHex, zones = null }) {
+    this.zones = zones; // the OD estimate's zones (public/data/od/<area>.json): when given, the grid is the real one
     this.scene = scene;
     this.proj = proj;
     this.streamer = streamer;
@@ -52,7 +53,8 @@ export class H3UberGridLayer {
     this.hexMeshes = new Map();
 
     this.initTooltip();
-    this.generateHoneycombGrid();
+    if (this.zones) this.buildFromZones();
+    else this.generateHoneycombGrid();
   }
 
   initTooltip() {
@@ -88,6 +90,31 @@ export class H3UberGridLayer {
         this.tooltipEl.style.top = `${e.clientY}px`;
       }
     });
+  }
+
+  // The estimate's own zones: its H3 resolution-8 cells (their true boundaries) and its gateways (a small hexagon
+  // where a major road crosses the boundary). Trips are the estimate's; speed and congestion are the median of the
+  // İBB segments inside the cell in the snapshot the estimate used; density is read back from that speed.
+  buildFromZones() {
+    const VF = 60, KJ = 140; // (km/h, veh/km/lane: a rough link between speed and density, for the colour scale only)
+    this.zones.forEach((z, index) => {
+      const [cx, cz] = this.proj.project(z.lon, z.lat);
+      const gateway = z.kind === 'gateway';
+      const speed = z.speed_kph ?? null;
+      const cell = {
+        id: z.id, index, real: true, kind: z.kind,
+        name: gateway ? `Geçit ${z.id}: ${z.name || 'sınır yolu'}` : `H3 ${z.id.slice(0, 9)}…`,
+        sector: gateway ? 'alan sınırı (transit trafik)' : 'iç zon', type: gateway ? 'gateway' : 'h3',
+        cx, cz, lon: z.lon, lat: z.lat, groundY: this.streamer ? this.streamer.ground(cx, cz) : 40.0,
+        outflow: Math.round(z.out), inflow: Math.round(z.in), priorOut: Math.round(z.prior_out), priorIn: Math.round(z.prior_in),
+        speedKmh: speed, segments: z.segments ?? 0, congestion: z.congestion ?? null,
+        densityK: speed == null ? null : Number((KJ * Math.max(0, 1 - speed / VF)).toFixed(1)),
+        mfdState: z.state ?? 'NO_DATA', co2Rate: z.co2_g_km ?? null, co2GPerKm: z.co2_g_km ?? null,
+      };
+      if (z.boundary) cell.cornerXZ = z.boundary.map(([lo, la]) => { const [x, zz] = this.proj.project(lo, la); return { dx: x - cx, dz: zz - cz }; });
+      this.hexCells.push(cell);
+    });
+    this.createMeshes();
   }
 
   generateHoneycombGrid() {
@@ -168,9 +195,9 @@ export class H3UberGridLayer {
   }
 
   buildTerrainConformingGeometry(cell, initialHeight) {
-    const R = this.radius;
+    const R = cell.kind === 'gateway' ? 120 : this.radius;
     const angles = [0, 1, 2, 3, 4, 5].map((k) => Math.PI / 6 + (k * Math.PI) / 3);
-    const corners = angles.map((a) => ({
+    const corners = cell.cornerXZ || angles.map((a) => ({
       dx: R * Math.cos(a),
       dz: R * Math.sin(a),
     }));
@@ -269,6 +296,8 @@ export class H3UberGridLayer {
   }
 
   applyScenarioModifiers({ speedFactor = 1.0, demandFactor = 1.0, rainMm = 0, snowActive = false, ramazanActive = false }) {
+    // (the estimate's zones are one observed snapshot: what-if modifiers do not rewrite them)
+    if (this.hexCells.some((c) => c.real)) { this.updateAppearance(); return; }
     for (const cell of this.hexCells) {
       cell.outflow = Math.round(cell.outflow * demandFactor * (ramazanActive ? 1.35 : 1.0));
       cell.inflow = Math.round(cell.inflow * demandFactor * (ramazanActive ? 1.35 : 1.0));
@@ -366,7 +395,10 @@ export class H3UberGridLayer {
         if (this.activeMetric === 'mfd_density' || this.activeMetric === 'speed') {
           // Density / Congestion Palette
           const state = cell.effectiveMfdState || cell.mfdState;
-          if (state === 'FREE_FLOW') {
+          if (state === 'NO_DATA') {
+            entry.mesh.material.color.setHex(0x475569); // slate: no İBB segment in this cell
+            entry.wireframe.material.color.setHex(0x64748b);
+          } else if (state === 'FREE_FLOW') {
             entry.mesh.material.color.setHex(0x10b981); // Emerald
             entry.wireframe.material.color.setHex(0x34d399);
           } else if (state === 'CRITICAL') {
@@ -392,6 +424,7 @@ export class H3UberGridLayer {
 
   showTooltip(cell, clientX, clientY) {
     if (!this.tooltipEl || !cell) return;
+    if (cell.real) { this.showRealTooltip(cell, clientX, clientY); return; }
     const speed = cell.effectiveSpeed || cell.speedKmh;
     const density = cell.effectiveDensity || cell.densityK;
     const state = cell.effectiveMfdState || cell.mfdState;
@@ -419,6 +452,29 @@ export class H3UberGridLayer {
         <strong style="font-family: monospace; color: #a855f7;">${cell.co2Rate} g/km</strong>
       </div>
     `;
+    this.tooltipEl.style.left = `${clientX}px`;
+    this.tooltipEl.style.top = `${clientY}px`;
+    this.tooltipEl.style.display = 'block';
+  }
+
+  showRealTooltip(cell, clientX, clientY) {
+    const n = (v) => (v == null ? '—' : Math.round(v).toLocaleString('tr-TR'));
+    const STATE = { FREE_FLOW: 'akıcı (İBB 1–2)', CRITICAL: 'yoğun (İBB 3)', HYPERCONGESTED: 'çok yoğun (İBB 4–5)', NO_DATA: 'İBB segmenti yok' };
+    const row = (k, v, c = '#f8fafc') => `<span style="color:#94a3b8">${k}</span><strong style="font-family:monospace;color:${c}">${v}</strong>`;
+    this.tooltipEl.innerHTML = `
+      <div style="font-weight:700;color:#fff;margin-bottom:6px;display:flex;justify-content:space-between;gap:10px">
+        <span>${cell.name}</span>
+        <span style="font-family:monospace;font-size:9px;padding:2px 5px;background:rgba(52,211,153,.15);border-radius:4px;color:#34d399">gerçek veri</span>
+      </div>
+      <div style="display:grid;grid-template-columns:auto auto;gap:4px 14px;font-size:10px">
+        ${row('Üretim (tahmin)', `${n(cell.outflow)} araç/sa`, '#34d399')}
+        ${row('Çekim (tahmin)', `${n(cell.inflow)} araç/sa`, '#38bdf8')}
+        ${row('Prior (üretim / çekim)', `${n(cell.priorOut)} / ${n(cell.priorIn)}`, '#94a3b8')}
+        ${row('İBB medyan hız', cell.speedKmh == null ? '—' : `${cell.speedKmh} km/sa (${cell.segments} segment)`, cell.speedKmh != null && cell.speedKmh < 25 ? '#f43f5e' : '#34d399')}
+        ${row('Durum', STATE[cell.mfdState] || cell.mfdState, '#fbbf24')}
+        ${row('CO2 (hıza bağlı eğri)', cell.co2Rate == null ? '—' : `${cell.co2Rate} g/km`, '#a855f7')}
+      </div>
+      <div style="margin-top:6px;font-size:9px;color:#64748b">Kaynak: ters O-D tahmini (İBB sayımlarıyla sabitlenmiş) ve İBB canlı hız görüntüsü</div>`;
     this.tooltipEl.style.left = `${clientX}px`;
     this.tooltipEl.style.top = `${clientY}px`;
     this.tooltipEl.style.display = 'block';

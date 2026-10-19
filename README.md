@@ -77,9 +77,10 @@ Ara sonuç sunumu (yöntem, sentetik ve gerçek veri sonuçları, olumsuz bulgul
 | SUMO ağı | ✅ OSM'den koridor ağı; köprü, metrobüs ayrık şeridi, 293 sinyalli kavşak; İBB segmentlerinin %95.5'i kenarlara eşlendi ([tools/sumo](tools/sumo/README.md)) |
 | Ters O-D tahmini | ✅ Canlı İBB hızlarından koridorun ilk O-D tahmini (75 H3 zonu ve 20 geçit, SUMO `od2trips` çıktısı). İBB sayımlarıyla talep düzeyi sabitlendi (×0.30, veri payı 0.81); dışarıda bırakılan GEH < 5 oranı %8.7, dağılım hâlâ zayıf ([tools/od](tools/od/README.md)) |
 | Tarayıcıdaki trafik | Görsel: araçlar kameranın çevresinde, rotalar rastgele. Analiz için kullanılmamalı |
-| Panellerdeki H3 / tahmin / maliyet değerleri | **Gösterim amaçlı**, elle girilmiş sabitler. Veriden hesaplanmıyor |
+| Panellerdeki H3 zonları, O-D akışları, öneriler | ✅ **Gerçek veri:** tahminin 95 zonu ve 1.470 O-D çifti, İBB hızları, darboğazlar ve kural tabanlı öneri motoru v1 (`tools/report/export_app_data.py` → `public/data/od/koridor.json`) |
+| Tahminleme paneli (24 saat, hava, senaryo) | Gösterim amaçlı; tek bir zaman diliminin tahmini var |
 | Çok kaynaklı çapalar, gölge simülasyon, sinir ağı ters çözücü | İlk sürümler ([teknik rapor](docs/rapor/teknik_rapor.pdf)) |
-| Öneri motoru | Planlandı |
+| Öneri motoru | İlk sürüm: darboğaz sıralaması, kaza müdahalesi (gölge simülasyon), teyit edilecek sensörler, talep düzeyi |
 
 ## Yol haritası
 

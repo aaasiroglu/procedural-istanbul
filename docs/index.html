@@ -109,7 +109,7 @@
   .readout b.up { color: var(--green); } .readout b.lo { color: var(--accent-2); }
   .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--ink-2); margin-top: 8px; }
   .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
-  .tip { position: fixed; pointer-events: none; z-index: 80; background: #0f1b2b; color: #fff; font-size: 13px; padding: 8px 10px; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.25); opacity: 0; transition: opacity .12s; max-width: 260px; }
+  .tip { position: fixed; pointer-events: none; z-index: 80; background: #0f1b2b; color: #fff; font-size: 13.5px; line-height: 1.5; padding: 10px 12px; border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.25); opacity: 0; transition: opacity .12s; max-width: 320px; }
 
   /* numbers row */
   .nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 14px; }
@@ -165,6 +165,29 @@
   pre.cmd { background: #0f1b2b; color: #dbe7f5; border-radius: 12px; padding: 16px 18px; font: 13.5px/1.6 "Cascadia Code", Consolas, monospace; overflow-x: auto; margin: 0; }
   pre.cmd .c { color: #7f95ad; }
 
+  .plain { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .plain .card h3 { font-size: 18px; }
+  .plain .step { font-size: 13px; font-weight: 800; color: var(--accent-2); letter-spacing: 1px; text-transform: uppercase; }
+  @media (max-width: 900px) { .plain { grid-template-columns: 1fr; } }
+  .analogy { margin-top: 22px; display: flex; gap: 16px; align-items: flex-start; background: var(--card); border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: var(--radius); padding: 18px 20px; color: var(--ink-2); }
+  .analogy .big { font-size: 30px; line-height: 1; }
+  .simply { display: block; margin-top: 10px; padding: 10px 14px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 8%, var(--bg-2)); color: var(--ink); font-size: 15.5px; }
+  .simply::before { content: attr(data-label); font-weight: 800; color: var(--accent); margin-right: 6px; }
+  .term { border-bottom: 1.5px dotted color-mix(in srgb, var(--accent) 70%, transparent); cursor: help; color: inherit; text-decoration: none; }
+  .term:hover { text-decoration: none; background: color-mix(in srgb, var(--accent) 10%, transparent); border-radius: 3px; }
+  .gloss-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 18px; }
+  .gloss-tools input { flex: 1; min-width: 200px; padding: 11px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; }
+  .gloss { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .gloss dl { margin: 0; }
+  .gloss .g { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; scroll-margin-top: 80px; }
+  .gloss .g:target { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .gloss dt { font-weight: 700; color: var(--ink); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .gloss dt small { font-weight: 500; color: var(--muted); }
+  .gloss dd { margin: 4px 0 0; color: var(--ink-2); font-size: 15px; }
+  .gloss dd .ex { display: block; margin-top: 6px; color: var(--muted); font-size: 14px; }
+  .gloss .cat { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--accent); }
+  @media (max-width: 760px) { .gloss { grid-template-columns: 1fr; } }
+
   footer { padding: 40px 0 56px; color: var(--muted); font-size: 14px; }
   footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: space-between; }
 
@@ -182,12 +205,14 @@
       Procedural Istanbul
     </a>
     <div class="links">
+      <a href="#basics"><span data-l="tr">Kısaca</span><span data-l="en">In brief</span></a>
       <a href="#problem"><span data-l="tr">Problem</span><span data-l="en">Problem</span></a>
       <a href="#method"><span data-l="tr">Yöntem</span><span data-l="en">Method</span></a>
       <a href="#results"><span data-l="tr">Sonuçlar</span><span data-l="en">Results</span></a>
       <a href="#shadow"><span data-l="tr">Gölge simülasyon</span><span data-l="en">Shadow simulation</span></a>
       <a href="#twin"><span data-l="tr">3D ikiz</span><span data-l="en">3D twin</span></a>
       <a href="#honest"><span data-l="tr">Sınırlar</span><span data-l="en">Limits</span></a>
+      <a href="#glossary"><span data-l="tr">Sözlük</span><span data-l="en">Glossary</span></a>
       <a href="#docs"><span data-l="tr">Belgeler</span><span data-l="en">Docs</span></a>
     </div>
     <div class="tools">
@@ -221,6 +246,38 @@
 </header>
 
 <main>
+
+<section class="s" id="basics">
+  <div class="wrap">
+    <div class="kicker reveal"><span data-l="tr">Kısaca, teknik bilgi gerektirmeden</span><span data-l="en">In brief, no background needed</span></div>
+    <h2 class="reveal"><span data-l="tr">Bu proje ne yapıyor?</span><span data-l="en">What does this project do?</span></h2>
+    <p class="intro reveal">
+      <span data-l="tr">Bir şehirde trafiği iyileştirmek için önce şu soruyu yanıtlamak gerekir: <b>saatte kaç kişi, nereden nereye gidiyor?</b> Bu bilgiyi doğrudan ölçen bir sensör yok. Bu proje, İstanbul'un açık verisinden bu soruyu yanıtlıyor, cevabın ne kadar güvenilir olduğunu dürüstçe söylüyor ve sonucu bilgisayarda canlandırıyor.</span>
+      <span data-l="en">To improve traffic in a city you first need to answer one question: <b>how many people travel from where to where, each hour?</b> No sensor measures that directly. This project answers it from Istanbul's open data, says honestly how reliable the answer is, and brings the result to life on a computer.</span>
+    </p>
+    <div class="plain">
+      <div class="card reveal">
+        <div class="step"><span data-l="tr">1 · Elimizde ne var?</span><span data-l="en">1 · What we have</span></div>
+        <h3><span data-l="tr">Yollardaki hız</span><span data-l="en">Speeds on the roads</span></h3>
+        <p><span data-l="tr">İstanbul Büyükşehir Belediyesi (İBB) her yol parçasında trafiğin ne hızla aktığını yayınlıyor. Kaç araç olduğunu ise yalnızca birkaç sayım noktası söylüyor.</span><span data-l="en">The Istanbul Metropolitan Municipality (İBB) publishes how fast traffic moves on each piece of road. Only a few counting points say how many vehicles there are.</span></p>
+      </div>
+      <div class="card reveal">
+        <div class="step"><span data-l="tr">2 · Ne yapıyoruz?</span><span data-l="en">2 · What we do</span></div>
+        <h3><span data-l="tr">Hızdan yolculuğa geri hesaplama</span><span data-l="en">Working back from speeds to trips</span></h3>
+        <p><span data-l="tr">Yolların ne kadar dolu olduğuna bakarak, bu yoğunluğu hangi yolculukların yaratmış olabileceğini geriye doğru hesaplıyoruz. Bir dedektifin ipuçlarından olayı yeniden kurması gibi.</span><span data-l="en">From how full the roads are, we work backwards to which trips could have produced that traffic, the way a detective rebuilds events from clues.</span></p>
+      </div>
+      <div class="card reveal">
+        <div class="step"><span data-l="tr">3 · Ne işe yarıyor?</span><span data-l="en">3 · What it is for</span></div>
+        <h3><span data-l="tr">Denemeden önce görmek</span><span data-l="en">Seeing before trying</span></h3>
+        <p><span data-l="tr">Bu yolculukları bir trafik simülatöründe çalıştırıyoruz. Böylece "köprü yolu kapanırsa ne olur, sürücülere haber vermek işe yarar mı?" gibi soruları sahada denemeden yanıtlayabiliyoruz.</span><span data-l="en">We run those trips in a traffic simulator, so questions like "what happens if the bridge road closes, does warning drivers help?" can be answered without trying it on the street.</span></p>
+      </div>
+    </div>
+    <div class="analogy reveal">
+      <div class="big">🌡️</div>
+      <div><span data-l="tr"><b>Bir benzetme:</b> Doktor hastanın içini göremez, ateşini ve nabzını ölçer, oradan bir teşhis koyar. Ama iyi bir doktor teşhisinin ne kadar emin olduğunu da söyler. Biz de yolların "ateşinden" (hızından) trafiğin "teşhisini" (kim nereye gidiyor) koyuyoruz ve ne kadar emin olduğumuzu her sayı için ayrıca yazıyoruz.</span><span data-l="en"><b>An analogy:</b> a doctor cannot see inside a patient; they measure temperature and pulse and reach a diagnosis. A good doctor also says how sure they are. We read a "diagnosis" of traffic (who goes where) from the roads' "temperature" (their speed), and we state for every number how sure we are.</span></div>
+    </div>
+  </div>
+</section>
 
 <section class="s" id="problem">
   <div class="wrap">
@@ -257,6 +314,8 @@
     <p class="intro reveal">
       <span data-l="tr">Üçgen temel diyagramda serbest akış hızı yalnızca bir üst sınır verir; sıkışık daldaki hız ise geçen akımı ve kuyruk olduğu için talep hakkında bir alt sınırı verir. Hızı değiştirip deneyin.</span>
       <span data-l="en">On the triangular fundamental diagram a free-flow speed gives only an upper bound; a speed on the congested branch gives the flow getting through, and since there is a queue, a lower bound on demand. Move the speed and see.</span>
+      <span class="simply" data-label="Basitçe:" data-l="tr">Boş bir yolda arabalar hızlı gider ama yolda 10 araba da olabilir, 1.000 araba da. Yani hız bize sadece "en fazla şu kadar araç var" der. Yol tıkalıysa ise kuyruk vardır: gelmek isteyen araç sayısı yolun taşıyabileceğinden fazladır, yani "en az şu kadar" deriz. Hızı kesin bir araç sayısına çevirmiyoruz; yalnızca bildiğimiz sınırı kullanıyoruz.</span>
+      <span class="simply" data-label="Simply:" data-l="en">On an empty road cars move fast, but there could be 10 cars or 1,000. So a speed only tells us "at most this many". If the road is jammed there is a queue: more cars want to pass than the road can carry, so we say "at least this many". We never turn a speed into an exact number of cars; we use only the bound we really know.</span>
     </p>
     <div class="grid2">
       <div class="viz reveal">
@@ -290,6 +349,8 @@
     <p class="intro reveal">
       <span data-l="tr">Tüm matrisin düzeyi tek bir çarpanla taşınır ve sayımların onu ne kadar sabitlediği ölçülür. Pazartesi 11:30'daki canlı hızlar ve 23 İBB sayımıyla: arazi kullanımından kurulan prior, talebi yaklaşık <b>üç kat</b> yüksek gösteriyormuş.</span>
       <span data-l="en">The level of the whole matrix is one factor, and how far the counts pin it down is measured. With live speeds on Monday at 11:30 and 23 İBB counts: the land-use prior overstated demand roughly <b>threefold</b>.</span>
+      <span class="simply" data-label="Basitçe:" data-l="tr">İlk tahminimiz bina sayısı ve büyüklüğüne bakarak "bu bölgeden saatte şu kadar araç çıkar" diyordu. Gerçek sayımlarla karşılaştırınca bu tahminin yaklaşık üç kat fazla olduğu ortaya çıktı. Artık toplam trafik miktarı varsayımdan değil, ölçümden geliyor; bunu da yüzde 81 güvenle söyleyebiliyoruz.</span>
+      <span class="simply" data-label="Simply:" data-l="en">Our first guess said "this area sends out so many cars an hour" by looking at its buildings. Compared with real counts, that guess was about three times too high. The total amount of traffic now comes from measurements, not assumptions, and we can say so with a data share of 81 %.</span>
     </p>
     <div class="grid2">
       <div class="viz reveal">
@@ -342,6 +403,10 @@
   <div class="wrap">
     <div class="kicker reveal"><span data-l="tr">Yeni modüller</span><span data-l="en">New modules</span></div>
     <h2 class="reveal"><span data-l="tr">Çok kaynaklı çapalar ve sinir ağı denetçisi</span><span data-l="en">Multi-source anchors and a neural auditor</span></h2>
+    <p class="intro reveal">
+      <span class="simply" data-label="Basitçe:" data-l="tr">"Çapa", tahmini başka bir bağımsız kaynakla sağlamaya almak demek: örneğin metro ve metrobüs kartı (İstanbulkart) binişleri. "Sinir ağı" ise milyonlarca hesap yerine bir saniyede cevap verebilen, örneklerden öğrenen bir program; onun cevabını ana yöntemimizle denetliyoruz ve yanlışsa kullanmıyoruz.</span>
+      <span class="simply" data-label="Simply:" data-l="en">An "anchor" checks the estimate against an independent source, such as metro and Metrobüs card (İstanbulkart) boardings. A "neural network" is a program that learns from examples and answers in a second instead of a long calculation; we audit its answer with our main method and do not use it if it is wrong.</span>
+    </p>
     <div class="grid2">
       <div class="card reveal">
         <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="2"/><path d="M12 7v14M5 12H2a10 10 0 0 0 20 0h-3"/></svg></div>
@@ -368,6 +433,8 @@
     <p class="intro reveal">
       <span data-l="tr">SUMO olay anında tüm durumu (her araç, kuyruk ve rota) kaydeder; aynı durumdan her müdahale politikası ayrı ayrı ve gerçek zamandan hızlı koşturulur. Kararı simülasyon verir; bir dil modeli kullanılırsa yalnızca sonucu anlatır. İlk sınama: 5 şeritli TEM (2. Çevre Yolu) kesimi 20. dakikada kapanıyor, 20 dakika ileri.</span>
       <span data-l="en">At the incident SUMO saves its whole state (every vehicle, queue and route); from that same state each response policy is run separately and faster than real time. The simulation decides; a language model, if used, only tells the result. First test: a five-lane stretch of the TEM motorway closes at minute 20, simulated 20 minutes ahead.</span>
+      <span class="simply" data-label="Basitçe:" data-l="tr">Bir kaza olduğu anda trafiğin "fotoğrafını" çekiyoruz ve aynı fotoğraftan başlayarak birkaç farklı geleceği bilgisayarda hızlıca oynatıyoruz: kimseye haber verilmezse ne olur, sürücülere hemen haber verilirse ne olur? Hangisi daha çok aracı yerine ulaştırıyorsa onu öneriyoruz. Gerçekte 20 dakika sürecek olayı birkaç dakikada görüyoruz.</span>
+      <span class="simply" data-label="Simply:" data-l="en">The moment an accident happens we take a "snapshot" of traffic and, from that same snapshot, quickly play out several futures on the computer: what if nobody is told, what if drivers are warned at once? Whichever gets more vehicles to their destination is recommended. We see 20 minutes of real traffic in a few minutes.</span>
     </p>
     <div class="pol" id="pol"></div>
     <div class="callout reveal" id="shadowNote"></div>
@@ -420,10 +487,21 @@
           <tr><td><span data-l="tr">Sensör tanımları</span><span data-l="en">Sensor definitions</span></td><td><span class="tag part"><span data-l="tr">teyit gerekli</span><span data-l="en">to confirm</span></span></td><td><span data-l="tr">O-2 ve FSM sensörlerinin yönü ve şerit kapsamı</span><span data-l="en">direction and lane coverage of O-2 and FSM sensors</span></td></tr>
           <tr><td><span data-l="tr">SUMO dinamik koşu</span><span data-l="en">SUMO dynamic run</span></td><td><span class="tag part"><span data-l="tr">yerel kilitlenme</span><span data-l="en">local gridlock</span></span></td><td><span data-l="tr">zon girişleri yayılmalı</span><span data-l="en">zone entries need spreading</span></td></tr>
           <tr><td><span data-l="tr">Sinir ağı ters çözücü</span><span data-l="en">Neural inverse solver</span></td><td><span class="tag neg"><span data-l="tr">denetimden geçmedi</span><span data-l="en">failed the audit</span></span></td><td><span data-l="tr">SUMO örnekleri gerekli</span><span data-l="en">needs SUMO samples</span></td></tr>
-          <tr><td><span data-l="tr">Uygulamadaki analitik paneller</span><span data-l="en">Analytics panels in the app</span></td><td><span class="tag part"><span data-l="tr">gösterim amaçlı</span><span data-l="en">illustrative</span></span></td><td><span data-l="tr">henüz veriden hesaplanmıyor</span><span data-l="en">not yet computed from data</span></td></tr>
+          <tr><td><span data-l="tr">Uygulamadaki O-D zonları ve öneri paneli</span><span data-l="en">OD zones and recommendation panel in the app</span></td><td><span class="tag ok"><span data-l="tr">gerçek veri</span><span data-l="en">real data</span></span></td><td><span data-l="tr">tahminin 95 zonu, 1.470 O-D çifti, darboğazlar ve kural tabanlı öneriler</span><span data-l="en">the estimate's 95 zones, 1,470 OD pairs, bottlenecks and rule-based recommendations</span></td></tr>
+          <tr><td><span data-l="tr">Tahminleme paneli ve araç akışı</span><span data-l="en">Forecast dashboard and moving cars</span></td><td><span class="tag part"><span data-l="tr">gösterim amaçlı</span><span data-l="en">illustrative</span></span></td><td><span data-l="tr">araçlar henüz rastgele rotalarda; SUMO yörüngeleri sırada</span><span data-l="en">cars still on random routes; SUMO trajectories next</span></td></tr>
         </tbody>
       </table>
     </div>
+  </div>
+</section>
+
+<section class="s alt" id="glossary">
+  <div class="wrap">
+    <div class="kicker reveal"><span data-l="tr">Sözlük</span><span data-l="en">Glossary</span></div>
+    <h2 class="reveal"><span data-l="tr">Kısaltmalar ve terimler, sade dille</span><span data-l="en">Abbreviations and terms, in plain words</span></h2>
+    <p class="intro reveal"><span data-l="tr">Sayfadaki altı noktalı her kelimenin üzerine gelin ya da dokunun; kısa açıklaması çıkar. Tam listesi aşağıda.</span><span data-l="en">Hover over or tap any word with a dotted underline on this page for a short explanation. The full list is below.</span></p>
+    <div class="gloss-tools reveal"><input id="glossSearch" type="search" placeholder="Ara: GEH, O-D, prior…" aria-label="search"></div>
+    <div class="gloss" id="glossList"></div>
   </div>
 </section>
 
@@ -651,8 +729,81 @@ uv run --group sumo python tools/sumo/shadow.py --narrate</pre>
           `<b>First result:</b> with drivers unaware, the closure delivers ${fmt(r.arrived - u.arrived)} fewer vehicles in 20 minutes and raises jam teleports from ${fmt(r.teleports)} to ${fmt(u.teleports)}. Even with the road open some 23 thousand vehicles are backed up: local gridlock persists with the anchored demand.`);
   }
 
+  // ---------------------------------------------------------------- glossary: plain explanations, and the terms marked in the text
+  const GLOSS = [
+    { id: "od", re: /\bO-D\b|\bOD\b/, tr: ["O-D (başlangıç–varış) matrisi", "Bir şehirde saatte kaç yolculuğun hangi bölgeden başlayıp hangi bölgede bittiğini gösteren tablo. Satırlar nereden, sütunlar nereye.", "Örnek: Levent'ten Beşiktaş'a saatte 300 araç."], en: ["OD (origin–destination) matrix", "A table of how many trips start in each area and end in each other area, per hour. Rows are where from, columns where to.", "Example: 300 cars an hour from Levent to Beşiktaş."], cat: "temel" },
+    { id: "zone", re: /\bH3\b/, tr: ["Zon ve H3", "Şehri küçük bölgelere bölüyoruz; her biri bir zon. H3, Uber'in geliştirdiği, dünyayı eşit altıgenlere bölen bir sistem. Bizim altıgenlerimiz yaklaşık 0,74 km².", "Koridorda 75 altıgen zon var."], en: ["Zone and H3", "We split the city into small areas, each a zone. H3 is a system made by Uber that divides the world into equal hexagons. Ours are about 0.74 km².", "The corridor has 75 hexagonal zones."], cat: "temel" },
+    { id: "gate", re: /\bgeçit(?:ler)?\b|\bgateways?\b/i, tr: ["Geçit zonu", "Çalışma alanının sınırını kesen büyük yollar (köprü, çevre yolu). Alanın dışından gelen ya da dışına giden trafik buradan girip çıkar.", "15 Temmuz Köprüsü bağlantısı bir geçittir."], en: ["Gateway zone", "Major roads that cross the edge of the study area (the bridge, ring roads). Traffic from or to outside the area enters and leaves here.", "The 15 July Bridge approach is a gateway."], cat: "temel" },
+    { id: "prior", re: /\bprior\b/i, tr: ["Prior (ön tahmin)", "Ölçüme bakmadan önceki en iyi tahminimiz. Burada bina alanlarından ve dükkânlardan kurulan bir yolculuk modeli. Veri bir şey söylemediğinde tahmin buna yakın kalır.", "İlk tahmin talebi üç kat yüksek gösteriyordu; sayımlar düzeltti."], en: ["Prior (first guess)", "Our best guess before looking at measurements: here, a trip model built from building floor areas and shops. Where the data says nothing, the estimate stays close to it.", "The first guess put demand three times too high; the counts corrected it."], cat: "yöntem" },
+    { id: "censored", re: /\bsansürlü\b|\bcensored\b/i, tr: ["Sansürlü gözlem", "Bir değeri tam bilmeyip yalnızca bir sınırını bildiğimiz ölçüm. Hız bize araç sayısını vermez; sadece \"en fazla\" ya da \"en az\" şu kadar der.", "Akıcı yol: en fazla kapasite kadar araç."], en: ["Censored observation", "A measurement that gives only a bound on a value, not the value itself. A speed does not give the number of cars; only \"at most\" or \"at least\" so many.", "Free-flowing road: at most its capacity."], cat: "yöntem" },
+    { id: "fd", re: /\btemel diyagram\b|\bfundamental diagram\b/i, tr: ["Temel diyagram", "Bir yolda araç yoğunluğu, hız ve akım arasındaki ilişkiyi gösteren klasik trafik grafiği. Yol boşken hız yüksek; doldukça önce akım artar, sonra kuyruk oluşur ve akım düşer.", null], en: ["Fundamental diagram", "The classic traffic graph linking density, speed and flow on a road. Empty road: high speed; as it fills, flow first rises, then a queue forms and flow falls.", null], cat: "yöntem" },
+    { id: "capacity", re: /\bkapasite\b|\bcapacity\b/i, tr: ["Kapasite", "Bir yolun bir saatte geçirebileceği en fazla araç sayısı. Bir otoyol şeridi için yaklaşık 2.000 araç/saat.", null], en: ["Capacity", "The most vehicles a road can pass in an hour: about 2,000 vehicles per hour for a motorway lane.", null], cat: "temel" },
+    { id: "geh", re: /\bGEH\b/, tr: ["GEH", "Model ile gerçek sayım arasındaki farkı ölçen, trafik mühendisliğinde standart bir sayı (adını Geoffrey E. Havers'tan alır). 5'in altı \"iyi uyum\" sayılır; sayımların %85'inde 5'in altı hedeflenir.", "Sayım 1.000, model 1.100 ise GEH ≈ 3,1 (iyi)."], en: ["GEH", "A standard traffic-engineering number for the gap between a model and a real count (named after Geoffrey E. Havers). Under 5 counts as a good match; the target is under 5 for 85 % of counts.", "Count 1,000, model 1,100: GEH ≈ 3.1 (good)."], cat: "doğrulama" },
+    { id: "holdout", re: /\bdışarıda bırakılan\b|\bheld[- ]out\b/i, tr: ["Dışarıda bırakılan doğrulama", "Modeli bir sayımı hiç görmeden kurup o sayımı tahmin ettiriyoruz; sonra gerçeğiyle karşılaştırıyoruz. Sınavdaki soruyu önceden görmeden çözmek gibi: tek dürüst test budur.", null], en: ["Held-out validation", "We build the model without ever seeing a count, ask it to predict that count, then compare with the real one. Like solving an exam question you have not seen: the only honest test.", null], cat: "doğrulama" },
+    { id: "map", re: /\bMAP\b/, tr: ["MAP (en olası tahmin)", "\"Maximum a posteriori\": hem ölçümlerle hem ön tahminle birlikte en uyumlu sonucu seçen yöntem. Projenin ana hesaplama yöntemi.", null], en: ["MAP (most probable estimate)", "\"Maximum a posteriori\": the method that picks the answer most consistent with both the measurements and the first guess. The project's main calculation.", null], cat: "yöntem" },
+    { id: "share", re: /\bveri payı\b|\bdata share\b/i, tr: ["Veri payı", "Bir sonucun ne kadarının ölçümden, ne kadarının varsayımdan geldiği. 0: tamamen varsayım, 1: tamamen ölçüm.", "Talep düzeyinin veri payı 0,81: büyük ölçüde ölçümden geliyor."], en: ["Data share", "How much of a result comes from measurement and how much from assumption. 0: all assumption, 1: all measurement.", "The demand level's data share is 0.81: mostly from measurement."], cat: "doğrulama" },
+    { id: "se", re: /\bSE\b|\bstandart hata\b|\bstandard error\b/i, tr: ["Standart hata (SE)", "Bir tahminin ne kadar şaşabileceğinin ölçüsü. Gerçek değerin çoğunlukla tahmin ± 2 standart hata arasında olması beklenir.", null], en: ["Standard error (SE)", "How far an estimate may be off. The true value is expected to lie, most of the time, within the estimate ± 2 standard errors.", null], cat: "doğrulama" },
+    { id: "level", re: /\btalep düzeyi\b|\bdemand level\b|\blevel of demand\b/i, tr: ["Talep düzeyi", "Koridordaki toplam araç yolculuğu miktarı. Tek tek bölgelerden önce doğru bilinmesi gereken en temel sayı.", null], en: ["Demand level", "The total amount of car trips in the corridor: the most basic number to get right, before any single area.", null], cat: "yöntem" },
+    { id: "bilevel", re: /\bbilevel\b/i, tr: ["Bilevel (iki aşamalı) tahmin", "Sürücülerin hangi yolu seçtiği trafiğe, trafik de seçilen yollara bağlıdır. Bu yüzden yolculukları tahmin etme ve yolları dağıtma adımlarını sırayla, sonuç oturana kadar tekrarlıyoruz.", null], en: ["Bilevel estimation", "Which roads drivers choose depends on traffic, and traffic depends on the roads chosen. So we alternate estimating trips and assigning them to roads until the result settles.", null], cat: "yöntem" },
+    { id: "ue", re: /\bUE\b|\bkullanıcı dengesi\b|\buser[- ]equilibrium\b/i, tr: ["UE (kullanıcı dengesi)", "Her sürücünün, kendisi için en kısa süreli yolu seçtiği ve kimsenin yol değiştirerek kazanç sağlayamadığı durum. Trafik dağılımının standart modeli.", null], en: ["UE (user equilibrium)", "The state in which every driver takes their quickest route and nobody can gain by switching. The standard model of how traffic spreads over roads.", null], cat: "yöntem" },
+    { id: "bpr", re: /\bBPR\b/, tr: ["BPR eğrisi", "Bir yol doldukça seyahat süresinin ne kadar uzadığını veren formül (ABD Bureau of Public Roads'tan). İBB'nin kendi modelindeki katsayıları kullanıyoruz.", null], en: ["BPR curve", "A formula for how much travel time grows as a road fills up (from the US Bureau of Public Roads). We use the coefficients of İBB's own model.", null], cat: "yöntem" },
+    { id: "sumo", re: /\bSUMO\b/, tr: ["SUMO", "Alman Havacılık ve Uzay Merkezi'nin (DLR) geliştirdiği, açık kaynaklı, dünyada yaygın kullanılan trafik simülatörü. Binlerce aracı tek tek ağ üzerinde hareket ettirir.", null], en: ["SUMO", "An open-source traffic simulator from the German Aerospace Center (DLR), widely used around the world. It moves thousands of vehicles individually over the road network.", null], cat: "araç" },
+    { id: "meso", re: /\bmezoskopik\b|\bmesoscopic\b/i, tr: ["Mezoskopik simülasyon", "Araçları tek tek değil, yol parçalarındaki kuyruklar olarak izleyen, daha hızlı bir simülasyon türü. Büyük ağlarda ve \"ya şöyle olursa\" denemelerinde kullanılır.", null], en: ["Mesoscopic simulation", "A faster kind of simulation that follows queues on road pieces rather than every single car. Used for large networks and quick what-if runs.", null], cat: "araç" },
+    { id: "teleport", re: /\bışınlanma\b|\bteleports?\b/i, tr: ["Işınlanma (teleport)", "SUMO'da bir araç çok uzun süre kımıldayamazsa simülasyonun kilitlenmemesi için ileri taşınır. Ne kadar çoksa, ağ o kadar tıkanık demektir.", null], en: ["Teleport", "In SUMO, a vehicle stuck for too long is moved ahead so the simulation does not lock up. The more teleports, the more jammed the network.", null], cat: "araç" },
+    { id: "shadow", re: /\bgölge simülasyon\b|\bshadow simulation\b/i, tr: ["Gölge simülasyon", "Gerçek trafiğin yanında, onun bir kopyasıyla geleceği hızlıca deneyen simülasyon. Kaza anında farklı müdahaleleri karşılaştırmak için kullanılır.", null], en: ["Shadow simulation", "A simulation running beside real traffic that quickly tries out the future with a copy of it. Used to compare responses at an incident.", null], cat: "araç" },
+    { id: "anchor", re: /\bçapa(?:lar|sı)?\b|\banchors?\b/i, tr: ["Çapa", "Tahmini, bağımsız bir kaynağın söylediği bir toplamla sabitlemek. Köprüden bir yönde geçen araç sayısı ya da bir bölgedeki metro binişleri gibi.", null], en: ["Anchor", "Tying the estimate to a total stated by an independent source, such as cars crossing the bridge one way or metro boardings in an area.", null], cat: "yöntem" },
+    { id: "nn", re: /\bsinir ağı\b|\bneural network\b|\bMLP\b/i, tr: ["Sinir ağı (MLP)", "Örneklerden öğrenen bir yapay zekâ modeli. Burada simülatörün ürettiği binlerce \"yolculuk → hız\" örneğinden, hızlardan yolculuğu tahmin etmeyi öğreniyor.", null], en: ["Neural network (MLP)", "An AI model that learns from examples. Here it learns, from thousands of simulated \"trips → speeds\" examples, to estimate trips from speeds.", null], cat: "yöntem" },
+    { id: "r2", re: /\bR²/, tr: ["R²", "Bir modelin değişimin ne kadarını açıklayabildiğinin ölçüsü. 1 mükemmel, 0 hiç açıklamıyor, eksi değer ortalamadan bile kötü.", null], en: ["R²", "How much of the variation a model explains. 1 is perfect, 0 explains nothing, a negative value is worse than the average.", null], cat: "doğrulama" },
+    { id: "ibb", re: /\bİBB\b/, tr: ["İBB ve UYM", "İstanbul Büyükşehir Belediyesi ve onun Ulaşım Yönetim Merkezi. Canlı hız, sayım ve toplu ulaşım verilerinin kaynağı.", null], en: ["İBB and UYM", "The Istanbul Metropolitan Municipality and its Traffic Management Centre: the source of live speeds, counts and public transport data.", null], cat: "veri" },
+    { id: "ikart", re: /\bİstanbulkart\b/, tr: ["İstanbulkart", "İstanbul'da toplu taşımada kullanılan elektronik kart. İBB, durak ve saat bazında kaç kez basıldığını açık veri olarak yayınlıyor.", null], en: ["İstanbulkart", "Istanbul's public transport smart card. İBB publishes how often it is tapped per stop and hour as open data.", null], cat: "veri" },
+    { id: "osm", re: /\bOpenStreetMap\b|\bOSM\b/, tr: ["OpenStreetMap (OSM)", "Gönüllülerin oluşturduğu, herkesin kullanabildiği açık dünya haritası. Yollar, binalar ve dükkânlar buradan geliyor.", null], en: ["OpenStreetMap (OSM)", "The open world map built by volunteers that anyone may use. Roads, buildings and shops come from it.", null], cat: "veri" },
+    { id: "vc", re: /\bv\/c\b/, tr: ["v/c (talep / kapasite)", "Bir yoldan geçmek isteyen araç sayısının yolun kapasitesine oranı. 1'in üstü, yolun kaldırabileceğinden fazla talep demek.", null], en: ["v/c (volume / capacity)", "Vehicles wanting to use a road divided by its capacity. Above 1 means more demand than the road can take.", null], cat: "temel" },
+    { id: "twin", re: /\bdijital ikiz\b|\bdigital twin\b/i, tr: ["Dijital ikiz", "Gerçek bir sistemin, gerçek veriyle beslenen ve onunla birlikte güncellenen bilgisayar kopyası.", null], en: ["Digital twin", "A computer copy of a real system, fed with real data and updated along with it.", null], cat: "temel" },
+  ];
+  const CAT = { temel: ["Temel kavram", "Basic"], yöntem: ["Yöntem", "Method"], doğrulama: ["Doğrulama", "Validation"], araç: ["Araç", "Tool"], veri: ["Veri", "Data"] };
+  function drawGlossary() {
+    const q = ($("#glossSearch").value || "").toLowerCase();
+    $("#glossList").innerHTML = GLOSS.map((g) => {
+      const [name, def, ex] = g[lang];
+      if (q && !(name + " " + def).toLowerCase().includes(q)) return "";
+      return `<div class="g" id="g-${g.id}"><div class="cat">${CAT[g.cat][lang === "en" ? 1 : 0]}</div><dl><dt>${name}</dt><dd>${def}${ex ? `<span class="ex">${ex}</span>` : ""}</dd></dl></div>`;
+    }).join("");
+  }
+  $("#glossSearch").addEventListener("input", drawGlossary);
+  // mark the first mention of each term in every paragraph-like block of the page, both languages
+  // ( knows only ASCII letters: Unicode-aware boundaries instead, so İBB, ışınlanma and çapa match)
+  GLOSS.forEach((g) => { g.rx = new RegExp("(?<![\\p{L}\\p{N}])(?:" + g.re.source.split("\\b").join("") + ")(?![\\p{L}\\p{N}])", "u" + (g.re.flags.includes("i") ? "i" : "")); });
+  function annotate() {
+    const blocks = $$("main section:not(#glossary) p, main section:not(#glossary) li, main .callout, main .simply, main td");
+    blocks.forEach((b) => {
+      if (b.dataset.annotated) return; b.dataset.annotated = "1";
+      const used = new Set();
+      const walker = document.createTreeWalker(b, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.parentElement.closest("a, code, svg, .term, button") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
+      const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
+      for (const node of nodes) {
+        for (const g of GLOSS) {
+          if (used.has(g.id)) continue;
+          const m = node.nodeValue.match(g.rx);
+          if (!m) continue;
+          used.add(g.id);
+          const after = node.splitText(m.index); after.nodeValue = after.nodeValue.slice(m[0].length);
+          const a = document.createElement("a"); a.className = "term"; a.href = "#g-" + g.id; a.dataset.term = g.id; a.textContent = m[0];
+          node.parentNode.insertBefore(a, after);
+          nodes.push(after); // (the rest of this text is searched again for the other terms)
+          break;
+        }
+      }
+    });
+    $$(".term").forEach((t) => {
+      const g = GLOSS.find((x) => x.id === t.dataset.term);
+      const show = (e) => { const [name, def] = g[lang]; showTip(e, `<b>${name}</b><br>${def}`); };
+      t.addEventListener("mouseenter", show); t.addEventListener("mousemove", show); t.addEventListener("mouseleave", hideTip);
+      t.addEventListener("focus", (e) => { const r = t.getBoundingClientRect(); show({ clientX: r.left, clientY: r.bottom }); }); t.addEventListener("blur", hideTip);
+    });
+  }
+
   // ---------------------------------------------------------------- language, theme, reveal, gallery, nav
-  function render() { drawFD(); drawLevel(); drawGEH(); drawSmall(); drawShadow(); }
+  function render() { drawFD(); drawLevel(); drawGEH(); drawSmall(); drawShadow(); drawGlossary(); }
   function setLang(l) {
     lang = l; document.documentElement.lang = l; store.set("pi-lang", l);
     $("#langBtn").textContent = l === "tr" ? "EN" : "TR";
@@ -676,6 +827,7 @@ uv run --group sumo python tools/sumo/shadow.py --narrate</pre>
   const secs = $$("section.s[id]"), navs = $$(".links a");
   addEventListener("scroll", () => { let cur = ""; secs.forEach((s) => { if (s.getBoundingClientRect().top < 120) cur = s.id; }); navs.forEach((a) => a.classList.toggle("active", a.getAttribute("href") === "#" + cur)); }, { passive: true });
   setLang(lang);
+  annotate();
 })();
 </script>
 </body>
