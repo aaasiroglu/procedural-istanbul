@@ -123,7 +123,8 @@ for (const [label, decks] of [
 }
 
 // Exercise real compiled data when present. --all checks every compiled tile.
-for (const id of ['istanbul']) {
+const tilesRoot = path.join(ROOT, 'public/tiles');
+for (const id of fs.existsSync(tilesRoot) ? fs.readdirSync(tilesRoot).filter((f) => fs.statSync(path.join(tilesRoot, f)).isDirectory()) : []) {
   const base = path.join(ROOT, 'public/tiles', id), manifestFile = path.join(base, 'manifest.json');
   if (!fs.existsSync(manifestFile)) { console.log(`skip ${id} (no compiled tiles)`); continue; }
   const m = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));

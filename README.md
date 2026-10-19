@@ -1,8 +1,49 @@
+<div align="center">
+
 # Procedural Istanbul
+
+**Gerçek veriyle beslenen, tarayıcıda çalışan İstanbul trafik dijital ikizi**
+<br>*A browser-based traffic digital twin of Istanbul, driven by live open data*
+
+![Three.js](https://img.shields.io/badge/Three.js-r186-000?logo=three.js)
+![SUMO](https://img.shields.io/badge/SUMO-1.27-2b6cb0)
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
+![Node](https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-green)
+
+![Maslak–Levent–Mecidiyeköy–Beşiktaş–15 Temmuz Köprüsü koridoru](docs/media/hero.jpg)
+
+</div>
 
 **Maslak – Levent – Mecidiyeköy – Çağlayan – Beşiktaş – 15 Temmuz Köprüsü** koridorunun tarayıcıda çalışan 3D dijital ikizi. Amaç, koridordaki trafiği gerçek veriyle simüle etmek, literatüre dayalı olarak sınıflandırmak ve iki ayrı kitleye öneri üretmek: **sürücü/yolcu** ile **belediye/trafik uzmanı**.
 
 3D motor, Yong Su'nun [Tokyo](https://github.com/jeantimex/tokyo) projesinden (MIT) türetilmiştir. İstanbul verisi, ulaşım modeli ve analitik katman bu repoda geliştirilmektedir.
+
+## In short (English)
+
+- **A city from open data.** About 38,000 buildings, 1,170 km of roads, 60 bridge decks, trees, street furniture and signage are compiled from OpenStreetMap and elevation tiles into streamed 3D tiles. The result runs in real time in the browser (Three.js, physically based atmosphere).
+- **Live traffic.** İBB's live feed of more than 6,000 road segments is drawn on the network as it updates.
+- **A real simulator behind it.** The corridor is rebuilt as a SUMO network: 21k edges, 293 signalised junctions, the bridge and the Metrobüs busway. 95 % of İBB's segments are matched to SUMO edges.
+- **Research contribution: demand from speeds.** İBB reports speeds, not vehicle counts. The inverse OD estimator treats each speed as a *censored* observation: free flow gives an upper bound, a queue gives a lower bound. It runs bilevel with user-equilibrium assignment and reports, for every OD pair, how much of the estimate comes from data and how much from the prior. Validation uses GEH on **held-out** counts only.
+- **Honest about what is not known.** Panels that still show illustrative values are labelled as such, negative results are reported, and the total demand level carries its own identification measure.
+
+Slides (TR / EN): [docs/sunum](docs/sunum/README.md)
+
+## Mimari
+
+```mermaid
+flowchart LR
+  OSM[OpenStreetMap + DEM] --> P[tools/pipeline<br/>3D derleyici]
+  P --> T[(3D karolar)]
+  T --> W[Tarayıcı<br/>Three.js dijital ikiz]
+  IBB[İBB canlı hız akışı] --> W
+  IBB --> A[(Parquet arşivi)]
+  OSM --> S[tools/sumo<br/>SUMO ağı + İBB eşlemesi]
+  A --> O[tools/od<br/>ters O-D tahmini]
+  S --> O
+  C[İBB sayım sensörleri<br/>köprü sayımları] --> O
+  O --> R[SUMO koşusu<br/>GEH doğrulaması]
+```
 
 ## Neyi farklı yapıyor
 
@@ -56,6 +97,17 @@ npm run fetch -- --area=koridor             # OSM ve DEM
 npm run compile -- --area=koridor           # 3D karolar (public/tiles/koridor)
 npm run dev                                 # http://localhost:5280/?area=koridor
 ```
+
+Simülasyon tarafı (SUMO 1.27, `uv` ilk çalıştırmada projenin ortamına kurar):
+
+```bash
+npm run sumo:net -- --area=koridor          # OSM → SUMO ağı (data/sumo/koridor)
+npm run sumo:map-ibb -- --area=koridor      # İBB segmentleri → SUMO kenarları
+npm run sumo:smoke -- --area=koridor        # kilitlenme / teleport testi
+npm run od:corridor -- --area=koridor       # canlı hızlardan O-D tahmini
+```
+
+Kurumsal bir TLS vekil sunucusunun arkasındaysanız `uv`'nin sistem sertifikalarını kullanması için `UV_NATIVE_TLS=1` tanımlayın.
 
 Genişletilmiş koridor eskisinin yaklaşık altı katı büyüklükte. Derleme 4 GB'tan fazla bellek isteyebilir.
 

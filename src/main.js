@@ -690,12 +690,16 @@ renderer.domElement.addEventListener('pointermove', (e) => {
   }
 });
 
-addEventListener('resize', () => {
+function fitViewport() {
+  if (!innerWidth || !innerHeight) return; // (a page opened in a hidden tab or frame has no size yet)
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
   atmosphere.setSize(innerWidth, innerHeight);
-});
+}
+addEventListener('resize', fitViewport);
+// a page loaded while hidden gets its size later, not always with a resize event: watch the page itself
+new ResizeObserver(fitViewport).observe(document.documentElement);
 
 // ---------------------------------------------------------------- loop
 const hud = document.getElementById('hud');

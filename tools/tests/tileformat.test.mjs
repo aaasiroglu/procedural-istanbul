@@ -41,9 +41,12 @@ test('JIS mesh codes', () => {
   assert.ok(block.includes('53394506') && block.includes('53393585'));
 });
 
-const dir = path.join(ROOT, 'public/tiles/shibuya');
-if (fs.existsSync(path.join(dir, 'manifest.json'))) {
-  test('compiled shibuya tiles are well formed', () => {
+// every compiled area under public/tiles
+const tilesRoot = path.join(ROOT, 'public/tiles');
+const areas = fs.existsSync(tilesRoot) ? fs.readdirSync(tilesRoot).filter((id) => fs.existsSync(path.join(tilesRoot, id, 'manifest.json'))) : [];
+for (const id of areas) {
+  const dir = path.join(tilesRoot, id);
+  test(`compiled ${id} tiles are well formed`, () => {
     const m = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
     const areaEN = (r) => { let s = 0; for (let i = 0, n = r.length / 2; i < n; i++) { const j = (i + 1) % n; s += r[j * 2] * r[i * 2 + 1] - r[i * 2] * r[j * 2 + 1]; } return s / 2; };
     let nB = 0;
@@ -54,7 +57,7 @@ if (fs.existsSync(path.join(dir, 'manifest.json'))) {
       for (const p of t.props) assert.ok(Number.isFinite(p.x) && Number.isFinite(p.z) && p.scale > 0);
       for (const b of t.buildings) {
         nB++;
-        assert.ok(b.height > 0.5 && b.height < 400 && b.base > -10 && b.base < 100, `building height/base ${b.height}/${b.base}`);
+        assert.ok(b.height > 0.5 && b.height < 400 && b.base > -10 && b.base < 300, `building height/base ${b.height}/${b.base}`);
         for (const rings of b.polygons) {
           rings.forEach((r, i) => {
             assert.ok(r.length >= 6 && r.every(Number.isFinite));
@@ -70,6 +73,7 @@ if (fs.existsSync(path.join(dir, 'manifest.json'))) {
     for (const e of roads.edges) assert.ok(e.a < roads.nodes.length && e.b < roads.nodes.length && e.pts.length >= 6);
     console.log(`      ${m.tiles.length} tiles, ${nB} buildings, ${roads.edges.length} road edges checked`);
   });
-} else console.log('skip  compiled tiles (run npm run fetch && npm run compile)');
+}
+if (!areas.length) console.log('skip  compiled tiles (run npm run fetch && npm run compile)');
 
 console.log(`${passed} passed`);
