@@ -1,19 +1,26 @@
 # Akademik sunum (ara sonuç, Ekim 2026)
 
-**English (UPC SUMO & traffic modelling course):** [PRESENTATION_EN.md](PRESENTATION_EN.md) → [presentation_en.pdf](presentation_en.pdf), [presentation_en.html](presentation_en.html). 23 slides, SUMO-focused, clean theme with consistent margins.
+Aynı sunumun birebir Türkçe ve İngilizce hali (24 slayt, aynı yapı ve aynı grafikler):
 
-**Türkçe:**
+| | Kaynak (Marp) | Çıktılar |
+|---|---|---|
+| Türkçe | [SUNUM.md](SUNUM.md) | [sunum.pdf](sunum.pdf), [sunum.html](sunum.html) |
+| English | [SUNUM_EN.md](SUNUM_EN.md) | [sunum_en.pdf](sunum_en.pdf), [sunum_en.html](sunum_en.html) |
 
-- [SUNUM.md](SUNUM.md): Kaynak dosya (Marp Markdown, 18 slayt)
-- [sunum.pdf](sunum.pdf), [sunum.html](sunum.html): Çıktılar
-- `img/`: Grafikler ([tools/report/figures.py](../../tools/report/figures.py) ile gerçek çıktılardan üretilir) ve 3D istemcinin ekran görüntüleri
+Ayrıca: [PRESENTATION_EN.md](PRESENTATION_EN.md) → [presentation_en.pdf](presentation_en.pdf), UPC SUMO & trafik modelleme dersi için SUMO odaklı ayrı bir sunum.
+
+`img/`: Grafikler [tools/report/figures.py](../../tools/report/figures.py) ile üretilir; veri gerektirmeyenler iki dilde (`ad.png` Türkçe, `ad-en.png` İngilizce). `koridor-harita`, `dislanan-sayimlar` ve `sumo-hizlar` `data/od/koridor` çıktılarından üretilir ve şimdilik yalnızca Türkçe etiketlidir. Diğerleri 3D istemcinin ekran görüntüleridir.
 
 Yeniden üretmek için:
 
 ```bash
 uv run --with matplotlib python tools/report/figures.py
-npx @marp-team/marp-cli@3.4.0 docs/sunum/SUNUM.md --pdf --allow-local-files -o docs/sunum/sunum.pdf
-npx @marp-team/marp-cli@3.4.0 docs/sunum/SUNUM.md --html --allow-local-files -o docs/sunum/sunum.html
+npx @marp-team/marp-cli@3.4.0 docs/sunum/SUNUM.md --html --pdf --allow-local-files -o docs/sunum/sunum.pdf
+npx @marp-team/marp-cli@3.4.0 docs/sunum/SUNUM.md --html -o docs/sunum/sunum.html
+npx @marp-team/marp-cli@3.4.0 docs/sunum/SUNUM_EN.md --html --pdf --allow-local-files -o docs/sunum/sunum_en.pdf
+npx @marp-team/marp-cli@3.4.0 docs/sunum/SUNUM_EN.md --html -o docs/sunum/sunum_en.html
 ```
+
+`--html` gereklidir: slaytlar iki ve üç sütunlu düzen için satır içi HTML kullanır.
 
 Sunum olumsuz bulguları da içerir. Doğrulama ölçütü (dışarıda bırakılan sayımlarda GEH < 5, ≥ %85) henüz karşılanmıyor; nedenleri ve sonraki adımlar slaytlarda.

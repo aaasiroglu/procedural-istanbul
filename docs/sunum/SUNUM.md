@@ -1,38 +1,91 @@
 ---
 marp: true
-theme: default
 paginate: true
 size: 16:9
-title: Procedural Istanbul — Hızdan Talep Tahmini ve Koridor Dijital İkizi
+lang: tr
+title: Procedural Istanbul — Sansürlü Hız Gözlemleriyle O-D Tahmini ve Koridor Dijital İkizi
+footer: "Procedural Istanbul · Ara sonuç · Ekim 2026"
 style: |
-  section { font-size: 24px; }
-  h1 { font-size: 40px; color: #1d3f72; }
-  h2 { font-size: 32px; color: #1d3f72; }
-  table { font-size: 19px; }
-  .small { font-size: 17px; }
-  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  :root { --ink: #1b2430; --muted: #5d6b7a; --accent: #0b5cad; --accent2: #e07b22; --line: #dde3ea; }
+  section {
+    font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink); background: #ffffff;
+    padding: 56px 72px 68px 72px;
+    font-size: 23px; line-height: 1.42;
+    display: flex; flex-direction: column; justify-content: flex-start;
+  }
+  section::after { right: 72px; bottom: 24px; color: var(--muted); font-size: 15px; }
+  footer { left: 72px; bottom: 24px; color: var(--muted); font-size: 15px; }
+  h1 { font-size: 46px; color: var(--accent); margin: 0 0 12px 0; letter-spacing: -0.5px; }
+  h2 { font-size: 33px; color: var(--ink); margin: 0 0 18px 0; padding-bottom: 8px; border-bottom: 3px solid var(--accent); }
+  h3 { font-size: 24px; color: var(--accent); margin: 8px 0 6px 0; }
+  strong { color: var(--accent); }
+  ul, ol { margin: 4px 0 0 0; padding-left: 26px; } li { margin: 3px 0; }
+  table { font-size: 18px; border-collapse: collapse; margin-top: 4px; }
+  th { background: #eef3f9; } th, td { padding: 5px 12px; border-bottom: 1px solid var(--line); }
+  code { background: #f3f5f8; padding: 1px 5px; border-radius: 4px; font-size: 0.88em; }
+  pre { background: #f6f8fa; border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; font-size: 15px; }
+  img { border-radius: 6px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
+  .cols3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; align-items: start; }
+  .center { text-align: center; }
+  .refs { font-size: 14.5px; line-height: 1.3; } .refs li { margin: 1px 0; }
+  .small { font-size: 16px; color: var(--muted); }
+  .note { border-left: 4px solid var(--accent2); background: #fff7ef; padding: 9px 16px; margin-top: 12px; font-size: 20px; }
+  section.title { justify-content: center; background: linear-gradient(135deg, #0b5cad 0%, #083d73 100%); color: #fff; }
+  section.title h1 { color: #fff; font-size: 54px; } section.title h3 { color: #cfe2f7; font-weight: 400; }
+  section.title strong { color: #fff; } section.title footer, section.title::after { color: #cfe2f7; }
+  section.section { justify-content: center; background: #f4f7fb; }
+  section.section h1 { font-size: 50px; }
 ---
 
+<!-- _class: title -->
 <!-- _paginate: false -->
 
 # Procedural Istanbul
 
-## Sansürlü hız gözlemleriyle O-D tahmini ve Maslak–15 Temmuz koridorunun açık dijital ikizi
+### Sansürlü hız gözlemleriyle O-D tahmini ve Maslak–15 Temmuz koridorunun açık dijital ikizi
 
-Abdurrahim Arif Aşıroğlu
-Ekim 2026 · ara sonuç sunumu
+<br>
 
-<span class="small">Kod ve veri hattı: github.com/aaasiroglu/procedural-istanbul (MIT) · 3D motor Yong Su'nun "Tokyo" projesinden türetilmiştir</span>
+**Abdurrahim Arif Aşıroğlu**
+Ara sonuç sunumu · Ekim 2026
+
+<span class="small" style="color:#cfe2f7">github.com/aaasiroglu/procedural-istanbul (MIT) · 3D motor, Yong Su'nun "Tokyo" projesinden türetilmiştir</span>
+
+---
+
+## Koridor: Maslak – Levent – Mecidiyeköy – Beşiktaş – 15 Temmuz Köprüsü
+
+<div class="cols">
+<div class="center">
+
+![h:500](img/genel-gorunum.jpg)
+
+</div>
+<div>
+
+- Tarayıcıda çalışan **3D dijital ikiz**: yollar, binalar ve arazi tamamen açık veriden (OpenStreetMap, SRTM) derleniyor.
+- Yol kesimleri İBB'nin **canlı sıkışıklık sınıfıyla** renkleniyor (serbest → çok yoğun).
+- Altında bir **ulaşım modeli** çalışıyor: SUMO ağı, ters O-D tahmini ve İBB sayımlarıyla doğrulama.
+- Araştırma sorusu: **yalnızca hız ölçen bir sensör ağından, bir simülatörün ihtiyaç duyduğu talep matrisi ne kadar güvenilir çıkarılabilir?**
+
+</div>
+</div>
 
 ---
 
 ## Problem
 
-- **Simülatör yolculuk ister, sensör hız verir.** SUMO gibi mikroskobik bir simülatörün başlangıç–varış (O-D) matrisine, yani "kim nereden nereye gidiyor" bilgisine ihtiyacı var. İBB'nin canlı akışı ise her yol kesimi için yalnızca **hız** ve **sıkışıklık sınıfı** veriyor.
-- **Sayım az, sorun belirsiz.** Gerçek sayım verisi seyrek. O-D çifti sayısı (9.025), gözlem sayısını yüzlerce kat aşıyor; ters problem kötü konumlanmış (ill-posed).
-- **Mevcut yaklaşımların zaafı:** Hızı sahte sayıma çevirmek, verinin taşımadığı bir kesinliği modele sokar. Tahminin ne kadarının veriden, ne kadarının varsayımdan geldiği genellikle raporlanmaz.
+- **Simülatör yolculuk ister, sensör hız verir.** SUMO gibi bir simülatör başlangıç–varış (O-D) matrisine, yani kimin nereden nereye gittiğine ihtiyaç duyar. İBB'nin canlı akışı ise her yol kesimi için yalnızca **hız** ve **sıkışıklık sınıfı** verir.
+- **Sayım az, problem kötü konumlanmış.** 9.025 O-D çifti, eldeki gözlemlerin yüzlerce katı. Veri tek başına matrisi belirleyemez.
+- **Yaygın yaklaşımın zaafı.** Hızı sahte sayıma çevirmek, verinin taşımadığı bir kesinliği modele sokar. Tahminin ne kadarının veriden, ne kadarının varsayımdan geldiği çoğu çalışmada raporlanmaz.
 
-**Amaç:** Koridorun saatlik O-D'sini açık veriden tahmin etmek, belirsizliği dürüstçe raporlamak ve dışarıda bırakılan sayımlarla doğrulamak.
+<div class="note">
+
+**Amaç:** Koridorun saatlik O-D matrisini açık veriden tahmin etmek, belirsizliği açıkça raporlamak ve sonucu modelin görmediği sayımlarla doğrulamak.
+
+</div>
 
 ---
 
@@ -41,21 +94,22 @@ Ekim 2026 · ara sonuç sunumu
 <div class="cols">
 <div>
 
-![w:520](img/koridor-harita.png)
+![w:500](img/koridor-harita.png)
 
 </div>
 <div>
 
-**Koridor:** Beşiktaş – Maslak, Çağlayan – 15 Temmuz Köprüsü (≈ 5.9 × 8.9 km)
+**Alan:** Beşiktaş – Maslak ve Çağlayan – 15 Temmuz Köprüsü (≈ 5,9 × 8,9 km)
 
 | Veri | Kaynak |
 |---|---|
 | Yol ağı, binalar, POI | OpenStreetMap |
 | Canlı segment hızı (≈ 12.700) | İBB UYM |
-| Günlük sensör sayımları (27 sensör) | İBB Açık Veri |
+| Günlük sensör sayımı (27 sensör) | İBB Açık Veri |
 | Saatlik prob araç yoğunluğu | İBB Açık Veri |
 | Kalibre ulaşım modeli (2020) | İBB Açık Veri |
-| Arazi | Mapzen / SRTM |
+| Hanehalkı anketi (2012) | İBB Açık Veri |
+| Sayısal yükseklik modeli | Mapzen / SRTM |
 
 </div>
 </div>
@@ -64,61 +118,78 @@ Ekim 2026 · ara sonuç sunumu
 
 ## Mimari
 
-```
-OSM ──► SUMO ağı (netconvert) ──► İBB segment eşlemesi (%95.5)
-                │
-İBB canlı hız ──┼──► sansürlü gözlemler ─┐
-İBB sayımları ──┼──► sayım kesitleri ────┼──► Ters O-D (bilevel MAP) ──► od2trips ──► SUMO
-OSM bina/POI ───┴──► zon prior'ı ────────┘          │
-                                                    └──► veri payı, standart hata, GEH
-3D istemci (Three.js): OSM'den prosedürel İstanbul, canlı trafik katmanı
-```
+![w:1150](img/mimari.png)
 
-- Her adım tek komutla yeniden üretilebilir (`npm run sumo:net`, `sumo:map-ibb`, `od:corridor` …).
-- Testler: 3D veri hattı ve ters O-D için 28 kontrol.
+<span class="small">Her adım tek komutla yeniden üretilebilir (`npm run sumo:net`, `sumo:map-ibb`, `od:corridor`). Ters O-D yöntemi 32 sentetik kontrolle sınanıyor.</span>
 
 ---
 
-## Katkı 1 — Hız, sansürlü gözlem olarak
+<!-- _class: section -->
 
-Üçgen temel diyagramda (Newell 1993; Daganzo 1994):
-
-- **Serbest akış hızı akımı belirlemez.** Akım 0 ile kapasite arasında herhangi bir değer olabilir; hız yalnızca **üst sınır** verir.
-- **Sıkışık dal** q = w·k<sub>j</sub>·v / (v + w), kuyruk var demektir, bu da **talep ≥ geçen akım** anlamına gelir; hız **alt sınır** verir.
-
-$$\min_{x \ge 0}\ \sum_{\text{sayım}} \frac{((Px)_e - y_e)^2}{s_e^2} + \sum_{\text{alt}} \frac{\max(0,\, y_e - (Px)_e)^2}{s_e^2} + \sum_{\text{üst}} \frac{\max(0,\, (Px)_e - y_e)^2}{s_e^2} + \mathrm{KL}_\lambda(x \,\|\, x_0)$$
-
-**Sıkışık mı serbest mi kararını** kendi tahminimiz değil, operatörün (İBB) segment bazındaki tarihsel bilgisini içeren sıkışıklık sınıfı veriyor.
-
-**Bulgu (gerçek veri):** Kural yalnızca kesintisiz akışta geçerli. Sinyalli arterlerde düşük hız kırmızı ışıktan da gelir; alt sınırlar talebi %33 şişirdi. Kural otoyol ve trunk yollarla sınırlandı.
+# 1 · Yöntem
 
 ---
 
-## Katkı 2 — Belirsizlik ve dürüst doğrulama
+## Katkı 1: Hız, sansürlü bir gözlemdir
 
-- **Veri payı:** Her O-D çifti için tahminin verilerden gelen kısmı hesaplanıyor: 1 − σ²<sub>sonsal</sub> / σ²<sub>prior</sub> (Laplace yaklaşımı; Woodbury ile n × n yerine m × m çözüm). Veriyle belirlenemeyen talep açıkça işaretleniyor.
-- **İlişkili prior hataları:** x<sub>ij</sub> = x<sub>0,ij</sub> · e<sup>a<sub>i</sub> + b<sub>j</sub> + u<sub>ij</sub></sup>. Bağımsız çift hataları, bir kesitin toplam akışını neredeyse kesin sanıyor. Zon üretim ve çekim çarpanları, bir zonun tüm trafiğini tek bir sayıyla düzeltmeye izin veriyor.
-- **Doğrulama:** GEH, modelin uydurulduğu sayımlarda değil, **her sayım tek tek dışarıda bırakıldığında** ölçülüyor.
-- **Bilevel tahmin:** UE ataması ile tahmin dönüşümlü çalışıyor; salınım ardışık ortalamalarla sönümleniyor (Spiess 1990; Yang ve ark. 1992).
-- **Sayısal koşullanma:** Log-uzayda optimizasyon (z = x<sub>0</sub>·e<sup>u</sup>) ile, 12 mertebeye yayılan prior değerlerinde de L-BFGS yakınsıyor.
+<div class="cols">
+<div>
+
+![w:560](img/temel-diyagram.png)
+
+</div>
+<div>
+
+- **Serbest akış hızı akımı belirlemez:** akım 0 ile kapasite arasında herhangi bir değer olabilir. Hız yalnızca **üst sınır** verir.
+- **Sıkışık dalda** q = w·k<sub>j</sub>·v / (v + w). Kuyruk varsa talep geçen akımdan büyüktür; hız bu durumda **alt sınır** verir.
+- Sıkışık ya da serbest kararını İBB'nin segment bazındaki **sıkışıklık sınıfı** verir.
+
+</div>
+</div>
+
+$$\min_{x \ge 0} \sum_{\text{sayım}} \tfrac{((Px)_e - y_e)^2}{s_e^2} + \sum_{\text{alt}} \tfrac{\max(0,\, y_e - (Px)_e)^2}{s_e^2} + \sum_{\text{üst}} \tfrac{\max(0,\, (Px)_e - y_e)^2}{s_e^2} + \mathrm{KL}_\lambda(x \,\|\, x_0)$$
+
+---
+
+## Katkı 2: Belirsizlik ve dürüst doğrulama
+
+- **Veri payı.** Her O-D çifti için tahminin veriden gelen kısmı: 1 − σ²<sub>sonsal</sub> / σ²<sub>prior</sub>. Laplace yaklaşımı; Woodbury özdeşliğiyle n × n yerine m × m çözüm.
+- **İlişkili prior hataları.** x<sub>ij</sub> = x<sub>0,ij</sub> · e<sup>g + a<sub>i</sub> + b<sub>j</sub> + u<sub>ij</sub></sup>. Zon çarpanları (a<sub>i</sub>, b<sub>j</sub>) bir zonun tüm trafiğini tek sayıyla düzeltir; **g** tüm matrisin düzeyini taşır.
+- **Dışarıda bırakılan doğrulama.** GEH, modelin uydurulduğu sayımlarda değil, her sayım tek tek dışarıda bırakıldığında ölçülür.
+- **Bilevel tahmin.** UE ataması ile tahmin dönüşümlü çalışır; salınım ardışık ortalamalarla (MSA) sönümlenir (Spiess 1990; Yang ve ark. 1992).
+- **Sayısal koşullanma.** Optimizasyon log-uzayda (z = x<sub>0</sub>·e<sup>u</sup>); prior değerleri 12 mertebeye yayılsa da L-BFGS yakınsar.
+
+---
+
+## Katkı 3: Talep düzeyi ne zaman sabitlenmiş sayılır?
+
+![w:860](img/talep-duzeyi.png)
+
+- Düzeyin veri payı, profil amaç fonksiyonunun eğriliğinden hesaplanır: σ²<sub>g</sub> = 2 / f″(g), pay = 1 − σ²<sub>g</sub> / σ²<sub>prior</sub>.
+- **Bulgu:** Zon çarpanları serbestken tek bir kesit sayımı düzeyin ancak **yarısını** belirliyor, çünkü sayım kestiği zonları büyüterek de karşılanabiliyor. Düzeyi sabitlemek için **bağımsız zonları kesen birden çok sayım** gerekir.
 
 ---
 
 ## Sentetik doğrulama: gerçek O-D'si bilinen şehir
 
-![w:1050](img/sentetik.png)
+![w:920](img/sentetik.png)
 
-- Sayılmayan linklerin akımı prior'a göre **GEH 5.6 → 2.2** (rotalar biliniyorken) ve **3.8** (rotalar da tahmin edilirken). Rotaları prior'a sabitleyen kısa yol 8.0 veriyor; bilevel gerekli.
-- Gerçek değerlerin **%96'sı 2.5 standart hata içinde**; belirsizlik aşırı iyimser değil.
-- Tek tek O-D hücrelerindeki kazanç küçük (36 sayım, 90 çift): **akımlar belirlenebiliyor, hücreler belirlenemiyor.** Bunu açıkça raporlamak katkının parçası.
+- Sayılmayan linklerde ortalama GEH, prior'a göre **5,6'dan 2,2'ye** (rotalar biliniyorken) ve **3,8'e** (rotalar da tahmin edilirken) iniyor. Rotaları prior'a sabitlemek 8,0 veriyor; bilevel tahmin gerekli.
+- Gerçek değerlerin **%96'sı 2,5 standart hata içinde**: belirsizlik aşırı iyimser değil.
+- **Akımlar belirlenebiliyor, tek tek O-D hücreleri belirlenemiyor** (36 sayım, 90 çift). Bunu açıkça raporlamak katkının parçası.
 
 ---
 
-## Gerçek veri: sayım hattı
+<!-- _class: section -->
 
-- 27 İBB sensöründen 25'i SUMO ağında yola dik sayım kesitlerine eşlendi; iki yön ve tüm şeritler.
-- **Günlükten saatliğe çevirme:** Aynı gün ve aynı geohash hücresindeki prob araçların saatlik payıyla. Cumartesi 17–18 için günün %3.6–5.1'i.
-- **Denetimle düzeltilen eşleme hataları:**
+# 2 · Gerçek veri
+
+---
+
+## Sayım hattı ve eşleme denetimi
+
+- 27 İBB sensöründen 25'i SUMO ağında yola dik **sayım kesitlerine** eşlendi (iki yön, tüm şeritler).
+- **Günlükten saatliğe:** Aynı gün ve aynı geohash hücresindeki prob araçların saatlik payıyla. Cumartesi 17–18 için günün %3,6–5,1'i.
 
 | Sensör | Günlük | İlk eşleme | Düzeltme |
 |---|---|---|---|
@@ -128,29 +199,35 @@ $$\min_{x \ge 0}\ \sum_{\text{sayım}} \frac{((Px)_e - y_e)^2}{s_e^2} + \sum_{\t
 | FSM Gişeler | 81 bin | köprü girişiyle aynı kenarlar | çıkarıldı (yalnızca gişe şeritleri) |
 | TEM FSM Gişe Öncesi | 98 bin | iki yön | tek yön |
 
----
+<div class="note">
 
-## Gerçek veri: GEH sonuçları
+Sinyalli arterlerde düşük hız kırmızı ışıktan da gelir: buradaki alt sınırlar talebi %33 şişirdi. Kural yalnızca **kesintisiz akış** yollarıyla (otoyol, trunk) sınırlandı.
 
-![w:1100](img/geh-turlar.png)
-
-**Ortalama GEH belirgin biçimde düştü (dışarıda bırakılan 35.6 → 23.4), ancak GEH < 5 ölçütü (%85) karşılanmıyor.**
+</div>
 
 ---
 
-## Kalan hata nereden geliyor
+## GEH sonuçları: ilerleme var, ölçüt karşılanmıyor
+
+![w:1080](img/geh-turlar.png)
+
+**Dışarıda bırakılan ortalama GEH 35,6'dan 23,2'ye indi; ancak GEH < 5 ölçütü (%85) henüz uzak.**
+
+---
+
+## Kalan hata nereden geliyor?
 
 <div class="cols">
 <div>
 
-![w:520](img/dislanan-sayimlar.png)
+![w:480](img/dislanan-sayimlar.png)
 
 </div>
 <div>
 
-1. **Sayım tanımları çelişiyor.** Üç O-2 sensörü modelde aynı akıma oturuyor, sayımları ise 4.291 / 7.108 / 8.171. Aralarında rampa yoksa bu mümkün değil: yön ya da şerit kapsamı farklı olmalı. İBB'den teyit gerekiyor.
-2. **Geçitler ve ağ.** FSM'de model sayımın yarısını taşıyabiliyor; geçit prior'ı kapasiteye dayalı kaba bir varsayım.
-3. **Prior.** OSM bina alanından üretilen çekim modeli. İBB'nin kalibre 540 zonlu matrisinin zon sırası yayımlanan dosyalardan çıkarılamıyor (istatistik testi: r = −0.08, rastgele sıralamadan farksız).
+1. **Sayım tanımları çelişiyor.** Üç O-2 sensörü modelde aynı akıma oturuyor; sayımları ise 4.291 / 7.108 / 8.171 araç/sa. Aralarında rampa yoksa bu mümkün değil: yön ya da şerit kapsamı farklı olmalı.
+2. **Geçitler ve ağ.** FSM'de model, sayımın ancak yarısını taşıyabiliyor; geçit prior'ı kapasiteye dayalı kaba bir varsayım.
+3. **Prior.** Link parametreleri (İBB 2020 kapasite ve BPR) darboğaz değil; 2012 anketinin yolculuk tipi payları küçük bir iyileşme getirdi.
 
 </div>
 </div>
@@ -159,66 +236,93 @@ $$\min_{x \ge 0}\ \sum_{\text{sayım}} \frac{((Px)_e - y_e)^2}{s_e^2} + \sum_{\t
 
 ## Dinamik sınama: SUMO
 
-![w:820](img/sumo-hizlar.png)
-
-- 128.6 bin araç/sa (sayımlardan önceki tahmin), 90 dk, mezoskopik model, dinamik yeniden rotalama.
-- **Ağ kilitlendi:** 192.551 aracın 102.735'i girebildi; medyan hız 2.9 km/sa (İBB: 24).
-- Sonuç, sayımla sabitlenmemiş talep düzeyinin aşırı yüksek olduğunu doğruluyor: sayımlar köprüde 8.5 bin araç/sa gösteriyor, tahmin 13.9 bin yüklemişti. Sayımlı tahmin 74 bin araç/sa.
-
----
-
-## 3D dijital ikiz
-
 <div class="cols">
 <div>
 
-![w:520](img/kopru-ortakoy.jpg)
-<span class="small">15 Temmuz asma köprüsü (kuleler, kablolar, askılar) ve Ortaköy Camii</span>
+![w:500](img/sumo-hizlar.png)
 
 </div>
 <div>
 
-![w:520](img/levent-kuleler.jpg)
-<span class="small">Levent: OSM building:part'tan kuleler</span>
+- Sayımsız tahmin: 128,6 bin araç/sa, 90 dk, mezoskopik model, dinamik yeniden rotalama.
+- **Ağ kilitlendi:** 192.551 aracın 102.735'i girebildi; medyan hız 2,9 km/sa (İBB: 24 km/sa).
+- Sayımla sabitlenmemiş talep düzeyinin aşırı yüksek olduğunu doğruluyor: köprüde sayım 8,5 bin, tahmin 13,9 bin araç/sa. Sayımlı tahmin 74 bin araç/sa.
 
 </div>
+</div>
+
+<div class="note">
+
+Bu sonuç, talep düzeyinin ayrıca ölçülmesini (Katkı 3) doğrudan motive ediyor.
+
 </div>
 
 ---
 
-## 3D: İstanbul'a özgü prosedürel üretim
+<!-- _class: section -->
+
+# 3 · 3D dijital ikiz
+
+---
+
+## Açık veriden prosedürel İstanbul
 
 <div class="cols">
 <div>
 
-![w:520](img/apartmanlar.jpg)
-<span class="small">Kiremit kırma çatılar, bacalar, teras su depoları, krem/bej cepheler</span>
+![w:540](img/kopru-ortakoy.jpg)
+<span class="small">15 Temmuz Şehitler Köprüsü (kuleler, ana kablolar, askılar) ve Ortaköy Camii</span>
 
 </div>
 <div>
 
-![w:520](img/vitrin-tabela.jpg)
-<span class="small">OSM POI'si zemin kattaysa vitrin; tabela gerçek dükkan adı, ofisler kendi katında</span>
+![w:540](img/levent-kuleler.jpg)
+<span class="small">Levent: OSM `building:part` verisinden kuleler</span>
 
 </div>
 </div>
 
 ---
 
-## 3D: yol geometrisi
+## İstanbul'a özgü kent dokusu
+
+<div class="cols3">
+<div class="center">
+
+![h:400](img/apartmanlar.jpg)
+<span class="small">Kiremit kırma çatılar, bacalar, su depoları</span>
+
+</div>
+<div class="center">
+
+![h:400](img/vitrin-tabela.jpg)
+<span class="small">Gerçek dükkân adlarıyla vitrin ve tabelalar</span>
+
+</div>
+<div class="center">
+
+![h:400](img/zincirlikuyu.jpg)
+<span class="small">Zincirlikuyu: katmanlı kavşak ve viyadükler</span>
+
+</div>
+</div>
+
+---
+
+## Yol geometrisi
 
 <div class="cols">
 <div>
 
-![w:520](img/yol-profili.png)
+![w:540](img/yol-profili.png)
 
 </div>
 <div>
 
-- **Yer seviyesi köprüler:** Vadi ya da su geçen köprüler kıyıdan kıyıya düz tabliye.
-- **Viyadükler:** Altındaki en yüksek zemin artı katmana göre serbest yükseklik, dikey kurplarla yumuşatılmış; zemindeki uçtan izin verilen eğimle sınırlı.
-- **Diğer:** Tüneller ağızdan %12 ile derinleşiyor; yükseltilmiş yollar Chaikin yöntemiyle yuvarlatılıyor; layer<0 alt geçitler görünür (32 yol).
-- **Performans:** 19.4 → 4.2 milyon üçgen, 4.599 → 780 çizim çağrısı.
+- **Köprüler:** Vadi ya da su geçen köprüler kıyıdan kıyıya düz tabliye.
+- **Viyadükler:** Altındaki zemin artı katmana göre serbest yükseklik; dikey kurplarla yumuşatılmış.
+- **Tüneller** ağızdan %12 eğimle derinleşir; yükseltilmiş yollar Chaikin yöntemiyle yuvarlatılır.
+- **Performans:** 19,4 → 4,2 milyon üçgen; 4.599 → 780 çizim çağrısı.
 
 </div>
 </div>
@@ -227,56 +331,48 @@ $$\min_{x \ge 0}\ \sum_{\text{sayım}} \frac{((Px)_e - y_e)^2}{s_e^2} + \sum_{\t
 
 ## Sınırlar
 
-- **Doğrulama ölçütü karşılanmıyor:** Dışarıda bırakılan GEH < 5 oranı %4.2 (hedef %85).
-- **Tek zaman dilimi:** Tek bir Cumartesi 17:00 görüntüsü; gün tipi ve saat varyasyonu henüz modellenmedi.
-- **Statik atama:** Dönüş yasakları ve kuyruk yayılımı yok; dinamik model henüz talep düzeyiyle tutarlı değil.
-- **Elle seçilmiş varsayımlar:** Prior parametreleri (kat sayısı, hane başına yolculuk, geçit payları) elle seçildi; hepsi `summary.json` içinde listeleniyor.
-- **Bina yükseklikleri:** OSM'de kat bilgisi olmayan binalarda kat sayısı (4–8) atandı.
-- **Literatür taraması:** "Hız = sansürlü gözlem" ve "veri payı" katkılarının özgünlüğü sistematik literatür taramasıyla teyit edilmeli.
+- **Doğrulama ölçütü karşılanmıyor:** dışarıda bırakılan GEH < 5 oranı %4,2 (hedef %85).
+- **Talep düzeyi kısmen belirli:** tek köprü sayımı, zon çarpanları serbestken düzeyin ancak yarısını sabitliyor.
+- **Tek zaman dilimi:** yalnızca bir Cumartesi 17:00 görüntüsü; gün tipi ve saat değişkenliği henüz modellenmedi.
+- **Statik atama:** dönüş yasakları ve kuyruk yayılımı yok.
+- **Elle seçilmiş varsayımlar:** prior parametrelerinin tamamı `summary.json` içinde listeleniyor.
+- **Literatür:** "hız = sansürlü gözlem" ve "veri payı" katkılarının özgünlüğü sistematik bir taramayla teyit edilmeli.
 
 ---
 
 ## Sonraki adımlar
 
-1. **Sensör tanımları:** Yön, şerit kapsamı ve gişe/rampa ayrımı İBB'den teyit edilecek (çelişen O-2 sensörleri).
-2. **İBB 2020 modeli:**
-   - Zon tablosu bulunacak. Ulaşım Ana Planı hanehalkı anketi CSV'leri aday.
-   - 540 zonlu O-D prior olarak kullanılacak.
-   - Kalibre kapasite ve BPR değerleri aktarılacak (α = 0.924 / β = 3.464 ve α = 0.158 / β = 3.483).
-3. **Zaman:**
-   - Saatlik yoğunluk arşivi (2020'den beri) ile gün tipi ve saat profilleri.
-   - Canlı hız arşivinin sürekli çalışması.
-4. **Dinamik tutarlılık:** Sayımlı talep SUMO'da ölçekli koşularla sınanacak (%25 / %50 / %75 / %100).
-5. **Öneri motoru:**
-   - Sürücüye kalkış saati, mod ve köprü seçimi.
-   - Kuruma darboğaz sıralaması ve senaryo karşılaştırması.
-   - Geçmiş veriyle geriye dönük test.
+1. **Sensör tanımları:** yön, şerit kapsamı ve gişe/rampa ayrımının İBB'den teyidi (çelişen O-2 sensörleri).
+2. **Talep düzeyi:** köprünün iki yönü ayrı ve O-1, O-2 kesitleriyle birden çok bağımsız sayım; düzeyin veri payı ≥ 0,8.
+3. **Zaman:** saatlik yoğunluk arşivinden gün tipi ve saat profilleri; canlı hız arşivinin sürekli çalışması.
+4. **Dinamik tutarlılık:** sayımlı talebin SUMO'da ölçekli koşularla sınanması (%25 / %50 / %75 / %100).
+5. **Öneri motoru:** sürücüye kalkış saati, mod ve köprü seçimi; kuruma darboğaz sıralaması ve senaryo karşılaştırması.
 
-**Hedef yayın yolu:** TRB Annual Meeting / hEART (yöntem ve vaka), ardından Transportation Research Part C (çok haftalık doğrulama) ve açık veri seti makalesi.
+**Hedef yayın yolu:** TRB Annual Meeting / hEART (yöntem ve vaka), ardından *Transportation Research Part C* (çok haftalık doğrulama) ve açık veri seti makalesi.
 
 ---
 
 ## Yeniden üretilebilirlik
 
 ```bash
-npm run sumo:net -- --area=koridor          # OSM → SUMO ağı, rapor
+npm run sumo:net -- --area=koridor          # OSM → SUMO ağı
 npm run sumo:map-ibb -- --area=koridor      # İBB segmentleri → kenarlar
 uv run --group sumo python tools/od/counts.py --area=koridor --month=2024-10 --weekday=5 --hour=17
 uv run --group sumo python tools/od/corridor.py --area=koridor \
     --speeds data/od/koridor/20261017-1726/speeds.csv \
     --counts data/od/koridor/counts_202410_d5_h17.csv --tag counts
-npm run test:od                             # sentetik doğrulama (28 kontrol)
-uv run --with matplotlib python tools/report/figures.py   # bu sunumun grafikleri
+npm run test:od                             # sentetik doğrulama (32 kontrol)
+uv run --with matplotlib python tools/report/figures.py   # bu sunumun grafikleri (TR ve EN)
 npm run dev                                 # 3D istemci: http://localhost:5280
 ```
 
-Tüm varsayımlar, ara sonuçlar ve olumsuz bulgular `tools/*/README.md` dosyalarında, tarih ve sayılarla kayıtlı.
+Tüm varsayımlar, ara sonuçlar ve olumsuz bulgular `tools/*/README.md` dosyalarında tarih ve sayılarla kayıtlı.
 
 ---
 
 ## Kaynaklar
 
-<div class="small">
+<div class="refs">
 
 - Cascetta, E. (1984). Estimation of trip matrices from traffic counts and survey data: a generalized least squares estimator. *Transportation Research Part B*, 18(4–5).
 - Chaikin, G. M. (1974). An algorithm for high-speed curve generation. *Computer Graphics and Image Processing*, 3(4).
@@ -291,3 +387,16 @@ Tüm varsayımlar, ara sonuçlar ve olumsuz bulgular `tools/*/README.md` dosyala
 - İBB Açık Veri Portalı (data.ibb.gov.tr): Günlük Araç Sayımı, Saatlik Trafik Yoğunluk, Ulaşım Talep Tahmin Modeli Verisi.
 
 </div>
+
+---
+
+<!-- _class: title -->
+<!-- _paginate: false -->
+
+# Teşekkürler
+
+### Sorular ve geri bildirim
+
+<br>
+
+github.com/aaasiroglu/procedural-istanbul
