@@ -1,0 +1,682 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Procedural Istanbul</title>
+<meta name="description" content="Hızdan talebe: İstanbul'un Maslak – 15 Temmuz koridoru için açık veriyle kurulan trafik dijital ikizi. Sansürlü hız gözlemleriyle O-D tahmini, SUMO, gölge simülasyon.">
+<meta property="og:title" content="Procedural Istanbul — trafik dijital ikizi">
+<meta property="og:description" content="Sansürlü hız gözlemlerinden O-D talebi, SUMO dinamik sınama ve gölge simülasyon; tarayıcıda çalışan 3D İstanbul.">
+<meta property="og:image" content="media/hero.jpg">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b5cad'/%3E%3Cpath d='M6 22 L13 12 L19 18 L26 9' stroke='%23fff' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --ink: #142033; --ink-2: #3b4a5e; --muted: #66768a; --line: #e2e8f0; --bg: #ffffff; --bg-2: #f5f8fc; --card: #ffffff;
+    --accent: #0b5cad; --accent-2: #e07b22; --green: #2e8b57; --red: #c0392b; --amber: #b8691b; --grey: #8a8f98;
+    --hero-ink: #ffffff; --shadow: 0 1px 2px rgba(16,30,54,.06), 0 8px 24px rgba(16,30,54,.07);
+    --radius: 14px; --maxw: 1160px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #e8eef6; --ink-2: #c3cfdd; --muted: #93a3b6; --line: #253244; --bg: #0c1420; --bg-2: #111c2b; --card: #142133;
+      --accent: #5aa2ec; --accent-2: #f0a050; --green: #4cc38a; --red: #ef6b5b; --amber: #e3a35a; --grey: #8d99a8;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink: #e8eef6; --ink-2: #c3cfdd; --muted: #93a3b6; --line: #253244; --bg: #0c1420; --bg-2: #111c2b; --card: #142133;
+    --accent: #5aa2ec; --accent-2: #f0a050; --green: #4cc38a; --red: #ef6b5b; --amber: #e3a35a; --grey: #8d99a8;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 "Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif; }
+  html[lang="en"] [data-l="tr"], html[lang="tr"] [data-l="en"] { display: none !important; }
+  a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+  img { max-width: 100%; display: block; }
+  code { font-family: "Cascadia Code", Consolas, monospace; font-size: .88em; background: var(--bg-2); border: 1px solid var(--line); padding: 1px 6px; border-radius: 6px; }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  /* nav */
+  .nav { position: sticky; top: 0; z-index: 50; backdrop-filter: saturate(160%) blur(12px); -webkit-backdrop-filter: saturate(160%) blur(12px);
+         background: color-mix(in srgb, var(--bg) 82%, transparent); border-bottom: 1px solid var(--line); }
+  .nav .wrap { display: flex; align-items: center; gap: 18px; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--ink); letter-spacing: -.2px; white-space: nowrap; }
+  .brand svg { width: 26px; height: 26px; }
+  .links { display: flex; gap: 4px; margin-left: auto; overflow-x: auto; scrollbar-width: none; }
+  .links::-webkit-scrollbar { display: none; }
+  .links a { color: var(--ink-2); font-size: 14px; padding: 6px 10px; border-radius: 8px; white-space: nowrap; }
+  .links a:hover, .links a.active { background: var(--bg-2); color: var(--ink); text-decoration: none; }
+  .tools { display: flex; gap: 6px; }
+  .pill { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 999px; font: 600 13px/1 inherit; padding: 8px 12px; cursor: pointer; }
+  .pill:hover { border-color: var(--accent); }
+  @media (max-width: 860px) { .links { display: none; } .tools { margin-left: auto; } }
+
+  /* hero */
+  .hero { position: relative; color: var(--hero-ink); overflow: hidden; background: #08223f; }
+  .hero::before { content: ""; position: absolute; inset: 0; background: url("media/hero.jpg") center/cover no-repeat; opacity: .55; transform: scale(1.05); }
+  .hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(5,20,40,.35) 0%, rgba(5,20,40,.75) 60%, rgba(5,20,40,.96) 100%); }
+  .hero .wrap { position: relative; z-index: 1; padding-top: 110px; padding-bottom: 72px; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; letter-spacing: 1.6px; text-transform: uppercase; color: #bcd6f3; font-weight: 600; }
+  .eyebrow .dot { width: 8px; height: 8px; border-radius: 50%; background: #4cc38a; box-shadow: 0 0 0 4px rgba(76,195,138,.25); }
+  .hero h1 { font-size: clamp(38px, 6.4vw, 72px); line-height: 1.04; letter-spacing: -1.5px; margin: 14px 0 16px; max-width: 900px; }
+  .hero h1 em { font-style: normal; background: linear-gradient(90deg, #8cc4ff, #ffd19a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero p.lead { font-size: clamp(17px, 2vw, 20px); color: #dbe8f7; max-width: 760px; margin: 0 0 28px; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 12px; font-weight: 600; font-size: 15px; border: 1px solid transparent; }
+  .btn.primary { background: #fff; color: #0b2f57; } .btn.primary:hover { text-decoration: none; background: #e9f2fc; }
+  .btn.ghost { color: #fff; border-color: rgba(255,255,255,.35); background: rgba(255,255,255,.06); } .btn.ghost:hover { text-decoration: none; background: rgba(255,255,255,.14); }
+  .btn svg { width: 18px; height: 18px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 56px; }
+  .stat { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.14); border-radius: 14px; padding: 16px 18px; backdrop-filter: blur(6px); }
+  .stat .v { font-size: 30px; font-weight: 700; letter-spacing: -.5px; }
+  .stat .l { font-size: 13px; color: #c5d7ec; line-height: 1.4; margin-top: 2px; }
+  @media (max-width: 760px) { .stats { grid-template-columns: repeat(2, 1fr); } .hero .wrap { padding-top: 72px; } }
+
+  /* sections */
+  section.s { padding: 88px 0; border-bottom: 1px solid var(--line); }
+  section.s.alt { background: var(--bg-2); }
+  .kicker { font-size: 13px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--accent); }
+  h2 { font-size: clamp(28px, 3.6vw, 40px); letter-spacing: -.8px; line-height: 1.15; margin: 8px 0 14px; }
+  h3 { font-size: 20px; letter-spacing: -.2px; margin: 0 0 8px; }
+  .intro { font-size: 18px; color: var(--ink-2); max-width: 780px; margin: 0 0 36px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  @media (max-width: 900px) { .grid2, .grid3 { grid-template-columns: 1fr; } section.s { padding: 64px 0; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow); }
+  .card p { color: var(--ink-2); margin: 0 0 10px; }
+  .card p:last-child { margin-bottom: 0; }
+  .icon { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); margin-bottom: 14px; }
+  .icon svg { width: 22px; height: 22px; }
+  .tag { display: inline-block; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; margin-left: 6px; vertical-align: middle; }
+  .tag.ok { background: color-mix(in srgb, var(--green) 15%, transparent); color: var(--green); }
+  .tag.part { background: color-mix(in srgb, var(--amber) 16%, transparent); color: var(--amber); }
+  .tag.neg { background: color-mix(in srgb, var(--red) 14%, transparent); color: var(--red); }
+  .callout { border-left: 4px solid var(--accent-2); background: color-mix(in srgb, var(--accent-2) 9%, var(--card)); border-radius: 0 12px 12px 0; padding: 14px 18px; color: var(--ink-2); margin-top: 20px; }
+  .callout b { color: var(--ink); }
+
+  /* interactive widgets */
+  .viz { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px 18px 14px; }
+  .viz svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .viz .ax { stroke: var(--line); } .viz .axt { fill: var(--muted); font-size: 12px; }
+  .viz .lbl { fill: var(--ink-2); font-size: 12.5px; }
+  .ctrl { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 12px; font-size: 14px; color: var(--ink-2); }
+  .ctrl input[type=range] { flex: 1; min-width: 160px; accent-color: var(--accent); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--bg-2); }
+  .seg button { border: 0; background: transparent; color: var(--ink-2); font: 600 13px/1 inherit; padding: 9px 12px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .readout { margin-top: 12px; padding: 12px 14px; border-radius: 10px; background: var(--bg-2); font-size: 15px; color: var(--ink); min-height: 50px; }
+  .readout b.up { color: var(--green); } .readout b.lo { color: var(--accent-2); }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--ink-2); margin-top: 8px; }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .tip { position: fixed; pointer-events: none; z-index: 80; background: #0f1b2b; color: #fff; font-size: 13px; padding: 8px 10px; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.25); opacity: 0; transition: opacity .12s; max-width: 260px; }
+
+  /* numbers row */
+  .nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 14px; }
+  .num { background: var(--bg-2); border-radius: 12px; padding: 12px 14px; }
+  .num .v { font-size: 24px; font-weight: 700; letter-spacing: -.4px; }
+  .num .l { font-size: 13px; color: var(--muted); line-height: 1.35; }
+  @media (max-width: 560px) { .nums { grid-template-columns: 1fr 1fr; } }
+
+  /* shadow sim */
+  .pol { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 900px) { .pol { grid-template-columns: 1fr; } }
+  .pol .card h3 { display: flex; align-items: center; gap: 8px; }
+  .bar { height: 10px; border-radius: 6px; background: var(--bg-2); overflow: hidden; margin: 4px 0 10px; }
+  .bar > span { display: block; height: 100%; border-radius: 6px; transition: width .8s cubic-bezier(.2,.8,.2,1); }
+  .row { display: flex; justify-content: space-between; font-size: 14px; color: var(--ink-2); }
+  .row b { color: var(--ink); }
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #fff; background: var(--green); padding: 4px 10px; border-radius: 999px; }
+
+  /* gallery */
+  .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .gallery figure { margin: 0; position: relative; border-radius: 14px; overflow: hidden; cursor: zoom-in; background: #0b1726; aspect-ratio: 4 / 3.3; }
+  .gallery img { width: 100%; height: 100%; object-fit: cover; transition: transform .5s; }
+  .gallery figure:hover img { transform: scale(1.04); }
+  .gallery figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 14px 12px; font-size: 14px; color: #fff; background: linear-gradient(180deg, transparent, rgba(0,0,0,.75)); }
+  @media (max-width: 760px) { .gallery { grid-template-columns: 1fr 1fr; } }
+  .lightbox { position: fixed; inset: 0; z-index: 90; background: rgba(5,12,22,.92); display: none; align-items: center; justify-content: center; padding: 24px; }
+  .lightbox.open { display: flex; }
+  .lightbox img { max-height: 88vh; border-radius: 12px; }
+  .lightbox button { position: absolute; top: 16px; right: 16px; }
+
+  /* pipeline */
+  .pipe { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; counter-reset: st; }
+  .pipe .card { position: relative; }
+  .pipe .card::before { counter-increment: st; content: counter(st); position: absolute; top: 18px; right: 18px; font-weight: 800; font-size: 28px; color: color-mix(in srgb, var(--accent) 22%, transparent); }
+  .pipe ul { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 14.5px; }
+  @media (max-width: 900px) { .pipe { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px) { .pipe { grid-template-columns: 1fr; } }
+
+  /* honest table */
+  table.t { width: 100%; border-collapse: collapse; font-size: 15px; }
+  table.t th, table.t td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.t th { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .6px; }
+  .tablewrap { overflow-x: auto; }
+  @media (max-width: 560px) { table.t th:nth-child(3), table.t td:nth-child(3) { display: none; } table.t th, table.t td { padding: 9px 6px; } .card.tablewrap { padding: 12px; } }
+
+  /* docs */
+  .docs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .doc { display: flex; gap: 14px; align-items: flex-start; color: var(--ink); }
+  .doc:hover { text-decoration: none; border-color: var(--accent); }
+  .doc .icon { flex: none; margin: 0; }
+  .doc small { color: var(--muted); display: block; }
+  @media (max-width: 900px) { .docs { grid-template-columns: 1fr; } }
+  pre.cmd { background: #0f1b2b; color: #dbe7f5; border-radius: 12px; padding: 16px 18px; font: 13.5px/1.6 "Cascadia Code", Consolas, monospace; overflow-x: auto; margin: 0; }
+  pre.cmd .c { color: #7f95ad; }
+
+  footer { padding: 40px 0 56px; color: var(--muted); font-size: 14px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: space-between; }
+
+  .reveal { opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+
+<nav class="nav" aria-label="main">
+  <div class="wrap">
+    <a class="brand" href="#top">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0b5cad"/><path d="M6 22 L13 12 L19 18 L26 9" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Procedural Istanbul
+    </a>
+    <div class="links">
+      <a href="#problem"><span data-l="tr">Problem</span><span data-l="en">Problem</span></a>
+      <a href="#method"><span data-l="tr">Yöntem</span><span data-l="en">Method</span></a>
+      <a href="#results"><span data-l="tr">Sonuçlar</span><span data-l="en">Results</span></a>
+      <a href="#shadow"><span data-l="tr">Gölge simülasyon</span><span data-l="en">Shadow simulation</span></a>
+      <a href="#twin"><span data-l="tr">3D ikiz</span><span data-l="en">3D twin</span></a>
+      <a href="#honest"><span data-l="tr">Sınırlar</span><span data-l="en">Limits</span></a>
+      <a href="#docs"><span data-l="tr">Belgeler</span><span data-l="en">Docs</span></a>
+    </div>
+    <div class="tools">
+      <button class="pill" id="langBtn" aria-label="Dil / Language">EN</button>
+      <button class="pill" id="themeBtn" aria-label="Tema / Theme">◐</button>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <div class="eyebrow"><span class="dot"></span><span data-l="tr">Açık veri · SUMO · Tarayıcıda 3D</span><span data-l="en">Open data · SUMO · 3D in the browser</span></div>
+    <h1><span data-l="tr">Hızdan talebe:<br><em>İstanbul'un trafik <span style="white-space:nowrap">dijital ikizi</span></em></span><span data-l="en">From speeds to demand:<br><em>a traffic digital twin <span style="white-space:nowrap">of Istanbul</span></em></span></h1>
+    <p class="lead">
+      <span data-l="tr">Maslak – Levent – Mecidiyeköy – Beşiktaş – 15 Temmuz Köprüsü koridoru, tamamen açık veriden. İBB'nin yalnızca hız ölçen sensörlerinden bir simülatörün ihtiyaç duyduğu talebi çıkarıyor, belirsizliği dürüstçe raporluyor ve kaza anında müdahaleleri gerçek zamandan hızlı yarıştırıyor.</span>
+      <span data-l="en">The Maslak – Levent – Mecidiyeköy – Beşiktaş – 15 July Bridge corridor, built entirely from open data. It infers the demand a simulator needs from İBB's speed-only sensors, reports its uncertainty honestly, and races incident responses faster than real time.</span>
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="rapor/teknik_rapor.pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg><span data-l="tr">Teknik rapor (PDF)</span><span data-l="en">Technical report (PDF, TR)</span></a>
+      <a class="btn ghost" href="sunum/sunum.pdf" data-l="tr">Sunum</a>
+      <a class="btn ghost" href="sunum/sunum_en.pdf" data-l="en">Slides</a>
+      <a class="btn ghost" href="https://github.com/aaasiroglu/procedural-istanbul"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"/></svg>GitHub</a>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="v">21.173</div><div class="l"><span data-l="tr">SUMO kenarı, 293 sinyalli kavşak</span><span data-l="en">SUMO edges, 293 signalised junctions</span></div></div>
+      <div class="stat"><div class="v">%95,5</div><div class="l"><span data-l="tr">İBB hız segmentlerinin ağa eşlenmesi</span><span data-l="en">of İBB speed segments matched to the network</span></div></div>
+      <div class="stat"><div class="v">9.025</div><div class="l"><span data-l="tr">O-D çifti: 75 H3 zonu + 20 geçit</span><span data-l="en">OD pairs: 75 H3 zones + 20 gateways</span></div></div>
+      <div class="stat"><div class="v">0,81</div><div class="l"><span data-l="tr">talep düzeyinin veri payı: sayımlarla sabitlendi</span><span data-l="en">data share of the demand level: anchored by counts</span></div></div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<section class="s" id="problem">
+  <div class="wrap">
+    <div class="kicker reveal"><span data-l="tr">Problem</span><span data-l="en">The problem</span></div>
+    <h2 class="reveal"><span data-l="tr">Simülatör yolculuk ister, sensör hız verir</span><span data-l="en">A simulator needs trips; sensors deliver speeds</span></h2>
+    <p class="intro reveal">
+      <span data-l="tr">SUMO gibi bir trafik simülatörü, kimin nereden nereye gittiğini söyleyen bir başlangıç–varış (O-D) matrisi ister. İBB'nin canlı akışı ise her yol kesimi için yalnızca hız ve sıkışıklık sınıfı verir. 9.025 bilinmeyene karşı birkaç yüz gözlem var: veri tek başına matrisi belirleyemez.</span>
+      <span data-l="en">A traffic simulator such as SUMO needs an origin–destination (OD) matrix: who travels from where to where. İBB's live feed gives each road segment only a speed and a congestion class. A few hundred observations face 9,025 unknowns: the data alone cannot determine the matrix.</span>
+    </p>
+    <div class="grid3">
+      <div class="card reveal">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="4"/></svg></div>
+        <h3><span data-l="tr">Hız ≠ sayım</span><span data-l="en">Speed ≠ count</span></h3>
+        <p><span data-l="tr">Serbest akıştaki bir yol 0 ile kapasite arasında herhangi bir akımı taşıyabilir. Hızı sahte sayıma çevirmek, verinin taşımadığı bir kesinlik uydurur.</span><span data-l="en">A road at free flow can carry any flow between zero and capacity. Turning speed into a pseudo-count invents a precision the data does not carry.</span></p>
+      </div>
+      <div class="card reveal">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></div>
+        <h3><span data-l="tr">Ne kadarı veri?</span><span data-l="en">How much is data?</span></h3>
+        <p><span data-l="tr">Çoğu çalışma, tahminin ne kadarının veriden, ne kadarının varsayımdan geldiğini söylemez. Bu proje bunu her O-D çifti ve toplam talep düzeyi için ölçer.</span><span data-l="en">Most studies do not say how much of an estimate comes from data and how much from assumptions. This project measures it for every OD pair and for the total level of demand.</span></p>
+      </div>
+      <div class="card reveal">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/></svg></div>
+        <h3><span data-l="tr">Dürüst doğrulama</span><span data-l="en">Honest validation</span></h3>
+        <p><span data-l="tr">Uydurulan sayımlarda iyi uyum hiçbir şey kanıtlamaz. GEH, her sayım tek tek dışarıda bırakılarak, modelin görmediği veride ölçülür.</span><span data-l="en">A good fit to the counts it was fitted on proves nothing. GEH is measured on each count left out in turn: on data the model has not seen.</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="s alt" id="method">
+  <div class="wrap">
+    <div class="kicker reveal"><span data-l="tr">Yöntem · Katkı 1</span><span data-l="en">Method · Contribution 1</span></div>
+    <h2 class="reveal"><span data-l="tr">Hız, sansürlü bir gözlemdir</span><span data-l="en">A speed is a censored observation</span></h2>
+    <p class="intro reveal">
+      <span data-l="tr">Üçgen temel diyagramda serbest akış hızı yalnızca bir üst sınır verir; sıkışık daldaki hız ise geçen akımı ve kuyruk olduğu için talep hakkında bir alt sınırı verir. Hızı değiştirip deneyin.</span>
+      <span data-l="en">On the triangular fundamental diagram a free-flow speed gives only an upper bound; a speed on the congested branch gives the flow getting through, and since there is a queue, a lower bound on demand. Move the speed and see.</span>
+    </p>
+    <div class="grid2">
+      <div class="viz reveal">
+        <svg id="fd" viewBox="0 0 560 330" role="img" aria-label="fundamental diagram"></svg>
+        <div class="ctrl">
+          <span class="seg" role="group" aria-label="regime">
+            <button id="regFree" aria-pressed="false"><span data-l="tr">İBB sınıfı 1–2: akıcı</span><span data-l="en">İBB class 1–2: free</span></button>
+            <button id="regCong" aria-pressed="true"><span data-l="tr">Sınıf 3–5: kuyruk</span><span data-l="en">Class 3–5: queue</span></button>
+          </span>
+        </div>
+        <div class="ctrl"><label for="spd"><span data-l="tr">Gözlenen hız</span><span data-l="en">Observed speed</span></label><input id="spd" type="range" min="5" max="85" value="30"><b id="spdv">30 km/sa</b></div>
+        <div class="readout" id="fdOut"></div>
+      </div>
+      <div class="reveal">
+        <div class="card">
+          <h3><span data-l="tr">Tahminci: bilevel MAP</span><span data-l="en">The estimator: bilevel MAP</span></h3>
+          <p><span data-l="tr">Sayımlar iki taraflı, hız sınırları tek taraflı kare cezalarla girer; verinin sessiz kaldığı yerde tahmin, göreli belirsizlikli bir prior'a yakın tutulur. Rota seçimi talebe bağlı olduğu için kullanıcı dengesi ataması ve tahmin dönüşümlü çalışır, ardışık ortalamalarla sönümlenir.</span><span data-l="en">Counts enter as two-sided, speed bounds as one-sided squared penalties; where the data is silent the estimate stays near a prior with relative uncertainty. Route choice depends on demand, so user-equilibrium assignment and estimation alternate, damped by successive averages.</span></p>
+          <p style="font-family:Cambria,'Times New Roman',serif;font-size:17px;color:var(--ink);background:var(--bg-2);padding:10px 12px;border-radius:10px">x<sub>ij</sub> = x<sub>0,ij</sub> · e<sup>g + a<sub>i</sub> + b<sub>j</sub> + u<sub>ij</sub></sup></p>
+          <p><span data-l="tr"><b>a, b</b>: zonun üretim ve çekim çarpanları; <b>g</b>: tüm matrisin düzeyi. Laplace yaklaşımı ve Woodbury özdeşliğiyle her O-D çifti için standart hata ve <b>veri payı</b>; profil eğriliğiyle düzeyin tanımlanabilirliği.</span><span data-l="en"><b>a, b</b>: a zone's production and attraction factors; <b>g</b>: the level of the whole matrix. A Laplace approximation with the Woodbury identity gives every OD pair a standard error and a <b>data share</b>; the profile curvature tells whether the level is identified.</span></p>
+        </div>
+        <div class="callout"><b><span data-l="tr">Gerçek veriden gelen düzeltme.</span><span data-l="en">A correction from real data.</span></b> <span data-l="tr">Sinyalli arterlerde düşük hız kırmızı ışıktan da gelir; buradaki alt sınırlar talebi %33 şişirdi. Kural artık yalnızca otoyol ve trunk yollarda.</span><span data-l="en">On signalised arterials a low speed also comes from the red phase; lower bounds there inflated demand by 33 %. The rule now applies to motorways and trunk roads only.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="s" id="results">
+  <div class="wrap">
+    <div class="kicker reveal"><span data-l="tr">Sonuçlar · Katkı 2</span><span data-l="en">Results · Contribution 2</span></div>
+    <h2 class="reveal"><span data-l="tr">Talep düzeyi sayımlarla sabitlendi</span><span data-l="en">The level of demand is anchored by counts</span></h2>
+    <p class="intro reveal">
+      <span data-l="tr">Tüm matrisin düzeyi tek bir çarpanla taşınır ve sayımların onu ne kadar sabitlediği ölçülür. Pazartesi 11:30'daki canlı hızlar ve 23 İBB sayımıyla: arazi kullanımından kurulan prior, talebi yaklaşık <b>üç kat</b> yüksek gösteriyormuş.</span>
+      <span data-l="en">The level of the whole matrix is one factor, and how far the counts pin it down is measured. With live speeds on Monday at 11:30 and 23 İBB counts: the land-use prior overstated demand roughly <b>threefold</b>.</span>
+    </p>
+    <div class="grid2">
+      <div class="viz reveal">
+        <svg id="lvl" viewBox="0 0 560 300" role="img" aria-label="demand level"></svg>
+        <div class="ctrl">
+          <span class="seg" role="group" aria-label="evidence">
+            <button data-ev="0"><span data-l="tr">Yalnızca prior</span><span data-l="en">Prior only</span></button>
+            <button data-ev="1" aria-pressed="true"><span data-l="tr">+ 23 sayım</span><span data-l="en">+ 23 counts</span></button>
+            <button data-ev="2"><span data-l="tr">+ İstanbulkart</span><span data-l="en">+ İstanbulkart</span></button>
+          </span>
+        </div>
+        <div class="nums">
+          <div class="num"><div class="v" id="lvF">×0,30</div><div class="l"><span data-l="tr">düzey çarpanı</span><span data-l="en">level factor</span></div></div>
+          <div class="num"><div class="v" id="lvCI">0,19–0,46</div><div class="l"><span data-l="tr">%95 aralık</span><span data-l="en">95 % interval</span></div></div>
+          <div class="num"><div class="v" id="lvS">0,81</div><div class="l"><span data-l="tr">veri payı (eşik 0,8)</span><span data-l="en">data share (threshold 0.8)</span></div></div>
+        </div>
+      </div>
+      <div class="reveal">
+        <div class="card">
+          <h3><span data-l="tr">Neden önemli?</span><span data-l="en">Why it matters</span></h3>
+          <p><span data-l="tr">Sayımsız tahmin SUMO'da ağı kilitlemişti: 192.551 aracın yalnızca 102.735'i girebildi, medyan hız 2,9 km/sa'e düştü. Kilitlenmenin kaynağı buydu: talep düzeyi veriden değil, varsayımdan geliyordu.</span><span data-l="en">The estimate without counts had gridlocked the network in SUMO: only 102,735 of 192,551 vehicles could enter, median speed 2.9 km/h. That was the cause: the level of demand came from assumptions, not data.</span></p>
+          <p><span data-l="tr">Ölçüt, "sayım verildi, düzey sabittir" demez. Sentetik testte tek bir kesit sayımı, zon çarpanları serbestken düzeyin ancak <b>yarısını</b> belirliyor; çünkü sayım, kestiği zonları büyüterek de karşılanabiliyor.</span><span data-l="en">The measure does not assume "counts were given, so the level is fixed". In the synthetic test a single screenline, with free zone factors, determines only <b>half</b> of the level, because the count can also be met by inflating the zones it crosses.</span></p>
+        </div>
+        <div class="nums" style="grid-template-columns:1fr 1fr">
+          <div class="num"><div class="v">117,9 → 61,6 bin</div><div class="l"><span data-l="tr">koridor talebi, araç/sa</span><span data-l="en">corridor demand, thousand veh/h</span></div></div>
+          <div class="num"><div class="v">%96</div><div class="l"><span data-l="tr">sentetikte gerçek değerler 2,5 SE içinde</span><span data-l="en">of true values within 2.5 SE (synthetic)</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:44px">
+      <div class="reveal">
+        <div class="kicker"><span data-l="tr">Doğrulama</span><span data-l="en">Validation</span></div>
+        <h3 style="font-size:24px;margin-top:6px"><span data-l="tr">Beş düzeltme turu, dışarıda bırakılan sayımlarda</span><span data-l="en">Five correction rounds, on held-out counts</span></h3>
+        <p style="color:var(--ink-2)"><span data-l="tr">Dışarıda bırakılan ortalama GEH 35,6'dan 23,2'ye indi. GEH &lt; 5 ölçütü (%85) henüz karşılanmıyor: düzey doğru, talebin zonlar arasındaki dağılımı zayıf. Bunu saklamıyoruz.</span><span data-l="en">The held-out mean GEH fell from 35.6 to 23.2. The GEH &lt; 5 criterion (85 %) is not met yet: the level is right, the spread of demand across zones is weak. We do not hide it.</span></p>
+        <div class="seg" role="group" aria-label="metric" style="margin-top:6px">
+          <button id="mMean" aria-pressed="true"><span data-l="tr">Ortalama GEH</span><span data-l="en">Mean GEH</span></button>
+          <button id="mPct"><span data-l="tr">GEH &lt; 5 oranı</span><span data-l="en">Share GEH &lt; 5</span></button>
+        </div>
+      </div>
+      <div class="viz reveal">
+        <svg id="geh" viewBox="0 0 560 300" role="img" aria-label="GEH rounds"></svg>
+        <div class="legend"><span><i style="background:var(--grey)"></i>Prior</span><span><i style="background:var(--accent)"></i><span data-l="tr">Uyum</span><span data-l="en">Fit</span></span><span><i style="background:var(--accent-2)"></i><span data-l="tr">Dışarıda bırakılan</span><span data-l="en">Held out</span></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="s alt" id="modules">
+  <div class="wrap">
+    <div class="kicker reveal"><span data-l="tr">Yeni modüller</span><span data-l="en">New modules</span></div>
+    <h2 class="reveal"><span data-l="tr">Çok kaynaklı çapalar ve sinir ağı denetçisi</span><span data-l="en">Multi-source anchors and a neural auditor</span></h2>
+    <div class="grid2">
+      <div class="card reveal">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="2"/><path d="M12 7v14M5 12H2a10 10 0 0 0 20 0h-3"/></svg></div>
+        <h3><span data-l="tr">Çok kaynaklı çapalar</span><span data-l="en">Multi-source anchors</span><span class="tag ok"><span data-l="tr">uygulandı</span><span data-l="en">done</span></span></h3>
+        <p><span data-l="tr">Bir çapa linki değil, doğrudan bir O-D toplamını kısıtlar: köprünün bir yönü ya da bir zon grubunun ürettiği yolculuklar. İstanbulkart verisinde koridordaki 31 raylı sistem ve metrobüs durağında 11:00–12:00'de 11.764 biniş var.</span><span data-l="en">An anchor constrains a sum over the OD matrix, not a link: one direction of the bridge, or the trips a group of zones produces. İstanbulkart data show 11,764 boardings between 11:00 and 12:00 at 31 rail and Metrobüs stops in the corridor.</span></p>
+        <svg id="anc" viewBox="0 0 520 150" role="img" aria-label="anchor"></svg>
+        <p class="small" style="font-size:14px"><span data-l="tr">Sayımlar koridor zonlarının üretimini 57,4 binden 15,6 bine indirmişti; tamamen bağımsız İstanbulkart çapası bununla tutarlı.</span><span data-l="en">The counts had cut the corridor zones' production from 57.4 k to 15.6 k; the fully independent İstanbulkart anchor agrees.</span></p>
+      </div>
+      <div class="card reveal">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="6" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 6.8l3.3 4M7 17.2l3.3-4M13.7 11l3.6-4M13.7 13l3.6 4"/></svg></div>
+        <h3><span data-l="tr">Simülasyondan gerçeğe sinir ağı</span><span data-l="en">Simulation-to-reality network</span><span class="tag part"><span data-l="tr">ilk sürüm</span><span data-l="en">first version</span></span></h3>
+        <p><span data-l="tr">300 simüle örnekle (O-D → 712 linkte hız) eğitilen bir ağ, canlı hızdan talebi anlık okumayı hedefler; MAP tahmincisi onun denetçisidir. İlk sürüm denetimden geçemedi ve sistem bunu kendiliğinden işaretledi:</span><span data-l="en">A network trained on 300 simulated samples (OD → speeds on 712 links) aims to read demand from live speeds instantly; the MAP estimator is its auditor. The first version failed the audit, and the system flagged it on its own:</span></p>
+        <svg id="nn" viewBox="0 0 520 150" role="img" aria-label="sim to real gap"></svg>
+        <p class="small" style="font-size:14px"><span data-l="tr">Statik model gerçek yavaşlamayı üretmiyor (hız oranı medyanı gerçekte 0,32, modelde 0,99). Ağ MAP'in 4,8 katını verdi; denetçi: <b style="color:var(--red)">güvenilmez</b>. Sırada SUMO'dan üretilen örnekler var.</span><span data-l="en">The static model does not produce real slowdowns (median speed ratio 0.32 in reality, 0.99 in the model). The network gave 4.8 times the MAP estimate; auditor: <b style="color:var(--red)">untrustworthy</b>. Next: samples generated by SUMO.</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="s" id="shadow">
+  <div class="wrap">
+    <div class="kicker reveal"><span data-l="tr">Gölge simülasyon</span><span data-l="en">Shadow simulation</span></div>
+    <h2 class="reveal"><span data-l="tr">Kaza anında: geleceği çatallayıp yarıştır</span><span data-l="en">At an incident: fork the future and race it</span></h2>
+    <p class="intro reveal">
+      <span data-l="tr">SUMO olay anında tüm durumu (her araç, kuyruk ve rota) kaydeder; aynı durumdan her müdahale politikası ayrı ayrı ve gerçek zamandan hızlı koşturulur. Kararı simülasyon verir; bir dil modeli kullanılırsa yalnızca sonucu anlatır. İlk sınama: 5 şeritli TEM (2. Çevre Yolu) kesimi 20. dakikada kapanıyor, 20 dakika ileri.</span>
+      <span data-l="en">At the incident SUMO saves its whole state (every vehicle, queue and route); from that same state each response policy is run separately and faster than real time. The simulation decides; a language model, if used, only tells the result. First test: a five-lane stretch of the TEM motorway closes at minute 20, simulated 20 minutes ahead.</span>
+    </p>
+    <div class="pol" id="pol"></div>
+    <div class="callout reveal" id="shadowNote"></div>
+  </div>
+</section>
+
+<section class="s alt" id="twin">
+  <div class="wrap">
+    <div class="kicker reveal"><span data-l="tr">3D dijital ikiz</span><span data-l="en">3D digital twin</span></div>
+    <h2 class="reveal"><span data-l="tr">Açık veriden prosedürel İstanbul</span><span data-l="en">A procedural Istanbul from open data</span></h2>
+    <p class="intro reveal">
+      <span data-l="tr">Yaklaşık 38.000 bina, 1.170 km yol ve 60 köprü tabliyesi OpenStreetMap ve yükseklik verisinden karolara derlenir ve tarayıcıda gerçek zamanlı çalışır. Yollar İBB'nin canlı sıkışıklık sınıfıyla renklenir. Kiremit çatılar, gerçek dükkân adlı tabelalar, viyadükler ve asma köprü İstanbul'a özgü üretilir.</span>
+      <span data-l="en">About 38,000 buildings, 1,170 km of roads and 60 bridge decks are compiled from OpenStreetMap and elevation data into tiles and run in real time in the browser. Roads are coloured by İBB's live congestion class. Tiled roofs, shop signs with real names, viaducts and the suspension bridge are generated for Istanbul.</span>
+    </p>
+    <div class="gallery reveal">
+      <figure data-src="sunum/img/kopru-ortakoy.jpg"><img loading="lazy" src="sunum/img/kopru-ortakoy.jpg" alt=""><figcaption><span data-l="tr">15 Temmuz Köprüsü ve Ortaköy</span><span data-l="en">15 July Bridge and Ortaköy</span></figcaption></figure>
+      <figure data-src="sunum/img/levent-kuleler.jpg"><img loading="lazy" src="sunum/img/levent-kuleler.jpg" alt=""><figcaption><span data-l="tr">Levent kuleleri</span><span data-l="en">Levent towers</span></figcaption></figure>
+      <figure data-src="sunum/img/zincirlikuyu.jpg"><img loading="lazy" src="sunum/img/zincirlikuyu.jpg" alt=""><figcaption><span data-l="tr">Zincirlikuyu kavşağı</span><span data-l="en">Zincirlikuyu interchange</span></figcaption></figure>
+      <figure data-src="sunum/img/genel-gorunum.jpg"><img loading="lazy" src="sunum/img/genel-gorunum.jpg" alt=""><figcaption><span data-l="tr">Canlı sıkışıklık katmanı</span><span data-l="en">Live congestion layer</span></figcaption></figure>
+      <figure data-src="sunum/img/apartmanlar.jpg"><img loading="lazy" src="sunum/img/apartmanlar.jpg" alt=""><figcaption><span data-l="tr">Kiremit çatılar, su depoları</span><span data-l="en">Tiled roofs, water tanks</span></figcaption></figure>
+      <figure data-src="sunum/img/vitrin-tabela.jpg"><img loading="lazy" src="sunum/img/vitrin-tabela.jpg" alt=""><figcaption><span data-l="tr">Gerçek dükkân tabelaları</span><span data-l="en">Real shop signs</span></figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section class="s" id="pipeline">
+  <div class="wrap">
+    <div class="kicker reveal"><span data-l="tr">Mimari</span><span data-l="en">Architecture</span></div>
+    <h2 class="reveal"><span data-l="tr">Açık veriden karara dört katman</span><span data-l="en">Four layers from open data to decisions</span></h2>
+    <div class="pipe">
+      <div class="card reveal"><h3><span data-l="tr">Açık veri</span><span data-l="en">Open data</span></h3><ul><li>OpenStreetMap, SRTM</li><li><span data-l="tr">İBB canlı hız (5 dk arşiv)</span><span data-l="en">İBB live speeds (5-min archive)</span></li><li><span data-l="tr">27 sayım sensörü</span><span data-l="en">27 count sensors</span></li><li><span data-l="tr">İstanbulkart, 2020 modeli, 2012 anketi</span><span data-l="en">İstanbulkart, 2020 model, 2012 survey</span></li></ul></div>
+      <div class="card reveal"><h3><span data-l="tr">Ön işleme</span><span data-l="en">Pre-processing</span></h3><ul><li><span data-l="tr">netconvert ile SUMO ağı</span><span data-l="en">SUMO network with netconvert</span></li><li><span data-l="tr">Yön kontrollü segment eşleme</span><span data-l="en">Direction-checked segment matching</span></li><li><span data-l="tr">Yola dik sayım kesitleri</span><span data-l="en">Screenlines across the road</span></li><li><span data-l="tr">H3 zonları ve geçitler</span><span data-l="en">H3 zones and gateways</span></li></ul></div>
+      <div class="card reveal"><h3><span data-l="tr">Tahmin</span><span data-l="en">Estimation</span></h3><ul><li><span data-l="tr">Sansürlü gözlemler</span><span data-l="en">Censored observations</span></li><li><span data-l="tr">Bilevel MAP + UE</span><span data-l="en">Bilevel MAP + UE</span></li><li><span data-l="tr">Veri payı, düzey, çapalar</span><span data-l="en">Data share, level, anchors</span></li><li><span data-l="tr">Sinir ağı + denetçi</span><span data-l="en">Neural net + auditor</span></li></ul></div>
+      <div class="card reveal"><h3><span data-l="tr">Sınama ve kullanım</span><span data-l="en">Testing and use</span></h3><ul><li><span data-l="tr">Dışarıda bırakılan GEH</span><span data-l="en">Held-out GEH</span></li><li><span data-l="tr">SUMO dinamik koşu</span><span data-l="en">SUMO dynamic run</span></li><li><span data-l="tr">Gölge simülasyon</span><span data-l="en">Shadow simulation</span></li><li><span data-l="tr">Tarayıcıda 3D ikiz</span><span data-l="en">3D twin in the browser</span></li></ul></div>
+    </div>
+  </div>
+</section>
+
+<section class="s alt" id="honest">
+  <div class="wrap">
+    <div class="kicker reveal"><span data-l="tr">Durum ve sınırlar</span><span data-l="en">Status and limits</span></div>
+    <h2 class="reveal"><span data-l="tr">Neyin çalıştığını, neyin çalışmadığını açıkça söylüyoruz</span><span data-l="en">We say plainly what works and what does not</span></h2>
+    <div class="card reveal tablewrap">
+      <table class="t">
+        <thead><tr><th><span data-l="tr">Bileşen</span><span data-l="en">Component</span></th><th><span data-l="tr">Durum</span><span data-l="en">Status</span></th><th><span data-l="tr">Not</span><span data-l="en">Note</span></th></tr></thead>
+        <tbody>
+          <tr><td><span data-l="tr">Sansürlü gözlem tahmincisi</span><span data-l="en">Censored-observation estimator</span></td><td><span class="tag ok"><span data-l="tr">çalışıyor</span><span data-l="en">working</span></span></td><td><span data-l="tr">34 sentetik kontrol geçiyor</span><span data-l="en">34 synthetic checks pass</span></td></tr>
+          <tr><td><span data-l="tr">Talep düzeyi</span><span data-l="en">Demand level</span></td><td><span class="tag ok"><span data-l="tr">sabitlendi</span><span data-l="en">anchored</span></span></td><td><span data-l="tr">veri payı 0,81</span><span data-l="en">data share 0.81</span></td></tr>
+          <tr><td><span data-l="tr">Zonlar arası dağılım</span><span data-l="en">Spread across zones</span></td><td><span class="tag neg"><span data-l="tr">zayıf</span><span data-l="en">weak</span></span></td><td><span data-l="tr">dışarıda bırakılan GEH &lt; 5: %8,7 (hedef %85)</span><span data-l="en">held-out GEH &lt; 5: 8.7 % (target 85 %)</span></td></tr>
+          <tr><td><span data-l="tr">Sensör tanımları</span><span data-l="en">Sensor definitions</span></td><td><span class="tag part"><span data-l="tr">teyit gerekli</span><span data-l="en">to confirm</span></span></td><td><span data-l="tr">O-2 ve FSM sensörlerinin yönü ve şerit kapsamı</span><span data-l="en">direction and lane coverage of O-2 and FSM sensors</span></td></tr>
+          <tr><td><span data-l="tr">SUMO dinamik koşu</span><span data-l="en">SUMO dynamic run</span></td><td><span class="tag part"><span data-l="tr">yerel kilitlenme</span><span data-l="en">local gridlock</span></span></td><td><span data-l="tr">zon girişleri yayılmalı</span><span data-l="en">zone entries need spreading</span></td></tr>
+          <tr><td><span data-l="tr">Sinir ağı ters çözücü</span><span data-l="en">Neural inverse solver</span></td><td><span class="tag neg"><span data-l="tr">denetimden geçmedi</span><span data-l="en">failed the audit</span></span></td><td><span data-l="tr">SUMO örnekleri gerekli</span><span data-l="en">needs SUMO samples</span></td></tr>
+          <tr><td><span data-l="tr">Uygulamadaki analitik paneller</span><span data-l="en">Analytics panels in the app</span></td><td><span class="tag part"><span data-l="tr">gösterim amaçlı</span><span data-l="en">illustrative</span></span></td><td><span data-l="tr">henüz veriden hesaplanmıyor</span><span data-l="en">not yet computed from data</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="s" id="docs">
+  <div class="wrap">
+    <div class="kicker reveal"><span data-l="tr">Belgeler ve çalıştırma</span><span data-l="en">Docs and running it</span></div>
+    <h2 class="reveal"><span data-l="tr">Her şey yeniden üretilebilir</span><span data-l="en">Everything is reproducible</span></h2>
+    <div class="docs">
+      <a class="card doc reveal" href="rapor/teknik_rapor.pdf"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></div><div><b><span data-l="tr">Teknik rapor</span><span data-l="en">Technical report</span></b><small><span data-l="tr">21 sayfa, yöntem, denklemler, sonuçlar, olumsuz bulgular</span><span data-l="en">21 pages, Turkish: method, equations, results, negative findings</span></small></div></a>
+      <a class="card doc reveal" href="sunum/sunum.pdf"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></div><div><b><span data-l="tr">Sunum (Türkçe)</span><span data-l="en">Slides (Turkish)</span></b><small>PDF · <span data-l="tr">akademik ara sonuç</span><span data-l="en">interim results</span></small></div></a>
+      <a class="card doc reveal" href="sunum/sunum_en.pdf"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></div><div><b><span data-l="tr">Sunum (İngilizce)</span><span data-l="en">Slides (English)</span></b><small>PDF · <span data-l="tr">birebir İngilizce</span><span data-l="en">same structure</span></small></div></a>
+    </div>
+    <div class="grid2" style="margin-top:28px">
+      <pre class="cmd reveal"><span class="c"># 3D istemci / 3D client</span>
+npm install
+npm run fetch -- --area=koridor
+npm run compile -- --area=koridor
+npm run dev          <span class="c"># localhost:5280/?area=koridor</span></pre>
+      <pre class="cmd reveal"><span class="c"># ulaşım modeli / transport model</span>
+npm run sumo:net -- --area=koridor
+npm run sumo:map-ibb -- --area=koridor
+npm run od:corridor -- --area=koridor
+uv run --group sumo python tools/sumo/shadow.py --narrate</pre>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div><b style="color:var(--ink)">Procedural Istanbul</b> · Abdurrahim Arif Aşıroğlu · MIT</div>
+    <div><span data-l="tr">Veri: © OpenStreetMap katkıcıları (ODbL), İBB Açık Veri ve UYM. 3D motor Yong Su'nun "Tokyo" projesinden türetilmiştir.</span><span data-l="en">Data: © OpenStreetMap contributors (ODbL), İBB Open Data and UYM. 3D engine derived from Yong Su's "Tokyo" project.</span></div>
+  </div>
+</footer>
+
+<div class="lightbox" id="lb" role="dialog" aria-modal="true"><button class="pill" id="lbClose" aria-label="close">✕</button><img alt=""></div>
+<div class="tip" id="tip"></div>
+
+<script>
+(() => {
+  const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+  const NS = "http://www.w3.org/2000/svg";
+  const el = (tag, attrs = {}, text) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; };
+  let lang = store.get("pi-lang") || ((navigator.language || "tr").startsWith("tr") ? "tr" : "en");
+  const T = (tr, en) => (lang === "en" ? en : tr);
+  const fmt = (x, d = 0) => x.toLocaleString(lang === "en" ? "en-US" : "tr-TR", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const tip = $("#tip");
+  const showTip = (e, html) => { tip.innerHTML = html; tip.style.opacity = 1; tip.style.left = Math.min(e.clientX + 14, innerWidth - 270) + "px"; tip.style.top = e.clientY + 14 + "px"; };
+  const hideTip = () => (tip.style.opacity = 0);
+
+  // ---------------------------------------------------------------- fundamental diagram explorer
+  const FD = { vf: 90, cap: 2000, kj: 140 }; FD.kc = FD.cap / FD.vf; FD.w = FD.cap / (FD.kj - FD.kc);
+  let regime = "cong";
+  function drawFD() {
+    const svg = $("#fd"); svg.innerHTML = "";
+    const W = 560, H = 330, L = 52, R = 16, Tp = 14, B = 40;
+    const x = (k) => L + (k / FD.kj) * (W - L - R), y = (q) => H - B - (q / (FD.cap * 1.12)) * (H - Tp - B);
+    for (let q = 0; q <= 2000; q += 500) { svg.append(el("line", { x1: L, x2: W - R, y1: y(q), y2: y(q), class: "ax" })); svg.append(el("text", { x: L - 8, y: y(q) + 4, "text-anchor": "end", class: "axt" }, fmt(q))); }
+    for (let k = 0; k <= 140; k += 20) svg.append(el("text", { x: x(k), y: H - B + 18, "text-anchor": "middle", class: "axt" }, k));
+    svg.append(el("text", { x: (L + W - R) / 2, y: H - 4, "text-anchor": "middle", class: "axt" }, T("yoğunluk (araç/km/şerit)", "density (veh/km/lane)")));
+    svg.append(el("text", { x: 14, y: (Tp + H - B) / 2, "text-anchor": "middle", class: "axt", transform: `rotate(-90 14 ${(Tp + H - B) / 2})` }, T("akım (araç/sa/şerit)", "flow (veh/h/lane)")));
+    const v = +$("#spd").value;
+    const ink = css("--ink"), green = css("--green"), orange = css("--accent-2"), accent = css("--accent");
+    if (regime === "free") svg.append(el("rect", { x: L, y: y(FD.cap), width: W - L - R, height: y(0) - y(FD.cap), fill: green, opacity: .09 }));
+    svg.append(el("path", { d: `M${x(0)},${y(0)} L${x(FD.kc)},${y(FD.cap)} L${x(FD.kj)},${y(0)}`, fill: "none", stroke: ink, "stroke-width": 2.5 }));
+    svg.append(el("line", { x1: L, x2: W - R, y1: y(FD.cap), y2: y(FD.cap), stroke: css("--grey"), "stroke-dasharray": "4 4" }));
+    let out;
+    if (regime === "free") {
+      const k = FD.kc * 0.55, q = FD.vf * k;
+      svg.append(el("line", { x1: L, x2: W - R, y1: y(FD.cap), y2: y(FD.cap), stroke: green, "stroke-width": 3 }));
+      svg.append(el("text", { x: W - R - 4, y: y(FD.cap) - 8, "text-anchor": "end", fill: green, "font-weight": 700, "font-size": 13 }, T("akım ≤ kapasite", "flow ≤ capacity")));
+      svg.append(el("circle", { cx: x(k), cy: y(q), r: 6, fill: green }));
+      out = T(`Akıcı (sınıf 1–2), ${v} km/sa: akım 0 ile ${fmt(FD.cap)} araç/sa arasında olabilir → yalnızca <b class="up">üst sınır</b>. Sahte bir sayıma çevrilmez.`,
+              `Free flow (class 1–2), ${v} km/h: the flow may be anywhere from 0 to ${fmt(FD.cap)} veh/h → only an <b class="up">upper bound</b>. Not turned into a pseudo-count.`);
+    } else {
+      const k = FD.w * FD.kj / (v + FD.w), q = v * k;
+      svg.append(el("line", { x1: x(0), y1: y(0), x2: x(k), y2: y(q), stroke: orange, "stroke-dasharray": "5 4", "stroke-width": 1.6 }));
+      svg.append(el("rect", { x: L, y: y(FD.cap * 1.12), width: W - L - R, height: y(q) - y(FD.cap * 1.12), fill: orange, opacity: .08 }));
+      svg.append(el("line", { x1: L, x2: W - R, y1: y(q), y2: y(q), stroke: orange, "stroke-width": 2 }));
+      svg.append(el("circle", { cx: x(k), cy: y(q), r: 7, fill: orange, stroke: "#fff", "stroke-width": 2 }));
+      svg.append(el("text", { x: W - R - 4, y: y(q) - 8, "text-anchor": "end", fill: orange, "font-weight": 700, "font-size": 13 }, T(`talep ≥ ${fmt(q)}`, `demand ≥ ${fmt(q)}`)));
+      out = T(`Kuyruk (sınıf 3–5), ${v} km/sa: sıkışık dalda geçen akım q = w·k<sub>j</sub>·v/(v+w) ≈ <b class="lo">${fmt(q)} araç/sa</b>. Kuyruk olduğu için talep bunu aşıyor → <b class="lo">alt sınır</b>.`,
+              `Queue (class 3–5), ${v} km/h: the flow getting through on the congested branch is q = w·k<sub>j</sub>·v/(v+w) ≈ <b class="lo">${fmt(q)} veh/h</b>. With a queue, demand exceeds it → a <b class="lo">lower bound</b>.`);
+    }
+    $("#fdOut").innerHTML = out;
+    $("#spdv").textContent = `${v} ${T("km/sa", "km/h")}`;
+  }
+  $("#spd").addEventListener("input", drawFD);
+  $("#regFree").onclick = () => { regime = "free"; $("#regFree").setAttribute("aria-pressed", "true"); $("#regCong").setAttribute("aria-pressed", "false"); $("#spd").value = 82; drawFD(); };
+  $("#regCong").onclick = () => { regime = "cong"; $("#regCong").setAttribute("aria-pressed", "true"); $("#regFree").setAttribute("aria-pressed", "false"); $("#spd").value = 30; drawFD(); };
+
+  // ---------------------------------------------------------------- demand level
+  const EV = [
+    { f: 1.0, sd: 0.5, share: 0, trips: 117.9 },
+    { f: 0.298, sd: 0.2197, share: 0.807, trips: 61.6 },
+    { f: 0.296, sd: 0.2148, share: 0.815, trips: 61.4 },
+  ];
+  let ev = 1;
+  function drawLevel() {
+    const svg = $("#lvl"); svg.innerHTML = "";
+    const W = 560, H = 300, L = 20, R = 20, Tp = 16, B = 42;
+    const lo = Math.log(0.1), hi = Math.log(3.2);
+    const x = (g) => L + ((g - lo) / (hi - lo)) * (W - L - R), y = (p) => H - B - p * (H - Tp - B);
+    const ticks = [0.1, 0.2, 0.3, 0.5, 1, 2, 3];
+    ticks.forEach((t) => { svg.append(el("line", { x1: x(Math.log(t)), x2: x(Math.log(t)), y1: Tp, y2: H - B, class: "ax" })); svg.append(el("text", { x: x(Math.log(t)), y: H - B + 18, "text-anchor": "middle", class: "axt" }, "×" + fmt(t, t < 1 ? 1 : 0))); });
+    svg.append(el("text", { x: W / 2, y: H - 4, "text-anchor": "middle", class: "axt" }, T("talep düzeyi çarpanı (log ölçek)", "demand level factor (log scale)")));
+    const curve = (mu, sd) => { let d = ""; for (let i = 0; i <= 200; i++) { const g = lo + (hi - lo) * i / 200; const p = Math.exp(-0.5 * ((g - mu) / sd) ** 2); d += (i ? "L" : "M") + x(g).toFixed(1) + "," + y(p).toFixed(1); } return d; };
+    const area = (mu, sd) => curve(mu, sd) + `L${x(hi)},${y(0)} L${x(lo)},${y(0)} Z`;
+    svg.append(el("path", { d: area(0, 0.5), fill: css("--grey"), opacity: .25 }));
+    svg.append(el("path", { d: curve(0, 0.5), fill: "none", stroke: css("--grey"), "stroke-width": 1.5 }));
+    svg.append(el("text", { x: x(0) + 6, y: y(1) + 14, class: "lbl" }, "prior"));
+    if (ev > 0) {
+      const e = EV[ev], mu = Math.log(e.f);
+      const p = el("path", { d: area(mu, e.sd), fill: css("--accent"), opacity: .28 }); svg.append(p);
+      svg.append(el("path", { d: curve(mu, e.sd), fill: "none", stroke: css("--accent"), "stroke-width": 2 }));
+      const ciL = Math.log(e.f) - 1.96 * e.sd, ciH = Math.log(e.f) + 1.96 * e.sd;
+      svg.append(el("line", { x1: x(ciL), x2: x(ciH), y1: y(0) - 6, y2: y(0) - 6, stroke: css("--accent"), "stroke-width": 4, "stroke-linecap": "round" }));
+      svg.append(el("text", { x: x(mu), y: y(1) - 4, "text-anchor": "middle", class: "lbl", "font-weight": 700, fill: css("--accent") }, T("sayımlardan sonra", "after the counts")));
+      p.addEventListener("mousemove", (m) => showTip(m, T(`Çarpan ×${fmt(e.f, 2)}, %95: ${fmt(Math.exp(ciL), 2)}–${fmt(Math.exp(ciH), 2)}`, `Factor ×${fmt(e.f, 2)}, 95 %: ${fmt(Math.exp(ciL), 2)}–${fmt(Math.exp(ciH), 2)}`)));
+      p.addEventListener("mouseleave", hideTip);
+    }
+    const e = EV[ev];
+    $("#lvF").textContent = "×" + fmt(e.f, 2);
+    $("#lvCI").textContent = fmt(Math.exp(Math.log(e.f) - 1.96 * e.sd), 2) + "–" + fmt(Math.exp(Math.log(e.f) + 1.96 * e.sd), 2);
+    $("#lvS").textContent = fmt(e.share, 2);
+    $("#lvS").style.color = e.share >= 0.8 ? css("--green") : css("--muted");
+  }
+  $$("[data-ev]").forEach((b) => (b.onclick = () => { ev = +b.dataset.ev; $$("[data-ev]").forEach((o) => o.setAttribute("aria-pressed", String(o === b))); drawLevel(); }));
+
+  // ---------------------------------------------------------------- GEH rounds
+  const ROUNDS = [
+    [["İlk tur", "First run"], [37.6, 4.3], [27.3, 13.0], [35.6, 13.0]],
+    [["Eşleme +\nkesintisiz akış", "Mapping +\nuninterrupted"], [32.1, 8.3], [16.5, 8.3], [23.8, 8.3]],
+    [["+ zon\nçarpanları", "+ zone\nfactors"], [32.1, 8.3], [13.1, 20.8], [23.4, 4.2]],
+    [["+ İBB kapasite\nve BPR", "+ İBB capacity\nand BPR"], null, [12.2, 20.8], [24.0, 0.0]],
+    [["+ 2012 anket", "+ 2012 survey"], null, [11.8, 25.0], [23.2, 4.2]],
+  ];
+  let metric = 0;
+  function drawGEH() {
+    const svg = $("#geh"); svg.innerHTML = "";
+    const W = 560, H = 300, L = 40, R = 10, Tp = 14, B = 52, max = metric ? 100 : 40;
+    const y = (v) => H - B - (v / max) * (H - Tp - B), gw = (W - L - R) / ROUNDS.length, bw = gw / 4.2;
+    for (let v = 0; v <= max; v += metric ? 25 : 10) { svg.append(el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), class: "ax" })); svg.append(el("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end", class: "axt" }, metric ? v + "%" : v)); }
+    if (metric) { svg.append(el("line", { x1: L, x2: W - R, y1: y(85), y2: y(85), stroke: css("--red"), "stroke-dasharray": "5 4", "stroke-width": 1.5 })); svg.append(el("text", { x: W - R, y: y(85) - 6, "text-anchor": "end", fill: css("--red"), "font-size": 12, "font-weight": 700 }, T("hedef %85", "target 85 %"))); }
+    const cols = [css("--grey"), css("--accent"), css("--accent-2")], names = ["Prior", T("Uyum", "Fit"), T("Dışarıda bırakılan", "Held out")];
+    ROUNDS.forEach((r, i) => {
+      const cx = L + gw * i + gw / 2;
+      [1, 2, 3].forEach((s, j) => {
+        if (!r[s]) return;
+        const v = r[s][metric], bx = cx + (j - 1) * (bw + 3) - bw / 2;
+        const rect = el("rect", { x: bx, y: y(0), width: bw, height: 0, rx: 3, fill: cols[j] });
+        svg.append(rect);
+        requestAnimationFrame(() => { rect.style.transition = "y .6s, height .6s"; rect.setAttribute("y", y(v)); rect.setAttribute("height", y(0) - y(v)); });
+        rect.addEventListener("mousemove", (m) => showTip(m, `<b>${r[0][lang === "en" ? 1 : 0].replace("\n", " ")}</b><br>${names[j]}: ${metric ? fmt(v, 1) + " %" : fmt(v, 1)}`));
+        rect.addEventListener("mouseleave", hideTip);
+      });
+      r[0][lang === "en" ? 1 : 0].split("\n").forEach((line, k) => svg.append(el("text", { x: cx, y: H - B + 18 + k * 14, "text-anchor": "middle", class: "axt" }, line)));
+    });
+  }
+  $("#mMean").onclick = () => { metric = 0; $("#mMean").setAttribute("aria-pressed", "true"); $("#mPct").setAttribute("aria-pressed", "false"); drawGEH(); };
+  $("#mPct").onclick = () => { metric = 1; $("#mPct").setAttribute("aria-pressed", "true"); $("#mMean").setAttribute("aria-pressed", "false"); drawGEH(); };
+
+  // ---------------------------------------------------------------- anchors and neural gap (small bar charts)
+  function hbars(svgId, rows, max, unit) {
+    const svg = $(svgId); svg.innerHTML = "";
+    const W = 520, L = 170, R = 60, rh = 30;
+    rows.forEach((r, i) => {
+      const yy = 12 + i * (rh + 14);
+      svg.append(el("text", { x: 0, y: yy + rh / 2 + 5, class: "lbl" }, r.label));
+      svg.append(el("rect", { x: L, y: yy, width: W - L - R, height: rh, rx: 6, fill: css("--bg-2") }));
+      const w = Math.max(2, (r.v / max) * (W - L - R));
+      const b = el("rect", { x: L, y: yy, width: 0, height: rh, rx: 6, fill: r.c }); svg.append(b);
+      requestAnimationFrame(() => { b.style.transition = "width .8s"; b.setAttribute("width", w); });
+      if (r.sd) svg.append(el("line", { x1: L + Math.max(0, (r.v - r.sd) / max) * (W - L - R), x2: L + Math.min(max, r.v + r.sd) / max * (W - L - R), y1: yy + rh / 2, y2: yy + rh / 2, stroke: css("--ink"), "stroke-width": 2, opacity: .55 }));
+      const end = r.sd ? Math.max(w, Math.min(max, r.v + r.sd) / max * (W - L - R)) : w;
+      svg.append(el("text", { x: L + end + 8, y: yy + rh / 2 + 5, class: "lbl", "font-weight": 700 }, r.text || fmt(r.v, 1) + unit));
+    });
+  }
+  function drawSmall() {
+    hbars("#anc", [
+      { label: T("Prior", "Prior"), v: 57.4, c: css("--grey"), text: fmt(57.4, 1) + T(" bin", " k") },
+      { label: T("Sayımlarla tahmin", "Estimate from counts"), v: 15.6, c: css("--accent"), text: fmt(15.6, 1) + T(" bin", " k") },
+      { label: T("İstanbulkart çapası", "İstanbulkart anchor"), v: 11.8, sd: 11.9, c: css("--green"), text: fmt(11.8, 1) + " ± " + fmt(11.9, 1) + T(" bin", " k") },
+    ], 60, "");
+    hbars("#nn", [
+      { label: T("Hız oranı: gerçek", "Speed ratio: real"), v: 0.32, c: css("--accent-2"), text: fmt(0.32, 2) },
+      { label: T("Hız oranı: simülasyon", "Speed ratio: simulated"), v: 0.99, c: css("--grey"), text: fmt(0.99, 2) },
+      { label: T("Ağ / MAP toplamı", "Network / MAP total"), v: 1, c: css("--red"), text: "×" + fmt(4.8, 1) },
+    ], 1.05, "");
+  }
+
+  // ---------------------------------------------------------------- shadow simulation
+  const SHADOW = {
+    no_incident: { arrived: 10233, backlog: 23276, teleports: 52, loss: 274, rtf: 3.4 },
+    unaware: { arrived: 9655, backlog: 23854, teleports: 123, loss: 277, rtf: 4.4 },
+    informed: { arrived: 10390, backlog: 23119, teleports: 50, loss: 271, rtf: 2.9 },
+    recommended: "informed",
+  };
+  function drawShadow() {
+    const P = [
+      ["no_incident", T("Yol açık (referans)", "Road open (reference)"), T("Kapanma yok", "No closure"), css("--grey")],
+      ["unaware", T("Habersiz sürücüler", "Unaware drivers"), T("Kapanmayı son kenarda öğreniyorlar", "They learn of it on the last edge"), css("--red")],
+      ["informed", T("Anında bilgilendirme", "Informed at once"), T("30 kenar yukarı, dakikada bir yeniden rota", "30 edges upstream, re-route every minute"), css("--green")],
+    ];
+    const maxArr = Math.max(...Object.values(SHADOW).filter((s) => s && s.arrived).map((s) => s.arrived));
+    $("#pol").innerHTML = P.map(([k, name, sub, c]) => {
+      const s = SHADOW[k];
+      if (!s) return `<div class="card reveal in"><h3>${name}</h3><p>${sub}</p><p style="color:var(--muted)">${T("Bu dal hâlâ koşuyor; sonuç geldiğinde burada görünecek.", "This branch is still running; its result will show here.")}</p></div>`;
+      const ref = SHADOW.no_incident;
+      return `<div class="card reveal in"><h3>${name}${SHADOW.recommended === k ? ` <span class="badge">${T("önerilen", "recommended")}</span>` : ""}</h3><p>${sub}</p>
+        <div class="row"><span>${T("Varan araç (20 dk)", "Vehicles arrived (20 min)")}</span><b>${fmt(s.arrived)}</b></div><div class="bar"><span style="width:${(s.arrived / maxArr) * 100}%;background:${c}"></span></div>
+        <div class="row"><span>${T("Referansa göre", "Against the reference")}</span><b>${k === "no_incident" ? "—" : (s.arrived - ref.arrived > 0 ? "+" : "") + fmt(s.arrived - ref.arrived)}</b></div>
+        <div class="row"><span>${T("Işınlanma (sıkışma)", "Teleports (jams)")}</span><b>${fmt(s.teleports)}</b></div>
+        <div class="row"><span>${T("Ortalama zaman kaybı", "Mean time loss")}</span><b>${fmt(s.loss)} s</b></div>
+        <div class="row"><span>${T("Gerçek zamana göre hız", "Speed vs real time")}</span><b>×${fmt(s.rtf, 1)}</b></div></div>`;
+    }).join("");
+    const u = SHADOW.unaware, r = SHADOW.no_incident, i = SHADOW.informed;
+    $("#shadowNote").innerHTML = i
+      ? T(`<b>Karar: anında bilgilendirme.</b> Habersiz duruma göre 20 dakikada ${fmt(i.arrived - u.arrived)} araç daha geçiriyor ve sıkışma kaynaklı ışınlanmayı ${fmt(u.teleports)}'ten ${fmt(i.teleports)}'e indiriyor. Dört koşu birlikte 9 dakikada bitti. <b>Dürüst not:</b> bu dal yol açık senaryoyu bile ${fmt(i.arrived - r.arrived)} araç geçiyor, çünkü bilgilendirilen sürücüler daha sık (60 sn) yeniden rota seçiyor; kazancın bir kısmı bundan geliyor. Ayrıştırma ve birkaç tohumla tekrar sırada.`,
+          `<b>Verdict: inform at once.</b> Against unaware drivers it gets ${fmt(i.arrived - u.arrived)} more vehicles through in 20 minutes and cuts jam teleports from ${fmt(u.teleports)} to ${fmt(i.teleports)}. All four runs took 9 minutes. <b>Honest note:</b> this branch even beats the open road by ${fmt(i.arrived - r.arrived)} vehicles, because informed drivers also re-route more often (every 60 s); part of the gain comes from that. Separating the two, over several seeds, is next.`)
+      : T(`<b>İlk sonuç:</b> kapanma, sürücüler habersizken 20 dakikada ${fmt(r.arrived - u.arrived)} araç daha az ulaştırıyor ve sıkışma kaynaklı ışınlanmayı ${fmt(r.teleports)}'den ${fmt(u.teleports)}'e çıkarıyor. Yol açıkken bile ağda yaklaşık 23 bin araçlık birikim var: sabitlenmiş talepte de yerel kilitlenmeler sürüyor.`,
+          `<b>First result:</b> with drivers unaware, the closure delivers ${fmt(r.arrived - u.arrived)} fewer vehicles in 20 minutes and raises jam teleports from ${fmt(r.teleports)} to ${fmt(u.teleports)}. Even with the road open some 23 thousand vehicles are backed up: local gridlock persists with the anchored demand.`);
+  }
+
+  // ---------------------------------------------------------------- language, theme, reveal, gallery, nav
+  function render() { drawFD(); drawLevel(); drawGEH(); drawSmall(); drawShadow(); }
+  function setLang(l) {
+    lang = l; document.documentElement.lang = l; store.set("pi-lang", l);
+    $("#langBtn").textContent = l === "tr" ? "EN" : "TR";
+    document.title = l === "tr" ? "Procedural Istanbul · trafik dijital ikizi" : "Procedural Istanbul · a traffic digital twin";
+    render();
+  }
+  $("#langBtn").onclick = () => setLang(lang === "tr" ? "en" : "tr");
+  const theme = store.get("pi-theme"); if (theme) document.documentElement.dataset.theme = theme;
+  $("#themeBtn").onclick = () => {
+    const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.dataset.theme = dark ? "light" : "dark"; store.set("pi-theme", document.documentElement.dataset.theme); render();
+  };
+  matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", render);
+  const io = "IntersectionObserver" in window ? new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: 0.12 }) : null;
+  $$(".reveal").forEach((n) => (io ? io.observe(n) : n.classList.add("in")));
+  const lb = $("#lb");
+  $$(".gallery figure").forEach((f) => (f.onclick = () => { $("img", lb).src = f.dataset.src; lb.classList.add("open"); }));
+  $("#lbClose").onclick = () => lb.classList.remove("open");
+  lb.onclick = (e) => { if (e.target === lb) lb.classList.remove("open"); };
+  addEventListener("keydown", (e) => { if (e.key === "Escape") lb.classList.remove("open"); });
+  const secs = $$("section.s[id]"), navs = $$(".links a");
+  addEventListener("scroll", () => { let cur = ""; secs.forEach((s) => { if (s.getBoundingClientRect().top < 120) cur = s.id; }); navs.forEach((a) => a.classList.toggle("active", a.getAttribute("href") === "#" + cur)); }, { passive: true });
+  setLang(lang);
+})();
+</script>
+</body>
+</html>

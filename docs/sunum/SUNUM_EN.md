@@ -298,6 +298,25 @@ This result directly motivates measuring the level of demand separately (Contrib
 
 ---
 
+## Shadow simulation: forking the future at an incident
+
+- At the incident SUMO saves its whole state; from it every policy runs **faster than real time**. The simulation decides.
+- Test: a five-lane stretch of the TEM closes at minute 20, simulated 20 minutes ahead (four runs in ~9 minutes).
+
+| Policy | Vehicles arrived | Teleports | Mean time loss |
+|---|---|---|---|
+| Road open (reference) | 10,233 | 52 | 274 s |
+| Unaware drivers | 9,655 | 123 | 277 s |
+| **Informed at once** | **10,390** | **50** | **271 s** |
+
+<div class="note">
+
+**Verdict: inform at once** (+735 vehicles against unaware drivers). Honest note: this branch even beats the open road, because drivers also re-route more often; separating the two effects is next.
+
+</div>
+
+---
+
 <!-- _class: section -->
 
 # 3 · The 3D digital twin

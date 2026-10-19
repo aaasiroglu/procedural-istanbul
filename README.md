@@ -27,7 +27,7 @@
 - **Research contribution: demand from speeds.** İBB reports speeds, not vehicle counts. The inverse OD estimator treats each speed as a *censored* observation: free flow gives an upper bound, a queue gives a lower bound. It runs bilevel with user-equilibrium assignment and reports, for every OD pair, how much of the estimate comes from data and how much from the prior. Validation uses GEH on **held-out** counts only.
 - **Honest about what is not known.** Panels that still show illustrative values are labelled as such, negative results are reported, and the total demand level carries its own identification measure.
 
-**Technical report (TR, PDF):** [docs/rapor/teknik_rapor.pdf](docs/rapor/teknik_rapor.pdf) · **Slides (TR / EN):** [docs/sunum](docs/sunum/README.md)
+**Project site:** [docs/index.html](docs/index.html) (GitHub Pages) · **Technical report (TR, PDF):** [docs/rapor/teknik_rapor.pdf](docs/rapor/teknik_rapor.pdf) · **Slides (TR / EN):** [docs/sunum](docs/sunum/README.md)
 
 ## Mimari
 
@@ -59,7 +59,7 @@ Projenin araştırma katkısı, **hız verisinden talep (O-D) matrisi çıkarma*
 | **Bilevel tahmin** | Rota seçimi talebe bağlıdır. UE ataması ile tahmin dönüşümlü çalışır, salınım ardışık ortalamalarla (MSA) sönümlenir. | ✅ |
 | **Çok kaynaklı çapalar** | Köprü geçiş sayıları (kesin), İstanbulkart saatlik binişleri (mod payı) ve İBB hızları (sansürlü) aynı tahmine girer. Çapalar link yerine doğrudan O-D toplamlarını kısıtlar (`od_sum`). İstanbulkart çapası sayımlarla tutarlı çıktı. | ✅ `tools/od/anchors.py` |
 | **Simülasyondan gerçeğe ters çözücü** | SUMO ile üretilen binlerce (O-D → hız) örneğiyle eğitilen bir sinir ağı, canlı hızdan O-D'yi anlık tahmin eder. Yukarıdaki tahminci bu ağın referansı ve denetçisi olur. İlk sürüm statik atama örnekleriyle eğitildi ve denetçi onu reddetti (simülasyon-gerçek farkı); SUMO örnekleri sırada. | İlk sürüm `tools/od/neural_inverse.py` |
-| **Gölge simülasyon** | Kaza veya kapanma anında SUMO durumu çatallanır ve birkaç müdahale politikası gerçek zamandan hızlı koşturulup karşılaştırılır. Kararı simülasyon verir, dil modeli yalnızca sonucu anlatır. | İlk sürüm `tools/sumo/shadow.py` |
+| **Gölge simülasyon** | Kaza veya kapanma anında SUMO durumu çatallanır ve birkaç müdahale politikası gerçek zamandan hızlı koşturulup karşılaştırılır. Kararı simülasyon verir, dil modeli yalnızca sonucu anlatır. İlk sınamada TEM kapanmasında anında bilgilendirme, habersiz duruma göre 735 araç daha geçirdi (dört koşu ~9 dakikada). | ✅ İlk sürüm `tools/sumo/shadow.py` |
 | **Talep düzeyinin tanımlanabilirliği** | Tüm matrisin düzeyi ayrı bir çarpanla taşınır; profil eğriliğinden sayımların düzeyi gerçekten sabitleyip sabitlemediği ölçülür. Gerçek koridorda 23 sayım düzeyi sabitliyor (veri payı 0.81) ve prior'ın ~3 kat yüksek olduğunu gösteriyor. | ✅ |
 | **Matrakçı görünümü** | Koridorun Matrakçı Nasuh minyatür kartografyasından esinlenen alternatif çizimi (`src/matrakci`). | Prototip |
 

@@ -81,3 +81,21 @@ Muhtemel nedenler, kontrol sırasına göre:
 - Zon girişlerini daha çok kenara yaymak.
 - Talep düzeyini köprü sayımıyla sabitlemek.
 - Daha kısa koşular (30 dk, tek rotalama iş parçacığı).
+
+## Gölge simülasyon (19 Ekim 2026)
+
+```bash
+uv run --group sumo python tools/sumo/shadow.py --od-dir data/od/koridor/20261019-1130-anchors --at 20 --horizon 20 --narrate
+```
+
+Olay anında SUMO durumu kaydedilir (`--save-state`) ve her politika aynı durumdan ayrı ayrı koşturulur (`--load-state`). İlk sınamada, tahminde en yüklü otoyol kenarı olan 5 şeritli 2. Çevre Yolu kesimi 20. dakikada kapatıldı ve 20 dakika ileri koşturuldu.
+
+| Politika | Varan araç | Birikim | Işınlanma | Ort. zaman kaybı | Gerçek zamana göre |
+|---|---|---|---|---|---|
+| Yol açık (referans) | 10.233 | 23.276 | 52 | 274 s | ×3.4 |
+| Habersiz sürücüler | 9.655 | 23.854 | 123 | 277 s | ×4.3 |
+| Anında bilgilendirme | 10.390 | 23.119 | 50 | 271 s | ×2.9 |
+
+Önerilen politika anında bilgilendirme: habersiz duruma göre 735 araç daha geçiyor. Karar varan araç ve birikime göre verilir, çünkü yalnızca varan araçların zaman kaybı kapanmanın arkasında takılanları içermez. Bilgilendirilen dal yol açık referansı bile geçiyor; bunun nedeni sürücülerin daha sık (60 sn) yeniden rota seçmesi. İki etkiyi ayırmak için "yalnızca sık yeniden rota" dalı ve birden çok tohumla tekrar gerekiyor. Yol açıkken bile yaklaşık 23 bin araçlık birikim, sabitlenmiş talepte de yerel kilitlenmelerin sürdüğünü gösteriyor.
+
+Not: durum dosyası T anının sonunda yazılır; ısınma bu yüzden T + 1'e kadar koşturulur.

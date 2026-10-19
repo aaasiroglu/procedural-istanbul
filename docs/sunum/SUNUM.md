@@ -297,6 +297,25 @@ Bu sonuç, talep düzeyinin ayrıca ölçülmesini (Katkı 3) doğrudan motive e
 
 ---
 
+## Gölge simülasyon: kaza anında geleceği çatallamak
+
+- SUMO olay anında tüm durumu kaydeder; aynı durumdan her politika **gerçek zamandan hızlı** koşturulur. Kararı simülasyon verir.
+- Sınama: 5 şeritli TEM kesimi 20. dakikada kapanıyor, 20 dakika ileri (dört koşu ~9 dakikada).
+
+| Politika | Varan araç | Işınlanma | Ort. zaman kaybı |
+|---|---|---|---|
+| Yol açık (referans) | 10.233 | 52 | 274 s |
+| Habersiz sürücüler | 9.655 | 123 | 277 s |
+| **Anında bilgilendirme** | **10.390** | **50** | **271 s** |
+
+<div class="note">
+
+**Karar: anında bilgilendirme** (habersiz duruma göre +735 araç). Dürüst not: bu dal yol açık senaryoyu bile geçiyor, çünkü sürücüler daha sık yeniden rota seçiyor; iki etkinin ayrıştırılması sırada.
+
+</div>
+
+---
+
 <!-- _class: section -->
 
 # 3 · 3D dijital ikiz

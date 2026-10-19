@@ -50,7 +50,7 @@
   .kpi { background: var(--soft); border-radius: 4pt; padding: 7pt 8pt; }
   .kpi .v { font-size: 16pt; font-weight: 700; color: var(--accent); line-height: 1.1; }
   .kpi .l { font-size: 8.3pt; color: var(--muted); margin-top: 2pt; line-height: 1.3; }
-  .toc { display: grid; grid-template-columns: 1fr 1fr; column-gap: 18pt; font-size: 9.6pt; }
+  .toc { display: grid; grid-template-columns: 1fr 1fr 1fr; column-gap: 14pt; font-size: 9.2pt; }
   .toc div { margin: 1pt 0; }
   .status td:last-child { white-space: nowrap; }
   .ok { color: #2e8b57; font-weight: 600; } .neg { color: #c0392b; font-weight: 600; } .part { color: #b8691b; font-weight: 600; }
@@ -101,7 +101,7 @@
   <div>13. Sınırlar</div><div>14. Yol haritası</div><div>Kaynaklar</div><div>Ek A: Komutlar · Ek B: Varsayımlar</div>
 </div>
 
-<h2>1. Problem ve katkılar</h2>
+<h2 class="cont" style="break-before: auto">1. Problem ve katkılar</h2>
 <h3>1.1 Simülatör yolculuk ister, sensör hız verir</h3>
 <p>Mikroskobik ya da mezoskobik bir trafik simülatörü (SUMO gibi) çalışmak için bir O-D matrisine ihtiyaç duyar: her zon çifti arasında saatte kaç araç yolculuğu yapıldığı. İBB'nin Ulaşım Yönetim Merkezi akışı ise koridordaki yaklaşık 1.000 yol kesimi için yalnızca <strong>ortalama hız</strong> ve beş kademeli bir <strong>sıkışıklık sınıfı</strong> verir. Gerçek araç sayımı az ve seyrektir: koridordaki 27 İBB sensörü günlük toplam verir.</p>
 <p>Problem kötü konumlanmıştır (ill-posed): 95 zon için 9.025 O-D çifti vardır, bağımsız gözlem sayısı ise birkaç yüzdür. Veri tek başına matrisi belirleyemez; bir ön bilgi (prior) gerekir ve sonucun ne kadarının bu ön bilgiden geldiği bilinmelidir.</p>
@@ -310,7 +310,15 @@ min<sub>x ≥ 0</sub> &nbsp; Σ<sub>sayım</sub> ((Px)<sub>e</sub> − y<sub>e</
   </ul></li>
 <li><strong>Karar.</strong> Her dal için ulaşan araç, ortalama zaman kaybı, ışınlanma ve referansa göre ek gecikme (araç·saat) ile simülasyon hızının gerçek zamana oranı raporlanır. Kararı simülasyon verir; bir dil modeli kullanılırsa yalnızca <code>report.json</code>'u anlatır.</li>
 </ol>
-<p id="shadow-result">Koridordaki ilk sınamada, tahminde en yüklü otoyol kenarı olan 5 şeritli 2. Çevre Yolu (TEM) kesimi 20. dakikada kapatıldı. 20 dakikalık ısınma 115 saniyede koştu (gerçek zamandan yaklaşık 10 kat hızlı). Politika dallarının sonuçları çalışma sürerken elde edilecek ve <code>report.json</code>'a yazılacaktır.</p>
+<p id="shadow-result">Koridordaki ilk sınamada, tahminde en yüklü otoyol kenarı olan 5 şeritli 2. Çevre Yolu (TEM) kesimi 20. dakikada kapatıldı ve her politika 20 dakika ileri koşturuldu (İstanbulkart çapalı tahmin, mezoskopik model, tek tohum).</p>
+<table>
+<tr><th>Politika</th><th class="n">Varan araç</th><th class="n">Birikim</th><th class="n">Işınlanma</th><th class="n">Ort. zaman kaybı</th><th class="n">Gerçek zamana göre</th></tr>
+<tr><td>Yol açık (referans)</td><td class="n">10.233</td><td class="n">23.276</td><td class="n">52</td><td class="n">274 s</td><td class="n">×3,4</td></tr>
+<tr><td>Habersiz sürücüler</td><td class="n">9.655</td><td class="n">23.854</td><td class="n">123</td><td class="n">277 s</td><td class="n">×4,3</td></tr>
+<tr><td><b>Anında bilgilendirme</b></td><td class="n"><b>10.390</b></td><td class="n">23.119</td><td class="n">50</td><td class="n">271 s</td><td class="n">×2,9</td></tr>
+</table>
+<p><strong>Karar: anında bilgilendirme.</strong> Habersiz duruma göre 20 dakikada 735 araç daha geçirir ve sıkışma kaynaklı ışınlanmayı 123'ten 50'ye indirir. Isınma ve üç dal birlikte yaklaşık 9 dakikada koştu; bir olay anında karar, olayın kendisinden önce hazır olur. Karar, varan araç ve birikim üzerinden verilir: yalnızca varan araçların zaman kaybı, kapanmanın arkasında takılanları içermediği için yanıltıcıdır.</p>
+<div class="note"><b>Dürüst not.</b> Bilgilendirilen dal, yol açık referansı bile 157 araç geçiyor. Bunun nedeni, bilgilendirilen sürücülerin aynı zamanda daha sık (60 sn yerine 120 sn) yeniden rota seçmesidir; kazancın bir kısmı kapanma bilgisinden değil bu sıklıktan gelir. Ayrıca yol açıkken bile ağda yaklaşık 23 bin araçlık birikim vardır: sabitlenmiş talepte de yerel kilitlenmeler sürmektedir. Sıradaki adımlar, iki etkiyi ayıran bir "yalnızca sık yeniden rota" dalı ve birkaç tohumla tekrar.</div>
 
 <h2>10. Simülasyondan gerçeğe ters çözücü</h2>
 <p>MAP tahmincisi her görüntü için dakikalar süren bir optimizasyon gerektirir. Uzun vadeli hedef, canlı hızdan O-D'yi anlık okuyan bir sinir ağıdır; MAP tahmincisi bu ağın <strong>referansı ve denetçisi</strong> olur (<code>tools/od/neural_inverse.py</code>).</p>

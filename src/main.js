@@ -74,7 +74,7 @@ const loader = {
   set(fraction, step) { this.el.querySelector('.fill').style.width = `${Math.round(fraction * 100)}%`; if (step != null) this.el.querySelector('.step').textContent = step; },
   hide() { this.el.classList.add('done'); },
 };
-loader.show(null, 'textures'); // (index.html has already written the city's name)
+loader.show(null, 'dokular'); // (index.html has already written the city's name)
 let loading = true;
 const USAGE = {
   401: 'office', 402: 'commercial', 403: 'hotel', 404: 'commercial complex', 411: 'house', 412: 'apartments',
@@ -128,9 +128,9 @@ const props = new Props();
 const signs = new Signs();
 const defaultRadius = 900; // (metres around the point looked at; the panel can ask for more, or the whole city)
 const streamer = new Streamer(scene, materials, props, signs, { base: `tiles/${AREA}`, radius: Number(params.get('radius')) || defaultRadius }); // (progressive by default: the control panel can ask for the whole city)
-loader.set(0.08, 'terrain');
+loader.set(0.08, 'arazi');
 const manifest = await streamer.init();
-loader.set(0.14, 'railways and roads');
+loader.set(0.14, 'raylar ve yollar');
 const proj = makeProjection(manifest.origin.lon, manifest.origin.lat);
 // Beyond the area: plain ground in the grey of the area's own unbuilt land, out to the haze of the horizon.
 {
@@ -198,13 +198,13 @@ transit.onIncidentChange((msg, type) => {
   clearTimeout(tickerTimer);
   tickerTimer = setTimeout(() => { incidentTicker.style.display = 'none'; }, 9000);
 });
-const liveTraffic = { enabled: params.get('liveTraffic') !== '0', status: 'connecting' };
+const liveTraffic = { enabled: params.get('liveTraffic') !== '0', status: 'bağlanıyor' };
 const trafficLegend = document.getElementById('traffic-legend');
 trafficLegend.hidden = !liveTraffic.enabled;
 let trafficPoll, ibbSegments;
 const refreshLiveTraffic = async () => {
   if (!liveTraffic.enabled) {
-    traffic.clearLiveTrafficIndex(); traffic.clearLiveSegmentSpeeds(); liveTraffic.status = 'off'; return;
+    traffic.clearLiveTrafficIndex(); traffic.clearLiveSegmentSpeeds(); liveTraffic.status = 'kapalı'; return;
   }
   try {
     const [indexResponse, dataResponse] = await Promise.all([
@@ -224,7 +224,7 @@ const refreshLiveTraffic = async () => {
     const { matched, closed } = traffic.updateLiveSegmentSpeeds(segmentData.Data);
     const timestamp = new Date(segmentData.Date);
     const estimate = traffic.estimateLocalVehicleCount(controls.target);
-    liveTraffic.status = `TI ${index.TI} · ${matched} roads · ${closed} closed · ≈${estimate} cars · ${timestamp.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`;
+    liveTraffic.status = `İndeks ${index.TI} · ${matched} yol · ${closed} kapalı · ≈${estimate} araç · ${timestamp.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`;
     geoTwinUI?.updateLiveStatus(`TI ${index.TI} · ${matched} Yol · ${closed} Kapalı · ${timestamp.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`);
   } catch (error) {
     // Robust offline fallback: calculate realistic diurnal traffic index for Istanbul based on time of day
@@ -244,7 +244,11 @@ if (liveTraffic.enabled) {
   refreshLiveTraffic();
   trafficPoll = setInterval(refreshLiveTraffic, 60 * 1000);
 }
-document.getElementById('credits').textContent = manifest.attribution.map((a) => a.split(' (')[0]).join(' · ');
+// (the credits in Turkish: the manifest writes them in English)
+const CREDIT_TR = [['Buildings, roads and railways', 'Bina, yol ve raylar'], ['Road network and railways', 'Yol ağı ve raylar'], ['Elevation', 'Yükseklik'],
+  ['Traffic', 'Trafik'], ['OpenStreetMap contributors', 'OpenStreetMap katkıcıları'], ['Mapzen Terrain Tiles', 'Mapzen arazi karoları']];
+document.getElementById('credits').textContent = manifest.attribution
+  .map((a) => CREDIT_TR.reduce((t, [en, tr]) => t.replace(en, tr), a.split(' (')[0])).join(' · ');
 
 // initial view: the area's own, or over its origin looking north-west (Shibuya: across the Scramble Crossing to the station)
 const [cx, cz, dist, az, el] = (params.get('cam') || manifest.view || '0,0,420,215,32').split(',').map(Number);
@@ -278,26 +282,26 @@ let guiState, clockText, geoTwinUI, gui;
   if (state.wholeCity) streamer.radius = 1e5;
   // the names of the cities, for the loading screen of the next visit (index.html reads them)
   try { for (const a of areas) localStorage.setItem(`procedural-istanbul:name:${a.id}`, a.name); } catch { /* storage unavailable */ }
-  gui = new GUI({ title: 'Settings' });
+  gui = new GUI({ title: 'Ayarlar' });
   gui.close(); // (out of the way until it is asked for)
-  gui.add(state, 'city', Object.fromEntries(areas.map((a) => [a.name, a.id]))).onChange((id) => {
+  gui.add(state, 'city', Object.fromEntries(areas.map((a) => [a.name, a.id]))).name('alan').onChange((id) => {
     const url = new URL(location.href);
     url.search = '';
     url.searchParams.set('area', id);
-    loader.show(areas.find((a) => a.id === id)?.name ?? id, 'leaving for the next city');
+    loader.show(areas.find((a) => a.id === id)?.name ?? id, 'diğer alana geçiliyor');
     setTimeout(() => { location.href = url.href; }, 60); // (let the screen appear first)
   });
-  const time = gui.addFolder('Time (Istanbul)');
-  time.add(clockTime, 'live').name('live clock').listen();
+  const time = gui.addFolder('Saat (İstanbul)');
+  time.add(clockTime, 'live').name('canlı saat').listen();
   // one slider over the day, with the clock time written beside it in place of the number box
-  const slider = time.add(clockTime, 'hour', 0, 24, 1 / 60).name('time').listen().onChange(() => { clockTime.live = false; });
+  const slider = time.add(clockTime, 'hour', 0, 24, 1 / 60).name('saat').listen().onChange(() => { clockTime.live = false; });
   slider.$input.style.display = 'none';
   clockText = document.createElement('span');
   clockText.style.cssText = 'min-width: 3.4em; padding-left: 8px; text-align: right; font-variant-numeric: tabular-nums;';
   slider.$widget.appendChild(clockText);
-  gui.add(state, 'traffic');
-  const liveFolder = gui.addFolder('Live traffic (IBB)');
-  liveFolder.add(liveTraffic, 'enabled').name('live index').onChange((enabled) => {
+  gui.add(state, 'traffic').name('araç trafiği');
+  const liveFolder = gui.addFolder('Canlı trafik (İBB)');
+  liveFolder.add(liveTraffic, 'enabled').name('canlı sıkışıklık').onChange((enabled) => {
     trafficLegend.hidden = !enabled;
     if (trafficPoll) clearInterval(trafficPoll);
     if (enabled) {
@@ -305,9 +309,9 @@ let guiState, clockText, geoTwinUI, gui;
       trafficPoll = setInterval(refreshLiveTraffic, 60 * 1000);
     } else refreshLiveTraffic();
   });
-  liveFolder.add(liveTraffic, 'status').name('index · updated').listen().disable();
+  liveFolder.add(liveTraffic, 'status').name('son güncelleme').listen().disable();
 
-  const incidentFolder = gui.addFolder('Kriz & Olay Simülatörü');
+  const incidentFolder = gui.addFolder('Olay senaryoları (gösterim)');
   const incidentActions = {
     köprü_kaza: () => transit.triggerIncident('bridge-closure', traffic),
     metrobüs_arıza: () => transit.triggerIncident('metrobus-jam', traffic),
@@ -320,61 +324,61 @@ let guiState, clockText, geoTwinUI, gui;
       transit.resolveIncident('levent-work', traffic);
     },
   };
-  incidentFolder.add(incidentActions, 'köprü_kaza').name('🚨 Köprü Bağlantı Kazası');
-  incidentFolder.add(incidentActions, 'metrobüs_arıza').name('🚌 Mecidiyeköy Metrobüs Arızası');
-  incidentFolder.add(incidentActions, 'gayrettepe_metro').name('🚇 Gayrettepe Metro Arızası');
-  incidentFolder.add(incidentActions, 'levent_yol_çalışması').name('🚧 Büyükdere Cad. Çalışması');
-  incidentFolder.add(incidentActions, 'sıfırla').name('✅ Olayları Temizle / Aç');
+  incidentFolder.add(incidentActions, 'köprü_kaza').name('Köprü bağlantısında kaza');
+  incidentFolder.add(incidentActions, 'metrobüs_arıza').name('Mecidiyeköy metrobüs arızası');
+  incidentFolder.add(incidentActions, 'gayrettepe_metro').name('Gayrettepe metro arızası');
+  incidentFolder.add(incidentActions, 'levent_yol_çalışması').name('Büyükdere Caddesi yol çalışması');
+  incidentFolder.add(incidentActions, 'sıfırla').name('Tüm olayları kaldır');
 
-  const agenticFolder = gui.addFolder('Geo-Twin Agentic AI & VRP');
+  const agenticFolder = gui.addFolder('Paneller ve katmanlar');
   const agenticControls = {
     hud: true,
     vrpRoutes: true,
     landmarks: true,
     whatIfBenchmark: () => transit.triggerIncident('bridge-closure', traffic),
   };
-  agenticFolder.add(agenticControls, 'hud').name('Agentic AI Komuta Paneli').onChange((v) => agentic.toggleVisibility(v));
-  agenticFolder.add(agenticControls, 'vrpRoutes').name('VRP Neon Filo Rotaları').onChange((v) => vrpManager.setRoutesVisible(v));
-  agenticFolder.add(agenticControls, 'landmarks').name('3B Şehir Etiketleri').onChange((v) => { landmarksGroup.visible = v; });
-  agenticFolder.add(agenticControls, 'whatIfBenchmark').name('⚡ 10x What-If Kaza Testi');
+  agenticFolder.add(agenticControls, 'hud').name('komuta paneli (gösterim)').onChange((v) => agentic.toggleVisibility(v));
+  agenticFolder.add(agenticControls, 'vrpRoutes').name('filo rotaları (gösterim)').onChange((v) => vrpManager.setRoutesVisible(v));
+  agenticFolder.add(agenticControls, 'landmarks').name('yer adları').onChange((v) => { landmarksGroup.visible = v; });
+  agenticFolder.add(agenticControls, 'whatIfBenchmark').name('köprü kapanması senaryosu');
 
-  gui.add(traffic, 'count', 0, MAX_CARS, 10).name('vehicle cap');
-  gui.add(traffic, 'highway', 0, 20, 0.5).name('highway traffic');
-  gui.add(traffic, 'headlights', 0, 20, 0.5).name('car headlights');
-  gui.add(props, 'streetLights', 0, 3, 0.05).name('street lights');
-  gui.add(props, 'parkLights', 0, 3, 0.05).name('park lights');
-  gui.add(state, 'trains');
-  gui.add(state, 'photo').name('aerial photo').listen();
-  gui.add(birds.geometry, 'instanceCount', 0, MAX_BIRDS, 10).name('birds');
-  gui.add(state, 'info').name('info panel');
-  const sky = gui.addFolder('Clouds');
-  sky.add(atmosphere, 'cloudsOn').name('clouds');
-  sky.add(atmosphere, 'coverage', 0, 1, 0.05);
-  sky.add(atmosphere, 'base', 200, 2000, 50).name('base altitude (m)');
-  sky.add(atmosphere, 'overCity').name('over the city only');
-  sky.add(atmosphere, 'quality', ['low', 'medium', 'high', 'ultra']);
-  sky.add(atmosphere.clouds.localWeatherVelocity, 'x', 0, 0.02, 0.0005).name('wind');
-  const rooms = gui.addFolder('Night windows');
-  rooms.add(shared.uWindowLife.value, 'x', 0, 1, 0.05).name('rooms that change');
-  rooms.add(shared.uWindowLife.value, 'y', 0.2, 30, 0.1).name('pace');
-  rooms.add(shared.uCityGlass, 'value', 0, 3, 0.05).name('city in tower glass');
-  rooms.add(shared.uNightBlue, 'value', 0, 1, 0.05).name('blue lights');
-  const walls = gui.addFolder('Wall photos');
-  walls.add(shared.uPhotoMix, 'value', 0, 1, 0.05).name('amount');
-  walls.add(shared.uPhotoRange.value, 'x', 0, 1000, 10).name('from (m)');
-  walls.add(shared.uPhotoRange.value, 'y', 10, 2000, 10).name('full at (m)');
-  const quality = gui.addFolder('Rendering');
-  quality.add(state, 'whole').name('whole city');
-  quality.add(state, 'radius', 300, 3000, 50).name('view radius (m), if not');
-  quality.add(atmosphere, 'reflect').name('window and water reflections');
-  quality.add(shared.uGlintOn, 'value', 0, 1, 1).name('sun in the windows');
-  quality.add(state, 'shadows');
-  quality.add(state, 'occlusion').name('ambient occlusion');
-  quality.add(state, 'bloom');
+  gui.add(traffic, 'count', 0, MAX_CARS, 10).name('en fazla araç');
+  gui.add(traffic, 'highway', 0, 20, 0.5).name('otoyol trafiği');
+  gui.add(traffic, 'headlights', 0, 20, 0.5).name('far parlaklığı');
+  gui.add(props, 'streetLights', 0, 3, 0.05).name('sokak lambaları');
+  gui.add(props, 'parkLights', 0, 3, 0.05).name('park lambaları');
+  gui.add(state, 'trains').name('trenler');
+  gui.add(state, 'photo').name('hava fotoğrafı').listen();
+  gui.add(birds.geometry, 'instanceCount', 0, MAX_BIRDS, 10).name('kuşlar');
+  gui.add(state, 'info').name('bilgi paneli');
+  const sky = gui.addFolder('Bulutlar');
+  sky.add(atmosphere, 'cloudsOn').name('bulutlar');
+  sky.add(atmosphere, 'coverage', 0, 1, 0.05).name('kaplama');
+  sky.add(atmosphere, 'base', 200, 2000, 50).name('taban yüksekliği (m)');
+  sky.add(atmosphere, 'overCity').name('yalnızca şehrin üstünde');
+  sky.add(atmosphere, 'quality', { düşük: 'low', orta: 'medium', yüksek: 'high', çok_yüksek: 'ultra' }).name('kalite');
+  sky.add(atmosphere.clouds.localWeatherVelocity, 'x', 0, 0.02, 0.0005).name('rüzgâr');
+  const rooms = gui.addFolder('Gece pencereleri');
+  rooms.add(shared.uWindowLife.value, 'x', 0, 1, 0.05).name('ışığı değişen odalar');
+  rooms.add(shared.uWindowLife.value, 'y', 0.2, 30, 0.1).name('değişim hızı');
+  rooms.add(shared.uCityGlass, 'value', 0, 3, 0.05).name('kule camında şehir');
+  rooms.add(shared.uNightBlue, 'value', 0, 1, 0.05).name('mavi ışıklar');
+  const walls = gui.addFolder('Cephe fotoğrafları');
+  walls.add(shared.uPhotoMix, 'value', 0, 1, 0.05).name('oran');
+  walls.add(shared.uPhotoRange.value, 'x', 0, 1000, 10).name('başlangıç (m)');
+  walls.add(shared.uPhotoRange.value, 'y', 10, 2000, 10).name('tam (m)');
+  const quality = gui.addFolder('Görüntü kalitesi');
+  quality.add(state, 'whole').name('tüm şehir');
+  quality.add(state, 'radius', 300, 3000, 50).name('görüş yarıçapı (m)');
+  quality.add(atmosphere, 'reflect').name('cam ve su yansımaları');
+  quality.add(shared.uGlintOn, 'value', 0, 1, 1).name('camlarda güneş');
+  quality.add(state, 'shadows').name('gölgeler');
+  quality.add(state, 'occlusion').name('ortam gölgelemesi');
+  quality.add(state, 'bloom').name('ışıma');
 
   // The panel's settings are kept (in this browser) and are the same for every city: what is switched off in
   // one is off in the next. A URL that sets something itself (?time=, ?cars=, ...) is taken as it stands.
-  const KEY = 'procedural-istanbul:settings:5'; // (a new number when the defaults change: what was kept before is left behind)
+  const KEY = 'procedural-istanbul:settings:6'; // (a new number when the defaults change: what was kept before is left behind)
   const explicit = [...params.keys()].some((k) => k !== 'area');
   const strip = (saved) => { delete saved.controllers?.city; return saved; }; // (the city is the page's, not a setting)
   if (!explicit) {
@@ -383,7 +387,7 @@ let guiState, clockText, geoTwinUI, gui;
       if (saved) {
         gui.load(strip(saved));
         // (loading the time moved the slider, which stops the live clock: put the saved choice back)
-        const live = saved.folders?.['Time (Istanbul)']?.controllers?.['live clock'];
+        const live = saved.folders?.['Saat (İstanbul)']?.controllers?.['canlı saat'];
         if (live != null) clockTime.live = live;
       }
     } catch (e) { console.warn('settings not restored:', e.message); }
@@ -725,7 +729,7 @@ function tick() {
   if (loading) {
     const size = manifest.tileSize, wanted = manifest.tiles.filter((t) => Math.hypot((t.x + 0.5) * size - controls.target.x, (t.z + 0.5) * size - controls.target.z) <= Math.min(streamer.radius, 900)).length || 1;
     const got = Math.min(1, streamer.stats.loaded / wanted);
-    loader.set(0.2 + 0.8 * got, `city tiles ${streamer.stats.loaded} / ${manifest.tiles.length}`);
+    loader.set(0.2 + 0.8 * got, `şehir karoları ${streamer.stats.loaded} / ${manifest.tiles.length}`);
     if (got >= 1) { loading = false; loader.hide(); }
   }
 
