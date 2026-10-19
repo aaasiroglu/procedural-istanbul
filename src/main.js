@@ -34,6 +34,7 @@ import { RoadHeatmapLayer } from './world/roadHeatmapLayer.js';
 import { TrafficAnalyticsDashboard } from './world/trafficAnalyticsDashboard.js';
 import { HexOdAnalyticsDrawer } from './world/hexOdAnalyticsDrawer.js';
 import { RecommendationsPanel } from './world/recommendationsPanel.js';
+import { installWelcomeGuide } from './world/welcomeGuide.js';
 
 function createLandmarkTag(text, subtext) {
   const canvas = document.createElement('canvas');
@@ -226,7 +227,7 @@ const refreshLiveTraffic = async () => {
     const timestamp = new Date(segmentData.Date);
     const estimate = traffic.estimateLocalVehicleCount(controls.target);
     liveTraffic.status = `İndeks ${index.TI} · ${matched} yol · ${closed} kapalı · ≈${estimate} araç · ${timestamp.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`;
-    geoTwinUI?.updateLiveStatus(`TI ${index.TI} · ${matched} Yol · ${closed} Kapalı · ${timestamp.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`);
+    geoTwinUI?.updateLiveStatus(`Sıkışıklık %${index.TI} · ${matched} yol · ${closed} kapalı · ${timestamp.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`);
   } catch (error) {
     // Robust offline fallback: calculate realistic diurnal traffic index for Istanbul based on time of day
     const h = clockTime.hour;
@@ -594,6 +595,7 @@ geoTwinUI = new GeoTwinUI({
   onSelectHexMetric: (metric) => {
     h3GridLayer.setMetric(metric);
   },
+  onOpenRecommendations: recsPanel ? () => recsPanel.toggle() : null,
   onOpenAnalyticsDashboard: () => {
     trafficAnalyticsDashboard.toggle();
   },
@@ -607,6 +609,12 @@ geoTwinUI = new GeoTwinUI({
     trafficAnalyticsDashboard.router.setVisible(v);
   },
 });
+installWelcomeGuide({
+  hasData: !!recsPanel,
+  onOpenRecommendations: () => recsPanel?.setOpen(true),
+  onShowZones: () => h3GridLayer.setVisible(true),
+});
+
 
 
 // ---------------------------------------------------------------- input

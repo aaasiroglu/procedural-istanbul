@@ -317,10 +317,10 @@ export class TrafficAnalyticsDashboard {
           <div>
             <h2 style="margin: 0; font-size: 16px; font-weight: 800; letter-spacing: 0.5px; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
               <span>İSTANBUL DİJİTAL İKİZİ: TRAFİK TAHMİNLEME & GÜZERGAH ANALİTİĞİ</span>
-              <span style="font-size: 10px; font-weight: 700; background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(16, 185, 129, 0.4);">%100 AÇIK VERİ & AÇIK KAYNAK</span>
+              <span style="font-size: 10px; font-weight: 700; background: rgba(251, 191, 36, 0.15); color: #fbbf24; padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(251, 191, 36, 0.45);">GÖSTERİM VERİSİ</span>
             </h2>
-            <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">
-              A* Çok Faktörlü Güzergah · Dinamik Zaman Serisi Ekonometrisi · Z_Total Dışsal Maliyet Optimizasyonu
+            <div style="font-size: 11px; color: #fcd34d; margin-top: 2px;">
+              Bu paneldeki saatlik eğriler, kıyaslamalar ve maliyetler gösterim amaçlıdır, veriden hesaplanmaz. Gerçek tahmin sonuçları için üst çubuktaki “Öneriler · gerçek veri” panelini açın.
             </div>
           </div>
         </div>

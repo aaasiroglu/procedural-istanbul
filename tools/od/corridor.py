@@ -69,6 +69,7 @@ ASSUMPTIONS = {
     "gravity_beta_per_min": 0.08,
     "link_parameters": "İBB 2020 model (capacity, free-flow speed, BPR) on matched edges; else class capacity and İBB's BPR by class",
     "prior_cv": 1.0,                            # prior uncertainty of every OD pair: +-100 % of its value
+    "zone_connectors": 8,                       # local-road nodes a zone's trips enter and leave by, spread over the cell
     "zone_factor_sd": 1.0,                      # each zone's production / attraction factor: log-normal, sd 1 (x2.7)
     "demand_level_sd": 0.5,                     # the whole matrix's level: log-normal, sd 0.5 (x0.6 .. x1.6)
     "level_identified_above": 0.8,              # data share of the level needed to call it anchored
@@ -159,7 +160,13 @@ def build(net, bbox, params_csv: Path | None = None):
         clat, clon = h3.cell_to_latlng(cell)
         cx, cy = net.convertLonLat2XY(clon, clat)
         nodes.sort(key=lambda n: math.dist(net.getNode(n).getCoord(), (cx, cy)))
-        zones.append({"id": cell, "kind": "h3", "lon": clon, "lat": clat, "connect": nodes[:3]})
+        # Spread the connectors over the cell (farthest-point sampling from the node nearest its centre): a zone's
+        # traffic then enters and leaves the network at several places, as it does from its streets, instead of
+        # queueing at one corner (the cause of local gridlock in SUMO, tools/sumo/README.md)
+        pick = nodes[:1]
+        while len(pick) < min(ASSUMPTIONS["zone_connectors"], len(nodes)):
+            pick.append(max((n for n in nodes if n not in pick), key=lambda n: min(math.dist(net.getNode(n).getCoord(), net.getNode(m).getCoord()) for m in pick)))
+        zones.append({"id": cell, "kind": "h3", "lon": clon, "lat": clat, "connect": pick})
 
     # gateway zones: major edges crossing the boundary, clustered within 500 m
     crossings = []

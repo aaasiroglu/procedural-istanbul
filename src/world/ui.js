@@ -22,6 +22,7 @@ export class GeoTwinUI {
     onOpenOdDrawer,
     onSelectHexMetric,
     onOpenAnalyticsDashboard,
+    onOpenRecommendations,
     onToggleRoadHeatmap,
     onToggleOdArcs,
     onToggleRouteRibbon,
@@ -44,6 +45,7 @@ export class GeoTwinUI {
     this.onOpenOdDrawer = onOpenOdDrawer;
     this.onSelectHexMetric = onSelectHexMetric;
     this.onOpenAnalyticsDashboard = onOpenAnalyticsDashboard;
+    this.onOpenRecommendations = onOpenRecommendations;
     this.onToggleRoadHeatmap = onToggleRoadHeatmap;
     this.onToggleOdArcs = onToggleOdArcs;
     this.onToggleRouteRibbon = onToggleRouteRibbon;
@@ -68,10 +70,10 @@ export class GeoTwinUI {
       <header id="geotwin-topbar">
         <div class="topbar-left">
           <div class="brand-pill">
-            <span class="brand-logo">🌐</span>
+            <span class="brand-logo"><svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0b5cad"/><path d="M6 22 L13 12 L19 18 L26 9" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
             <div class="brand-text">
-              <span class="brand-title">GEO-TWIN İSTANBUL</span>
-              <span class="brand-sub">Mecidiyeköy · Şişli · Gayrettepe · Levent · Köprü Yolu</span>
+              <span class="brand-title">PROCEDURAL İSTANBUL</span>
+              <span class="brand-sub">Maslak – 15 Temmuz Köprüsü koridoru</span>
             </div>
           </div>
         </div>
@@ -80,20 +82,27 @@ export class GeoTwinUI {
           <div class="telemetry-pill">
             <span class="dot online"></span>
             <span class="t-label">Canlı Trafik:</span>
-            <span class="t-val" id="top-live-traffic">%68 İndeks · Kararlı Akış</span>
+            <span class="t-val" id="top-live-traffic">bağlanıyor…</span>
           </div>
         </div>
 
         <div class="topbar-right">
-          <!-- Multi-Factor Analytics & OD Dashboard Button -->
-          <button id="btn-open-analytics-dashboard" class="time-btn" style="border: 1px solid rgba(56, 189, 248, 0.6); background: rgba(2, 132, 199, 0.3); color: #38bdf8; font-weight: 700; display: flex; align-items: center; gap: 6px; box-shadow: 0 0 14px rgba(56, 189, 248, 0.2);" title="Metropoliten Trafik Tahminleme & OD Matris Dashboard'u">
+          <!-- The recommendation panel: what the real estimate says (the first thing to show) -->
+          <button id="btn-open-recommendations" class="time-btn" style="border: 1px solid rgba(52, 211, 153, 0.7); background: rgba(16, 185, 129, 0.22); color: #6ee7b7; font-weight: 700; display: flex; align-items: center; gap: 6px; box-shadow: 0 0 14px rgba(16, 185, 129, 0.2);" title="Sayımlarla sabitlenmiş O-D tahmininden öneriler: darboğazlar, kaza müdahalesi, teyit edilecek sensörler">
+            <span>✅</span>
+            <span>Öneriler · gerçek veri</span>
+          </button>
+
+          <!-- Scenario dashboard: illustrative values, labelled as such -->
+          <button id="btn-open-analytics-dashboard" class="time-btn" style="border: 1px solid rgba(148, 163, 184, 0.45); background: rgba(51, 65, 85, 0.35); color: #cbd5e1; font-weight: 600; display: flex; align-items: center; gap: 6px;" title="Senaryo ve tahminleme paneli. Değerleri gösterim amaçlıdır; gerçek sonuçlar Öneriler panelinde">
             <span>📊</span>
-            <span>Tahminleme & OD Matrisi</span>
+            <span>Senaryo paneli</span>
+            <span style="font-size: 9px; font-weight: 700; color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.5); border-radius: 4px; padding: 0 4px;">gösterim</span>
           </button>
 
           <!-- H3 TAZ & OD Analytics Quick Toggle -->
-          <button id="btn-toggle-h3-taz" class="time-btn" style="border: 1px solid rgba(56, 189, 248, 0.5); background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-weight: 600;" title="H3 Altıgen TAZ ve Tersine OD Analitiği">
-            ⬡ H3 Petek Katmanı
+          <button id="btn-toggle-h3-taz" class="time-btn" style="border: 1px solid rgba(56, 189, 248, 0.5); background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-weight: 600;" title="Tahminin 95 zonu (H3 altıgenleri ve geçitler): üzerine gelince üretim, çekim ve İBB hızı; tıklayınca o zonun O-D akışları">
+            ⬡ O-D zonları
           </button>
 
           <!-- Time of Day Quick Switcher -->
@@ -764,6 +773,11 @@ export class GeoTwinUI {
     });
 
     // 8. H3 TAZ & Reverse OD Controls
+    const recsBtn = document.getElementById('btn-open-recommendations');
+    if (recsBtn) {
+      if (this.onOpenRecommendations) recsBtn.addEventListener('click', () => this.onOpenRecommendations());
+      else recsBtn.style.display = 'none'; // (no estimate exported for this area)
+    }
     const topbarForecastBtn = document.getElementById('btn-open-analytics-dashboard');
     if (topbarForecastBtn) {
       topbarForecastBtn.addEventListener('click', () => {

@@ -81,6 +81,63 @@ def simulate(network, x0, Z, obs, n, rng, log_every=25):
     return np.array(feats), np.array(ys), np.array(levels)
 
 
+def draw_matrix(x0, Z, rng):
+    g = rng.uniform(np.log(0.15), np.log(1.5))
+    a, b = rng.normal(0, 0.5, Z), rng.normal(0, 0.5, Z)
+    return x0 * np.exp(g + np.repeat(a, Z) + np.tile(b, Z) + rng.normal(0, 0.3, Z * Z)), g
+
+
+def simulate_sumo(net_path, taz, zones, links, obs, x0, Z, n, rng, cache_dir, minutes=25, warmup=10):
+    """Samples from mesoscopic SUMO: the matrix spread over `minutes`, routed and re-routed by the vehicles
+    themselves, and the speed on each observed link's edge after `warmup`, as a share of the edge's speed limit
+    (the same reading as İBB speed / speed limit for the live snapshot). Each sample is kept in cache_dir, so a long
+    run can be stopped and resumed."""
+    import subprocess
+    import xml.etree.ElementTree as ET
+    import sumo
+    home = Path(sumo.SUMO_HOME)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    ids = [z["id"] for z in zones]
+    edge_of = [links[k]["edges"][0] for k in obs]
+    import sumolib
+    net = sumolib.net.readNet(str(net_path), withInternal=False)
+    limit = np.array([net.getEdge(e).getSpeed() * 3.6 for e in edge_of])
+    feats, ys, levels = [], [], []
+    t0 = time.time()
+    for k in range(n):
+        x, g = draw_matrix(x0, Z, rng)  # (drawn every time, so sample k is the same matrix with or without the cache)
+        f = cache_dir / f"sample_{k:04d}.npz"
+        if f.exists():
+            d = np.load(f); feats.append(d["x"]); ys.append(d["y"]); levels.append(float(d["g"])); continue
+        work = cache_dir / "work"; work.mkdir(exist_ok=True)
+        end = minutes * 60
+        rel = ['<data>', f'  <interval begin="0" end="{end}">']
+        for w in np.flatnonzero(x * minutes / 60 >= 0.5):
+            i, j = divmod(int(w), Z)
+            rel.append(f'    <tazRelation from="{ids[i]}" to="{ids[j]}" count="{x[w] * minutes / 60:.1f}"/>')
+        rel += ["  </interval>", "</data>"]
+        (work / "od.xml").write_text("\n".join(rel) + "\n", encoding="utf-8")
+        subprocess.run([str(home / "bin" / "od2trips"), "--taz-files", str(taz), "--tazrelation-files", str(work / "od.xml"),
+                        "-o", str(work / "trips.xml"), "--spread.uniform", "--different-source-sink", "--departlane", "best",
+                        "--departspeed", "max", "--seed", str(k), "--no-step-log"], check=True, capture_output=True)
+        (work / "edgedata.add.xml").write_text(
+            f'<additional>\n  <edgeData id="s" file="edgedata.xml" begin="{warmup * 60}" end="{end}" excludeEmpty="true"/>\n</additional>\n', encoding="utf-8")
+        subprocess.run([str(home / "bin" / "sumo"), "-n", str(net_path), "-r", str(work / "trips.xml"), "-a", str(work / "edgedata.add.xml"),
+                        "--begin", "0", "--end", str(end), "--seed", str(k), "--device.rerouting.probability", "1",
+                        "--device.rerouting.period", "120", "--device.rerouting.threads", "4", "--routing-algorithm", "astar",
+                        "--time-to-teleport", "300", "--ignore-route-errors", "--no-step-log", "--mesosim",
+                        "--meso-junction-control.limited", "--meso-tls-flow-penalty", "1"], check=True, cwd=work, capture_output=True)
+        speed = {e.get("id"): float(e.get("speed")) * 3.6 for e in ET.parse(work / "edgedata.xml").getroot().iter("edge") if e.get("speed")}
+        # (an edge no vehicle used in the window is at free flow)
+        fx = np.array([min(speed.get(e, lim) / max(lim, 1), 1.5) for e, lim in zip(edge_of, limit)])
+        fy = targets(x, Z)
+        np.savez_compressed(f, x=fx, y=fy, g=g)
+        feats.append(fx); ys.append(fy); levels.append(g)
+        done = k + 1
+        print(f"  SUMO sample {done}/{n}: {time.time() - t0:.0f} s so far, median speed ratio {np.median(fx):.2f}", flush=True)
+    return np.array(feats), np.array(ys), np.array(levels)
+
+
 def main() -> None:
     import sumolib
     from sklearn.metrics import r2_score
@@ -92,6 +149,8 @@ def main() -> None:
     parser.add_argument("--speeds", help="speeds.csv of an estimate (default: the newest count-anchored run's)")
     parser.add_argument("--samples", type=int, default=400)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--simulator", choices=["static", "sumo"], default="static",
+                        help="static: UE assignment (fast); sumo: mesoscopic SUMO runs (slow, resumable)")
     args = parser.parse_args()
 
     od_dir = ROOT / "data" / "od" / args.area
@@ -112,9 +171,14 @@ def main() -> None:
 
     out = od_dir / "neural"
     out.mkdir(parents=True, exist_ok=True)
-    cache = out / "samples.npz"
+    cache = out / ("samples.npz" if args.simulator == "static" else "samples_sumo.npz")
     rng = np.random.default_rng(args.seed)
-    if cache.exists() and np.load(cache)["X"].shape == (args.samples, len(obs)):
+    if args.simulator == "sumo":
+        taz = (ref / "taz.xml") if ref else None
+        print(f"simulating {args.samples} SUMO samples (cached in {out / 'sumo'}) …")
+        X, Y, G = simulate_sumo(sumo_dir / f"{args.area}.net.xml.gz", taz, zones, links, obs, x0, Z, args.samples, rng, out / "sumo")
+        np.savez_compressed(cache, X=X, Y=Y, G=G, links=obs)
+    elif cache.exists() and np.load(cache)["X"].shape == (args.samples, len(obs)):
         d = np.load(cache); X, Y, G = d["X"], d["Y"], d["G"]
         print(f"samples: {len(X)} from {cache.name}")
     else:
@@ -157,7 +221,8 @@ def main() -> None:
         report["live"]["vs_map"] = float(np.exp(live[0]) / mf)
         print(f"live snapshot: network {np.exp(live[0]):.0f} trips/h, MAP estimate {mf:.0f} (ratio {np.exp(live[0]) / mf:.2f}), prior {x0.sum():.0f}")
     print(f"sim-to-real: real speed ratio median {np.median(real):.2f}, simulated {np.median(X):.2f}; {outside:.0%} of links outside the simulated 1–99 % range")
-    (out / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+    report["simulator"] = args.simulator
+    (out / ("report.json" if args.simulator == "static" else "report_sumo.json")).write_text(json.dumps(report, indent=2), encoding="utf-8")
     print(f"→ {out / 'report.json'}")
 
 

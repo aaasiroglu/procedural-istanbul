@@ -183,3 +183,26 @@ Koridorun atama ağında 300 örnek üretildi. Her örnekte talep düzeyi ×0.15
 | Simülasyon-gerçek farkı | Gerçek hız oranının medyanı 0.32, simülasyonunki 0.99. Linklerin %45'i simüle edilen %1–99 aralığının dışında |
 
 **Sonuç: ağ henüz kullanılamaz ve denetçi bunu yakalıyor.** Statik BPR ataması gerçek trafiğin yavaşlamasını üretmiyor: sinyaller, kuyruk ve hız sınırının altındaki serbest akış hızı modelde yok. Bu yüzden ağ hem az şey öğreniyor hem de gerçek veride eğitim aralığının dışına düşüyor. MAP tahmincisi referans olarak bu çıktıyı reddediyor (`report.json` → `trustworthy: false`). Sıradaki adım, örnekleri mezoskopik SUMO koşularından üretmek (`tools/sumo/run_od.py`, aynı diziler) ve hız oranını hız sınırına göre değil, gözlenen gece serbest akış hızına göre tanımlamak.
+
+### Sensör denetimi: tek yön mü, iki yön mü? (19 Ekim 2026)
+
+```bash
+uv run --group sumo python tools/od/sensor_audit.py --counts data/od/koridor/counts_202410_d0_h11.json --variant
+uv run --group sumo python tools/od/corridor.py --area=koridor --speeds data/od/koridor/20261019-1130-counts-level/speeds.csv \
+  --counts data/od/koridor/counts_202410_d0_h11_onedir.csv --anchors data/od/koridor/anchors_202410_h11.csv --tag onedir
+```
+
+İBB, sensörlerin hangi taşıt yollarını saydığını yayımlamıyor. Bu yüzden üç bağımsız kontrol yapıldı:
+
+1. Sayım, tek yön kapasitesini aşıyor mu?
+2. Aynı yoldaki komşu sensörlerle 2024 boyunca günlük sayım oranı ne?
+3. Tahmin hangi okumayla uyumlu?
+
+10 sensör, komşusunun yıl boyu (150–320 gün) sürekli yaklaşık yarısını okuyor. Örneğin TEM Karanfilköy, FSM Avrupa Girişi'nin 0.48'i; 4. Levent, Büyükdere 1. Levent'in 0.42'si. Bu sensörler tek yön sayılıp (değer ×2, belirsizlik ×2.5) yeniden tahmin yapıldı. Değerlendirme, **dokunulmayan 14 sensörün** dışarıda bırakılan GEH'iyle yapıldı; böylece test kendi kendini doğrulamıyor.
+
+| | Ortalama GEH | Medyan | GEH < 5 |
+|---|---|---|---|
+| İki yön (temel) | 27.0 | 25.5 | 1/14 |
+| 10 sensör tek yön | 21.2 | 20.5 | 2/14 |
+
+Etki gruba göre ayrışıyor. TEM (O-2) ve Büyükdere sensörlerinde hipotez güçlü destek alıyor: TEM Levent 31.8 → 10.2, TEM Harp Akademileri 46.4 → 27.6, FSM Avrupa Girişi 46.2 → 23.9, Harp Akademisi 19.6 → 1.5. Köprü ve D100 (O-1) sensörlerinde ise kötüleşiyor: köprü Yıldız katılımı 17.6 → 30.4, köprü Avrupa girişi 8.9 → 17.2. Bu da D100 üzerindeki dört sensörün tek yön olmadığını düşündürüyor. Kesin teyit İBB'den gelmeli; denetim, hangi sensörlerin sorulması gerektiğini sıralıyor (`data/od/koridor/sensor_audit.json`).
