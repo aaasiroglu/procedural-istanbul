@@ -326,17 +326,29 @@ export class Traffic {
       const prev = Math.max(0, mid - 3), next = Math.min(edge.pts.length - 3, mid + 3);
       const dx = edge.pts[next] - edge.pts[prev], dz = edge.pts[next + 2] - edge.pts[prev + 2];
       const length = Math.hypot(dx, dz) || 1;
-      let best = Infinity, bestId = null;
+      // İBB segments are directional. The nearest segment heading the same way as the road's geometry feeds the
+      // lanes that run that way, the nearest heading the other way the lanes that run back: on a divided road each
+      // carriageway gets its own direction's speed, never the other side's (a quarter of the matches did before).
+      let bestF = Infinity, idF = null, bestB = Infinity, idB = null;
       for (const segment of segments) for (let i = 1; i < segment.pts.length; i++) {
         const a = segment.pts[i - 1], b = segment.pts[i], sx = b[0] - a[0], sz = b[1] - a[1];
         const segmentLength = Math.hypot(sx, sz) || 1;
-        if (Math.abs((dx * sx + dz * sz) / (length * segmentLength)) < 0.55) continue;
+        const cos = (dx * sx + dz * sz) / (length * segmentLength);
+        if (Math.abs(cos) < 0.55) continue;
         const t = Math.max(0, Math.min(1, ((x - a[0]) * sx + (z - a[1]) * sz) / (segmentLength * segmentLength)));
         const distance = Math.hypot(x - a[0] - sx * t, z - a[1] - sz * t);
-        if (distance < best) { best = distance; bestId = segment.id; }
+        if (cos > 0 && distance < bestF) { bestF = distance; idF = segment.id; }
+        if (cos < 0 && distance < bestB) { bestB = distance; idB = segment.id; }
       }
-      edge.liveSegmentId = best < 20 ? bestId : null;
+      edge.liveSegmentFwd = bestF < 20 ? idF : null;
+      edge.liveSegmentBwd = bestB < 20 ? idB : null;
+      edge.liveSegmentId = edge.liveSegmentFwd ?? edge.liveSegmentBwd;
       if (edge.liveSegmentId != null) matched++;
+    }
+    // which way each lane runs along its road's geometry (the side of the live data it takes)
+    for (const lane of this.graph.lanes) {
+      const e = lane.edge.pts, p0 = lane.pts[0], p1 = lane.pts.at(-1);
+      lane.alongEdge = ((p1.x - p0.x) * (e[e.length - 3] - e[0]) + (p1.z - p0.z) * (e[e.length - 1] - e[2])) >= 0;
     }
     this.liveMatchedEdges = matched;
     return matched;
@@ -350,14 +362,22 @@ export class Traffic {
     }
     const edges = this.uniqueEdges || new Set(this.graph.lanes.map((lane) => lane.edge));
     let matched = 0, closed = 0;
+    const reading = (row) => row && {
+      cls: Number.isFinite(Number(row.C)) ? Number(row.C) : null,
+      kph: Number.isFinite(Number(row.V)) ? Math.max(0, Number(row.V)) : null,
+      closed: row.T === 'FE' || (Number(row.C) === 0 && Number(row.V) === 0),
+    };
     for (const edge of edges) {
-      const directId = Number(edge.ibb?.vsegDirId), fallbackId = Number(edge.liveSegmentId);
-      const row = records.get(directId) ?? records.get(fallbackId);
-      const speed = row ? Number(row.V) : null;
-      edge.liveClass = row && Number.isFinite(Number(row.C)) ? Number(row.C) : null;
-      edge.liveSpeedKph = Number.isFinite(speed) ? Math.max(0, speed) : null;
-      edge.closed = scheduledClosure(edge, Date.now()) || !!row && (row.T === 'FE' || (Number(row.C) === 0 && speed === 0));
-      if (row) matched++;
+      const fwd = reading(records.get(Number(edge.ibb?.vsegDirId)) ?? records.get(Number(edge.liveSegmentFwd)));
+      const bwd = reading(records.get(Number(edge.liveSegmentBwd)));
+      edge.liveFwd = fwd || null; edge.liveBwd = bwd || null;
+      // the road as a whole (its colour on the map): the worse of its two directions
+      const both = [fwd, bwd].filter((r) => r && r.cls != null);
+      edge.liveClass = both.length ? Math.max(...both.map((r) => r.cls)) : null;
+      const speeds = [fwd, bwd].filter((r) => r && r.kph != null).map((r) => r.kph);
+      edge.liveSpeedKph = speeds.length ? Math.min(...speeds) : null;
+      edge.closed = scheduledClosure(edge, Date.now()) || !!(fwd?.closed || bwd?.closed);
+      if (fwd || bwd) matched++;
       if (edge.closed) closed++;
     }
 
@@ -380,8 +400,15 @@ export class Traffic {
       }
     }
 
-    for (const lane of this.graph.lanes)
-      lane.liveSpeed = lane.edge.liveSpeedKph == null ? null : lane.edge.liveSpeedKph / 3.6;
+    // each lane: its own direction's reading; the road's (or the spill-over) only where its direction has none
+    for (const lane of this.graph.lanes) {
+      const own = lane.alongEdge === false ? lane.edge.liveBwd : lane.edge.liveFwd;
+      const other = lane.alongEdge === false ? lane.edge.liveFwd : lane.edge.liveBwd;
+      // (a direction with no reading of its own stays unknown, even if the other direction has one)
+      lane.liveClass = own ? own.cls : other ? null : lane.edge.liveClass;
+      const kph = own ? own.kph : other ? null : lane.edge.liveSpeedKph;
+      lane.liveSpeed = kph == null ? null : kph / 3.6;
+    }
     this.updateTrafficOverlay();
     return { matched, closed };
   }
@@ -391,7 +418,7 @@ export class Traffic {
     for (const edge of edges) {
       edge.liveClass = null; edge.liveSpeedKph = null; edge.closed = scheduledClosure(edge, Date.now());
     }
-    for (const lane of this.graph.lanes) lane.liveSpeed = null;
+    for (const lane of this.graph.lanes) { lane.liveSpeed = null; lane.liveClass = null; }
     this.updateTrafficOverlay();
   }
 
@@ -476,7 +503,7 @@ export class Traffic {
 
       // Live traffic density factor: congested (red/orange) roads accumulate cars; free-flow (green) roads stay fluid.
       let liveDensity = 1.0;
-      const liveClass = l.edge.liveClass;
+      const liveClass = (l.liveClass ?? l.edge.liveClass);
       if (liveClass != null) {
         // 1: >60 km/h (green, fast) -> light density
         // 2: 45-60 km/h (light green) -> normal light density
@@ -505,7 +532,7 @@ export class Traffic {
     for (let attempt = 0; attempt < 8; attempt++) {
       const lane = this.pick(focus, this.radius ?? CAR_RADIUS, (l) => !l.hidden && !l.edge.closed && l.length > 15);
       if (!lane) return false;
-      const isCongested = (lane.edge.liveClass >= 3) || (lane.liveSpeed != null && lane.liveSpeed < 6.0);
+      const isCongested = ((lane.liveClass ?? lane.edge.liveClass) >= 3) || (lane.liveSpeed != null && lane.liveSpeed < 6.0);
       const minGap = isCongested ? 4.5 : 12;
       // a clear stretch, away from the ends of the road
       const s = Math.min(lane.length - 6, Math.max(6, 6 + this.rnd() * (lane.length - 12)));
@@ -629,9 +656,18 @@ export class Traffic {
       // 3. speed: the limit, slower into a junction, a crawl up to a give-way line, a time gap behind the leader
       const baseLimit = lane.liveSpeed == null ? lane.speed * this.liveSpeedFactor : lane.liveSpeed;
       const limit = baseLimit * (this.scenarioSpeedFactor || 1.0);
+      const laneClass = lane.liveClass ?? lane.edge.liveClass;
       let want = lane.edge.closed ? 0 : limit * (toEnd < 14 ? 0.55 : 1);
+      // A jam is not a slow, even crawl: it is stop-and-go, waves of stopping that run back against the traffic.
+      // On red roads (İBB class 4-5) each car's speed follows such a wave (period ~20 s, ~90 m long, moving
+      // upstream), scaled so that its average stays the speed İBB measured.
+      if (laneClass >= 4 && !lane.edge.closed) {
+        const phase = (this.time / 20 + car.s / 90 + (lane.phase ?? 0) * 0.37) * Math.PI * 2;
+        const pulse = Math.max(0, Math.sin(phase));         // 0 (standing) .. 1 (moving)
+        want *= (0.15 + 0.85 * pulse) / (0.15 + 0.85 / Math.PI);
+      }
       if (giveWay && toEnd < 14) want = Math.min(want, 1.2 + toEnd * 0.35);
-      const isCongested = (lane.edge.liveClass >= 3) || (lane.liveSpeed != null && lane.liveSpeed < 6.0);
+      const isCongested = (laneClass >= 3) || (lane.liveSpeed != null && lane.liveSpeed < 6.0);
       const stopBuffer = isCongested ? 1.3 : 2.5;
       if (gap < Infinity) want = Math.min(want, Math.max(0, lead + (gap - stopBuffer) / 1.3));
       if (gap < (isCongested ? 0.4 : 0.6)) want = 0;

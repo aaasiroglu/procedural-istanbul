@@ -222,12 +222,12 @@ Koordinat biliniyorsa: ${overrideCoords ? JSON.stringify(overrideCoords) : 'Bili
         lane.edge.closed = true;
         lane.edge.liveClass = 5; // Burgundy/Dark Red Jam
         lane.edge.liveSpeedKph = 3;
-        lane.liveSpeed = 3 / 3.6;
+        lane.liveSpeed = 3 / 3.6; lane.liveClass = 5;
         affectedLanes++;
       } else if (dist <= radiusMeters * 2.2) {
         lane.edge.liveClass = 4; // Red Slowdown
         lane.edge.liveSpeedKph = 12;
-        lane.liveSpeed = 12 / 3.6;
+        lane.liveSpeed = 12 / 3.6; lane.liveClass = 4;
       }
     }
     this.traffic.updateTrafficOverlay();
@@ -336,7 +336,7 @@ Koordinat biliniyorsa: ${overrideCoords ? JSON.stringify(overrideCoords) : 'Bili
           lane.edge.closed = false;
           lane.edge.liveClass = null;
           lane.edge.liveSpeedKph = null;
-          lane.liveSpeed = null;
+          lane.liveSpeed = null; lane.liveClass = null;
         }
         for (const rem of this.activeIncidents) {
           const [rx, rz] = this.proj.project(rem.incident.coordinates.lon, rem.incident.coordinates.lat);
@@ -347,7 +347,7 @@ Koordinat biliniyorsa: ${overrideCoords ? JSON.stringify(overrideCoords) : 'Bili
               lane.edge.closed = true;
               lane.edge.liveClass = 5;
               lane.edge.liveSpeedKph = 3;
-              lane.liveSpeed = 3 / 3.6;
+              lane.liveSpeed = 3 / 3.6; lane.liveClass = 5;
             }
           }
         }
@@ -368,7 +368,7 @@ Koordinat biliniyorsa: ${overrideCoords ? JSON.stringify(overrideCoords) : 'Bili
       lane.edge.closed = false;
       lane.edge.liveClass = null;
       lane.edge.liveSpeedKph = null;
-      lane.liveSpeed = null;
+      lane.liveSpeed = null; lane.liveClass = null;
     }
     this.traffic.updateTrafficOverlay();
 
