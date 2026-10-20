@@ -267,7 +267,7 @@ This result directly motivates measuring the level of demand separately (Contrib
 
 - Live İBB speeds on Monday at 11:30 and October 2024 Monday counts for 11:00–12:00 (23 sensors).
 - Data share of the level **0.81**: for the first time the level is **anchored by counts** (threshold 0.8).
-- Level factor **0.30** (95 %: 0.19–0.46): the land-use prior overstates demand roughly **threefold**. This is the source of the gridlock in SUMO.
+- Level factor **0.30** (95 %: 0.19–0.46); with the zone factors, total demand falls from 117.9 k to **61.6 k**: the land-use prior overstated demand **almost twofold**. This is the source of the gridlock in SUMO.
 - Held-out share with GEH < 5 is 8.7 % (mean 22.9): **the level is right, the distribution is still weak.**
 
 ---

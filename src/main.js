@@ -625,6 +625,8 @@ geoTwinUI = new GeoTwinUI({
     trafficAnalyticsDashboard.router.setVisible(v);
   },
 });
+if (params.get('recs') === '1') recsPanel?.setOpen(true); // (?recs=1: open with the recommendations shown)
+if (params.get('zones') === '1') h3GridLayer.setVisible(true);
 installWelcomeGuide({
   hasData: !!recsPanel,
   onOpenRecommendations: () => recsPanel?.setOpen(true),

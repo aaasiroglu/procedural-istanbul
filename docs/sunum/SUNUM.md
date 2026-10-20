@@ -266,7 +266,7 @@ Bu sonuç, talep düzeyinin ayrıca ölçülmesini (Katkı 3) doğrudan motive e
 
 - Pazartesi 11:30 canlı İBB hızları ve Ekim 2024 Pazartesi 11:00–12:00 sayımları (23 sensör).
 - Düzeyin veri payı **0,81**: düzey ilk kez **sayımlarla sabitlendi** (eşik 0,8).
-- Düzey çarpanı **0,30** (%95: 0,19–0,46): arazi kullanımından kurulan prior, talebi yaklaşık **üç kat yüksek** gösteriyor. SUMO'daki kilitlenmenin kaynağı bu.
+- Düzey çarpanı **0,30** (%95: 0,19–0,46); zon çarpanlarıyla birlikte toplam talep 117,9 binden **61,6 bine** iniyor: arazi kullanımından kurulan prior talebi **neredeyse iki kat** yüksek gösteriyordu. SUMO'daki kilitlenmenin kaynağı bu.
 - Dışarıda bırakılan GEH < 5 oranı %8,7 (ortalama 22,9): **düzey doğru, dağılım hâlâ zayıf.**
 
 ---

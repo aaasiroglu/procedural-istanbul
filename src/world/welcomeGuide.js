@@ -48,5 +48,6 @@ export function installWelcomeGuide({ onOpenRecommendations, onShowZones, hasDat
   el.querySelector('.help').onclick = () => { card.hidden = !card.hidden; };
   let seen = false;
   try { seen = localStorage.getItem(KEY) === '1'; } catch { /* storage unavailable: show it */ }
-  if (!seen) card.hidden = false;
+  // (?guide=0: a clean view for screenshots and talks)
+  if (!seen && new URLSearchParams(location.search).get('guide') !== '0') card.hidden = false;
 }

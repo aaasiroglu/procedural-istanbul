@@ -78,14 +78,14 @@
   <div class="kpi"><div class="v">9.025</div><div class="l">O-D çifti (75 H3 zonu + 20 geçit)</div></div>
   <div class="kpi"><div class="v">%95,5</div><div class="l">İBB hız segmentlerinin SUMO ağına eşlenme oranı</div></div>
   <div class="kpi"><div class="v">0,81</div><div class="l">talep düzeyinin veri payı: sayımlarla sabitlendi</div></div>
-  <div class="kpi"><div class="v">×0,30</div><div class="l">düzey çarpanı: arazi kullanımı prior'ı talebi ~3 kat yüksek veriyordu</div></div>
+  <div class="kpi"><div class="v">÷1,9</div><div class="l">toplam talep: prior 117,9 bin, sayımlarla 61,6 bin araç/sa</div></div>
 </div>
 
 <div class="key">
 <h4>Ana bulgular</h4>
 <ul>
   <li><strong>Sentetik şehirde</strong> (gerçek O-D bilinir) tahminci, sayılmayan linklerin akım hatasını GEH 5,6'dan 2,2'ye indirir; gerçek değerlerin %96'sı 2,5 standart hata içindedir. Tek tek O-D hücreleri ise belirlenemez ve bu açıkça raporlanır.</li>
-  <li><strong>Gerçek koridorda</strong> 23 İBB sayımı talebin toplam düzeyini sabitler (veri payı 0,81). Prior'ın düzeyi yaklaşık üç kat yüksektir; daha önce SUMO'da görülen kilitlenmenin kaynağı budur.</li>
+  <li><strong>Gerçek koridorda</strong> 23 İBB sayımı talebin toplam düzeyini sabitler (veri payı 0,81). Prior, koridora neredeyse iki kat fazla talep koyuyordu (117,9 bin yerine 61,6 bin araç/sa); daha önce SUMO'da görülen kilitlenmenin kaynağı budur.</li>
   <li><strong>İstanbulkart binişleri</strong>, sayımlardan bağımsız bir kaynak olarak koridor içi talep için aynı büyüklüğü verir.</li>
   <li><strong>Dışarıda bırakılan sayımlarda</strong> GEH &lt; 5 ölçütü (%85) henüz karşılanmıyor (%8,7). Düzey doğru, talebin zonlar arasındaki dağılımı zayıftır. Rapor bu olumsuz sonuçları ve nedenlerini de içerir.</li>
   <li><strong>Simülasyondan gerçeğe sinir ağı</strong> ilk sürümünde kullanılamaz durumdadır ve MAP tahmincisi bunu otomatik olarak yakalar: statik simülatör gerçek yavaşlamayı üretmiyor.</li>
@@ -270,7 +270,7 @@ min<sub>x ≥ 0</sub> &nbsp; Σ<sub>sayım</sub> ((Px)<sub>e</sub> − y<sub>e</
 <div class="two">
 <figure><img src="../sunum/img/dislanan-sayimlar.png" alt=""><figcaption><b>Şekil 8.</b> Her sayım tek tek dışarıda bırakıldığında modelin tahmini. Yeşil bant: GEH &lt; 5.</figcaption></figure>
 <div>
-<p><strong>Yorum.</strong> Arazi kullanımından kurulan prior, talebi yaklaşık üç kat yüksek gösteriyordu. Bu, sayımsız tahminin SUMO'da ağı kilitlemesinin (Bölüm 9) doğrudan açıklamasıdır. Düzey artık veriden gelir.</p>
+<p><strong>Yorum.</strong> Arazi kullanımından kurulan prior, toplam talebi neredeyse iki kat yüksek gösteriyordu (117,9 bine karşı 61,6 bin). Düzey çarpanı 0,30 tek başına daha büyük bir düşüş söyler; zon çarpanları bunun bir kısmını geri alır. Bu, sayımsız tahminin SUMO'da ağı kilitlemesinin (Bölüm 9) doğrudan açıklamasıdır. Düzey artık veriden gelir.</p>
 <p>Dışarıda bırakılan GEH ise talebin <strong>zonlar arasındaki dağılımının</strong> hâlâ zayıf olduğunu gösterir. En büyük sapmalar FSM Avrupa girişinde (model sayımın yaklaşık %60'ını taşıyabiliyor), O-2 sensörlerinde ve Maslak'tadır. Bunlar geçit prior'ının kaba olmasına ve sensör tanımlarına işaret eder.</p>
 <p class="small muted">Bu koşu farklı bir gün ve saate ait olduğu için Şekil 6'daki Cumartesi turlarıyla doğrudan karşılaştırılmamalıdır.</p>
 </div>

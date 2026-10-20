@@ -148,7 +148,7 @@ Pazartesi 11:30 canlı İBB hızları, Ekim 2024 Pazartesi 11:00–12:00 sayıml
 | Toplam talep | Prior 117.9 bin, tahmin 61.6 bin araç/sa |
 | GEH < 5 (ortalama) | Prior %4.3 (37.8), uyum %17.4 (12.2), dışarıda bırakılan %8.7 (22.9) |
 
-Arazi kullanımı prior'ı talebi yaklaşık üç kat yüksek gösteriyor; daha önce SUMO'da görülen kilitlenmenin kaynağı bu. Düzey artık veriden geliyor, ancak dışarıda bırakılan GEH, talebin zonlar arasındaki dağılımının hâlâ zayıf olduğunu gösteriyor. Saatler farklı olduğu için bu sonuç Cumartesi 17:00 turlarıyla doğrudan karşılaştırılmamalı.
+Arazi kullanımı prior'ı toplam talebi neredeyse iki kat yüksek gösteriyor (117.9 bin → 61.6 bin araç/sa; düzey çarpanı 0.30'un bir kısmını zon çarpanları geri alıyor); daha önce SUMO'da görülen kilitlenmenin kaynağı bu. Düzey artık veriden geliyor, ancak dışarıda bırakılan GEH, talebin zonlar arasındaki dağılımının hâlâ zayıf olduğunu gösteriyor. Saatler farklı olduğu için bu sonuç Cumartesi 17:00 turlarıyla doğrudan karşılaştırılmamalı.
 
 ### Çok kaynaklı çapalar: İstanbulkart (19 Ekim 2026)
 

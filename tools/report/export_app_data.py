@@ -208,8 +208,8 @@ def main() -> None:
     recs = []
     for b in top[:5]:
         recs.append({"kind": "bottleneck", "audience": "authority", "severity": "high" if b["v_c"] >= 1 else "medium",
-                     "title": f"{b['name']}: talep kapasitenin %{round(b['v_c'] * 100)} düzeyinde",
-                     "detail": f"Tahmini akım {tr(b['flow'])} araç/sa, kapasite {tr(b['capacity'])} araç/sa; seyahat süresi serbest akışın {tr(b['delay_ratio'], 1)} katı. Sinyal süreleri, şerit düzeni ya da paralel güzergâha yönlendirme ilk incelenecek yer.",
+                     "title": f"{b['name']}: modelde talep kapasitenin %{round(b['v_c'] * 100)} düzeyinde",
+                     "detail": f"Tahmini akım {tr(b['flow'])} araç/sa, kapasite {tr(b['capacity'])} araç/sa; seyahat süresi serbest akışın {tr(b['delay_ratio'], 1)} katı. Statik modelin sayısı abartabilir; yönü güvenilir: sinyal süreleri, şerit düzeni ya da paralel güzergâha yönlendirme ilk incelenecek yer.",
                      "basis": "link_flows.csv (bilevel tahmin, UE ataması, İBB 2020 BPR)", "where": b["shape"][len(b["shape"]) // 2]})
     if shadow:
         u, i = shadow["policies"]["unaware"], shadow["policies"]["informed"]
