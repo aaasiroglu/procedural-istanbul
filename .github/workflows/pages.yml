@@ -1,11 +1,15 @@
 name: site
 
-# Publishes docs/ (the project site, the technical report and the slides) to GitHub Pages.
+# Publishes docs/ (the project site, the technical report, the slides and the 3D twin in docs/app) to GitHub Pages.
+# Every hour it also fetches İBB's live traffic feed on the server (the browser cannot: İBB does not allow
+# cross-origin requests) and puts the copy beside the twin, so the published twin shows traffic at most an hour old.
 # One-time setup: repository Settings → Pages → Source: "GitHub Actions".
 on:
   push:
     branches: [main]
     paths: [docs/**, .github/workflows/pages.yml]
+  schedule:
+    - cron: "7 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -25,6 +29,15 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: İBB live traffic copy for the twin
+        run: |
+          mkdir -p docs/app/data/ibb
+          base=https://tkmservices.ibb.gov.tr/web/api/TrafficData
+          curl -sf --retry 3 --max-time 120 -o docs/app/data/ibb/traffic-index.json $base/v1/TrafficIndex_Sc1_Cont
+          curl -sf --retry 3 --max-time 120 -o docs/app/data/ibb/segment-data.json $base/v4/SegmentData
+          curl -sf --retry 3 --max-time 120 -o docs/app/data/ibb/segments.json $base/v3/Segments/0
+          ls -la docs/app/data/ibb
+        continue-on-error: true   # (if İBB is down, the twin is published without live colours rather than not at all)
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

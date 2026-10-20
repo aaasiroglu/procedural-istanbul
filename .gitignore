@@ -46,3 +46,6 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# İBB live data copy: fetched at each site build by .github/workflows/pages.yml
+docs/app/data/ibb/

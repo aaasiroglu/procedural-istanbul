@@ -20,7 +20,8 @@
     "sumo:net": "uv run --group sumo python tools/sumo/build_net.py",
     "sumo:map-ibb": "uv run --group sumo python tools/sumo/map_ibb.py",
     "sumo:smoke": "uv run --group sumo python tools/sumo/smoke_test.py",
-    "od:corridor": "uv run --group sumo python tools/od/corridor.py"
+    "od:corridor": "uv run --group sumo python tools/od/corridor.py",
+    "build:site": "vite build --outDir docs/app --emptyOutDir"
   },
   "license": "MIT",
   "dependencies": {

@@ -27,7 +27,7 @@
 - **Research contribution: demand from speeds.** İBB reports speeds, not vehicle counts. The inverse OD estimator treats each speed as a *censored* observation: free flow gives an upper bound, a queue gives a lower bound. It runs bilevel with user-equilibrium assignment and reports, for every OD pair, how much of the estimate comes from data and how much from the prior. Validation uses GEH on **held-out** counts only.
 - **Honest about what is not known.** Panels that still show illustrative values are labelled as such, negative results are reported, and the total demand level carries its own identification measure.
 
-**Project site:** [docs/index.html](docs/index.html) (GitHub Pages) · **Technical report (TR, PDF):** [docs/rapor/teknik_rapor.pdf](docs/rapor/teknik_rapor.pdf) · **Slides (TR / EN):** [docs/sunum](docs/sunum/README.md)
+**Live 3D twin:** https://aaasiroglu.github.io/procedural-istanbul/app/ · **Project site:** https://aaasiroglu.github.io/procedural-istanbul/ · **Technical report (TR, PDF):** [docs/rapor/teknik_rapor.pdf](docs/rapor/teknik_rapor.pdf) · **Slides (TR / EN):** [docs/sunum](docs/sunum/README.md)
 
 ## Mimari
 

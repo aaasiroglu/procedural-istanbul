@@ -204,20 +204,34 @@ const liveTraffic = { enabled: params.get('liveTraffic') !== '0', status: 'bağl
 const trafficLegend = document.getElementById('traffic-legend');
 trafficLegend.hidden = !liveTraffic.enabled;
 let trafficPoll, ibbSegments;
+// İBB's feed through the dev server's proxy (npm run dev); where there is none (the published site: İBB does not
+// allow cross-origin requests), the copy that the site's hourly build fetched beside the page (data/ibb/*.json).
+let ibbSource = 'proxy';
+const IBB = {
+  index: ['/api/ibb-traffic-index', 'data/ibb/traffic-index.json'],
+  data: ['/api/ibb-segment-data', 'data/ibb/segment-data.json'],
+  segments: ['/api/ibb-segments', 'data/ibb/segments.json'],
+};
+const ibbFetch = async (key, cache) => {
+  if (ibbSource === 'proxy') {
+    const r = await fetch(IBB[key][0], { cache }).catch(() => null);
+    if (r?.ok && (r.headers.get('content-type') || '').includes('json')) return r;
+    ibbSource = 'static';
+  }
+  return fetch(IBB[key][1], { cache: 'no-store' });
+};
 const refreshLiveTraffic = async () => {
   if (!liveTraffic.enabled) {
     traffic.clearLiveTrafficIndex(); traffic.clearLiveSegmentSpeeds(); liveTraffic.status = 'kapalı'; return;
   }
   try {
-    const [indexResponse, dataResponse] = await Promise.all([
-      fetch('/api/ibb-traffic-index', { cache: 'no-store' }),
-      fetch('/api/ibb-segment-data', { cache: 'no-store' }),
-    ]);
+    const indexResponse = await ibbFetch('index', 'no-store');
+    const dataResponse = await ibbFetch('data', 'no-store');
     if (!indexResponse.ok || !dataResponse.ok) throw new Error(`HTTP ${indexResponse.status}/${dataResponse.status}`);
     const [index, segmentData] = await Promise.all([indexResponse.json(), dataResponse.json()]);
     if (!Number.isFinite(Number(index.TI)) || !Array.isArray(segmentData.Data)) throw new Error('invalid response');
     if (!ibbSegments) {
-      const response = await fetch('/api/ibb-segments', { cache: 'force-cache' });
+      const response = await ibbFetch('segments', 'force-cache');
       if (!response.ok) throw new Error(`geometry HTTP ${response.status}`);
       ibbSegments = await response.json();
       traffic.attachLiveSegments(ibbSegments, proj.project, manifest.bounds);
@@ -227,7 +241,9 @@ const refreshLiveTraffic = async () => {
     const timestamp = new Date(segmentData.Date);
     const estimate = traffic.estimateLocalVehicleCount(controls.target);
     liveTraffic.status = `İndeks ${index.TI} · ${matched} yol · ${closed} kapalı · ≈${estimate} araç · ${timestamp.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`;
-    geoTwinUI?.updateLiveStatus(`Sıkışıklık %${index.TI} · ${matched} yol · ${closed} kapalı · ${timestamp.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`);
+    const at = timestamp.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+    if (ibbSource === 'static') liveTraffic.status += ' (saatlik kopya)';
+    geoTwinUI?.updateLiveStatus(`Sıkışıklık %${index.TI} · ${matched} yol · ${closed} kapalı · ${ibbSource === 'static' ? `${at} kaydı` : at}`);
   } catch (error) {
     // Robust offline fallback: calculate realistic diurnal traffic index for Istanbul based on time of day
     const h = clockTime.hour;
