@@ -440,6 +440,7 @@ export class Traffic {
   }
 
   updateTrafficOverlay() {
+    this.liveVersion = (this.liveVersion ?? 0) + 1; // (new live data or an incident: re-weight the lanes)
     const edges = [...new Set(this.graph.lanes.map((lane) => lane.edge))]
       .filter((edge) => edge.liveClass != null || edge.closed);
     const previous = this.liveOverlayEdges.map(({ edge }) => edge);
@@ -494,38 +495,55 @@ export class Traffic {
   rnd() { this.seed = (this.seed * 1664525 + 1013904223) >>> 0; return this.seed / 4294967296; }
 
   // A lane with some part within `radius` of the focus, picked by weight; null if the area has none.
+  // The lanes near the focus and their weights are kept (a cumulative table) until the focus moves on, the radius
+  // changes or the live data changes; a pick is then a binary search. Scanning all ~24,000 lanes on every pick cost
+  // about 100 ms a frame, since a frame places tens of cars.
   pick(focus, radius, filter) {
-    let best = null, bestKey = -1;
-    for (const l of this.graph.lanes) {
-      if (!filter(l)) continue;
-      const m = l.pts[l.pts.length >> 1];
-      if (Math.hypot(m.x - focus.x, m.z - focus.z) > radius) continue;
-
-      // Live traffic density factor: congested (red/orange) roads accumulate cars; free-flow (green) roads stay fluid.
-      let liveDensity = 1.0;
-      const liveClass = (l.liveClass ?? l.edge.liveClass);
-      if (liveClass != null) {
-        // 1: >60 km/h (green, fast) -> light density
-        // 2: 45-60 km/h (light green) -> normal light density
-        // 3: 30-45 km/h (orange, slowing) -> medium density
-        // 4: 15-30 km/h (red, heavy) -> high density / queue
-        // 5: <15 km/h (dark red, jam) -> very high density
-        const classWeights = { 1: 0.45, 2: 0.75, 3: 1.8, 4: 4.2, 5: 6.5 };
-        liveDensity = classWeights[liveClass] ?? 1.0;
-      } else if (l.liveSpeed != null && l.speed > 0) {
-        const ratio = THREE.MathUtils.clamp(l.liveSpeed / l.speed, 0.1, 1.2);
-        liveDensity = Math.max(0.4, 0.6 + (1 - ratio) * 4.5);
-      } else if (this.liveTrafficIndex != null) {
-        liveDensity = 0.6 + (this.liveTrafficIndex / 100) * 0.9;
+    const cell = 40;
+    const key = `${Math.round(focus.x / cell)},${Math.round(focus.z / cell)},${Math.round(radius)},${this.liveVersion ?? 0},${this.highway}`;
+    if (this.pickKey !== key) {
+      this.pickKey = key;
+      const lanes = [], cum = [];
+      let total = 0;
+      for (const l of this.graph.lanes) {
+        const m = l.pts[l.pts.length >> 1];
+        if (Math.hypot(m.x - focus.x, m.z - focus.z) > radius) continue;
+        const w = this.laneWeight(l);
+        if (!(w > 0)) continue;
+        total += w; lanes.push(l); cum.push(total);
       }
-
-      // On highways: if fluid (green), do not artificially over-pack cars (keep fluid); if congested, jam up.
-      const mwFactor = l.motorway ? (liveClass && liveClass <= 2 ? 1.6 : this.highway) : 1.0;
-      const weight = l.weight * Math.min(l.length, 120) * l.n * mwFactor * liveDensity;
-      const key = Math.pow(this.rnd(), 1 / Math.max(0.01, weight));
-      if (key > bestKey) { bestKey = key; best = l; }
+      this.pickTable = { lanes, cum, total };
     }
-    return best;
+    const { lanes, cum, total } = this.pickTable;
+    if (!lanes.length) return null;
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const r = this.rnd() * total;
+      let lo = 0, hi = cum.length - 1;
+      while (lo < hi) { const mid = (lo + hi) >> 1; if (cum[mid] < r) lo = mid + 1; else hi = mid; }
+      const l = lanes[lo];
+      if (!filter || filter(l)) return l;
+    }
+    return null;
+  }
+
+  // How likely a lane is to receive a new car: its size and importance, and how congested İBB says it is.
+  laneWeight(l) {
+    // Live traffic density factor: congested (red/orange) roads accumulate cars; free-flow (green) roads stay fluid.
+    let liveDensity = 1.0;
+    const liveClass = (l.liveClass ?? l.edge.liveClass);
+    if (liveClass != null) {
+      // 1 green (fast) -> light, 2 light green -> normal, 3 orange -> medium, 4 red -> queue, 5 dark red -> jam
+      const classWeights = { 1: 0.45, 2: 0.75, 3: 1.8, 4: 4.2, 5: 6.5 };
+      liveDensity = classWeights[liveClass] ?? 1.0;
+    } else if (l.liveSpeed != null && l.speed > 0) {
+      const ratio = THREE.MathUtils.clamp(l.liveSpeed / l.speed, 0.1, 1.2);
+      liveDensity = Math.max(0.4, 0.6 + (1 - ratio) * 4.5);
+    } else if (this.liveTrafficIndex != null) {
+      liveDensity = 0.6 + (this.liveTrafficIndex / 100) * 0.9;
+    }
+    // On highways: if fluid (green), do not artificially over-pack cars (keep fluid); if congested, jam up.
+    const mwFactor = l.motorway ? (liveClass && liveClass <= 2 ? 1.6 : this.highway) : 1.0;
+    return l.weight * Math.min(l.length, 120) * l.n * mwFactor * liveDensity;
   }
 
   spawnCar(car, focus) {
