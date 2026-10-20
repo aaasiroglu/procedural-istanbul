@@ -447,6 +447,11 @@ h3GridLayer = new H3UberGridLayer({
   streamer,
   zones: odData?.zones ?? null,
   onSelectHex: (cell) => {
+    try { selectHex(cell); } catch (error) { console.error('zone panel:', error); }
+  },
+});
+function selectHex(cell) {
+  {
     if (cell && h3GridLayer.visible) {
       const dir = hexOdAnalyticsDrawer ? hexOdAnalyticsDrawer.flowDirection : 'outflow';
       odFlowArcsLayer.updateArcs(currentOdSolution.corridors, cell.id, dir, tazLookup);
@@ -460,8 +465,8 @@ h3GridLayer = new H3UberGridLayer({
         hexOdAnalyticsDrawer.close();
       }
     }
-  },
-});
+  }
+}
 
 const odSolver = realOd ? null : new InverseOdSolver(h3GridLayer.hexCells);
 // (the real estimate is one snapshot: hour and scenario controls do not change it)

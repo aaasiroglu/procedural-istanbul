@@ -501,10 +501,14 @@ export class HexOdAnalyticsDrawer {
       return;
     }
     this.el.querySelector('#hod-taz-name').textContent = this.selectedTaz.name;
-    this.el.querySelector('#hod-taz-sub').textContent = `Bölge: ${this.selectedTaz.district} • H3: ${this.selectedTaz.id.slice(0, 14)} • Pop: ${this.selectedTaz.population.toLocaleString()}`;
+    const z = this.selectedTaz, n = (v) => (v == null ? '—' : Math.round(v).toLocaleString('tr-TR'));
+    // (the estimate's real zones carry trips, not population or district: say what they have)
+    this.el.querySelector('#hod-taz-sub').textContent = z.real
+      ? `${z.sector} • ${z.kind === 'gateway' ? 'Geçit' : 'H3'}: ${String(z.id).slice(0, 15)} • üretim ${n(z.outflow)} / çekim ${n(z.inflow)} araç/sa`
+      : `Bölge: ${z.district ?? z.sector ?? '—'} • H3: ${String(z.id).slice(0, 14)} • Pop: ${n(z.population ?? z.pop)}`;
 
     // Update MFD operating point on SVG
-    const k = this.selectedTaz.densityVehKm || 35;
+    const k = this.selectedTaz.densityVehKm || this.selectedTaz.densityK || 35;
     const mfdDot = this.el.querySelector('#hod-mfd-dot');
     const mfdLabel = this.el.querySelector('#hod-mfd-label');
     const normK = Math.min(1.0, k / 140.0);
@@ -520,16 +524,17 @@ export class HexOdAnalyticsDrawer {
   }
 
   updateKpis() {
-    const flowVal = this.selectedTaz
-      ? (this.flowDirection === 'outflow' ? this.selectedTaz.productionO : this.selectedTaz.attractionA)
-      : 34500;
-    this.el.querySelector('#hod-kpi-flow').textContent = flowVal.toLocaleString();
+    const z = this.selectedTaz;
+    const flowVal = z
+      ? (this.flowDirection === 'outflow' ? (z.productionO ?? z.outflow) : (z.attractionA ?? z.inflow))
+      : null;
+    this.el.querySelector('#hod-kpi-flow').textContent = flowVal == null ? '—' : Math.round(flowVal).toLocaleString('tr-TR');
 
     const gehVal = this.gehReport ? `%${this.gehReport.screenlinesUnder5Pct}` : '—';
     this.el.querySelector('#hod-kpi-geh').textContent = gehVal;
 
-    const co2Val = this.selectedTaz ? this.selectedTaz.co2GPerKm : 185.0;
-    this.el.querySelector('#hod-kpi-co2').textContent = co2Val;
+    const co2Val = this.selectedTaz ? (this.selectedTaz.co2GPerKm ?? this.selectedTaz.co2Rate) : null;
+    this.el.querySelector('#hod-kpi-co2').textContent = co2Val == null ? '—' : co2Val;
   }
 
   renderCorridors() {
@@ -565,7 +570,7 @@ export class HexOdAnalyticsDrawer {
           ${c.congestedMinutes}m
         </td>
         <td style="text-align: right; font-family: monospace; color: #38bdf8; font-weight: 600;">
-          ₺${c.zTotalCostTL.toLocaleString()}
+          ₺${Math.round(c.zTotalCostTL ?? 0).toLocaleString('tr-TR')}
         </td>
       `;
 
