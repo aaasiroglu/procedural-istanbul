@@ -15,10 +15,10 @@ Yeniden üretmek için:
 
 ```bash
 uv run --with matplotlib python tools/report/figures.py
-npx @marp-team/marp-cli@3.4.0 docs/sunum/SUNUM.md --html --pdf --allow-local-files -o docs/sunum/sunum.pdf
-npx @marp-team/marp-cli@3.4.0 docs/sunum/SUNUM.md --html -o docs/sunum/sunum.html
-npx @marp-team/marp-cli@3.4.0 docs/sunum/SUNUM_EN.md --html --pdf --allow-local-files -o docs/sunum/sunum_en.pdf
-npx @marp-team/marp-cli@3.4.0 docs/sunum/SUNUM_EN.md --html -o docs/sunum/sunum_en.html
+npx --offline @marp-team/marp-cli@3.4.0 docs/sunum/SUNUM.md --html --pdf --allow-local-files -o docs/sunum/sunum.pdf
+npx --offline @marp-team/marp-cli@3.4.0 docs/sunum/SUNUM.md --html -o docs/sunum/sunum.html
+npx --offline @marp-team/marp-cli@3.4.0 docs/sunum/SUNUM_EN.md --html --pdf --allow-local-files -o docs/sunum/sunum_en.pdf
+npx --offline @marp-team/marp-cli@3.4.0 docs/sunum/SUNUM_EN.md --html -o docs/sunum/sunum_en.html
 ```
 
 `--html` gereklidir: slaytlar iki ve üç sütunlu düzen için satır içi HTML kullanır.

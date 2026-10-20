@@ -281,7 +281,7 @@ This result directly motivates measuring the level of demand separately (Contrib
 
 - An anchor constrains **a sum over the OD matrix**, not a link: one direction of the bridge, the trips a group of zones produces.
 - **İstanbulkart:** 11,764 boardings between 11:00 and 12:00 at 31 rail and Metrobüs stops in the corridor.
-- The counts had cut the corridor zones' production from 57.4 k to **15.6 k**; the independent İstanbulkart anchor (11.8 ± 11.9 k) **agrees**.
+- The counts had cut the corridor zones' production from 57.4 k to **15.6 k**; the İstanbulkart anchor (11.8 ± 11.9 k) shows the **same order of magnitude**. The boarding-to-car ratio is an assumption: a **rough plausibility check**, not a confirmation.
 
 </div>
 <div>

@@ -30,7 +30,7 @@ Genel bir izleyici için sade dil: az rakam, teknik terim yok. Ders sunumuyla ([
 
 **[Slide 11 · From data to advice]** And all of this becomes simple advice inside the 3D city. It shows which roads are overloaded, in red, what to do if a road closes, and which counters should be checked. Click on one, and the camera flies there.
 
-**[Slide 12 · What works, what not yet]** So, what works today? The 3D city, the total amount of traffic, the honest checks, and the 'what if' simulator. The metro card data also agreed with our counts. What is not ready yet? Knowing exactly where every car goes, and a faster AI version, which did not pass our own quality check, so we do not use it yet.
+**[Slide 12 · What works, what not yet]** So, what works today? The 3D city, the total amount of traffic, the honest checks, and the 'what if' simulator. As a rough check, metro card use is about the same size as our estimate, though that rests on an assumption. What is not ready yet? Knowing exactly where every car goes, and a faster AI version, which did not pass our own quality check, so we do not use it yet.
 
 **[Slide 13 · Try it yourself]** You can try it yourself right now. Scan the left code to open the 3D city; it works best on a laptop. The right code opens our website, where every term is explained in simple words.
 
@@ -64,7 +64,7 @@ Genel bir izleyici için sade dil: az rakam, teknik terim yok. Ders sunumuyla ([
 
 **[Slayt 11 · From data to advice]** Ve bütün bunlar 3D şehrin içinde basit önerilere dönüşüyor. Hangi yolların aşırı yüklü olduğunu kırmızıyla, bir yol kapanırsa ne yapılacağını ve hangi sayaçların kontrol edilmesi gerektiğini gösteriyor. Birine tıklayınca kamera oraya uçuyor.
 
-**[Slayt 12 · What works, what not yet]** Peki bugün ne çalışıyor? 3D şehir, toplam trafik miktarı, dürüst kontroller ve 'ya şöyle olursa' simülatörü. İstanbulkart verisi de sayımlarımızla uyuştu. Henüz hazır olmayan ne? Her arabanın tam olarak nereye gittiğini bilmek ve daha hızlı bir yapay zekâ sürümü; bu sürüm kendi kalite kontrolümüzden geçemedi, o yüzden henüz kullanmıyoruz.
+**[Slayt 12 · What works, what not yet]** Peki bugün ne çalışıyor? 3D şehir, toplam trafik miktarı, dürüst kontroller ve 'ya şöyle olursa' simülatörü. Kaba bir kontrol olarak İstanbulkart kullanımı da tahminimizle aynı büyüklükte; ama bu bir varsayıma dayanıyor. Henüz hazır olmayan ne? Her arabanın tam olarak nereye gittiğini bilmek ve daha hızlı bir yapay zekâ sürümü; bu sürüm kendi kalite kontrolümüzden geçemedi, o yüzden henüz kullanmıyoruz.
 
 **[Slayt 13 · Try it yourself]** Şimdi kendiniz deneyebilirsiniz. Soldaki karekodu okutursanız 3D şehir açılır; dizüstü bilgisayarda daha iyi çalışır. Sağdaki karekod ise her terimin sade bir dille anlatıldığı web sitemizi açar.
 

@@ -280,7 +280,7 @@ Bu sonuç, talep düzeyinin ayrıca ölçülmesini (Katkı 3) doğrudan motive e
 
 - Çapa, bir linki değil **doğrudan bir O-D toplamını** kısıtlar: köprünün bir yönü, bir zon grubunun ürettiği yolculuklar.
 - **İstanbulkart:** koridordaki 31 raylı sistem ve metrobüs durağında 11:00–12:00'de 11.764 biniş.
-- Sayımlar koridor zonlarının üretimini 57,4 binden **15,6 bine** indirmişti; bağımsız İstanbulkart çapası (11,8 ± 11,9 bin) **bununla tutarlı**.
+- Sayımlar koridor zonlarının üretimini 57,4 binden **15,6 bine** indirmişti; İstanbulkart çapası (11,8 ± 11,9 bin) bunun **aynı büyüklükte** olduğunu gösteriyor. Biniş/otomobil oranı varsayım: bu doğrulama değil, **kaba bir makullük kontrolü**.
 
 </div>
 <div>

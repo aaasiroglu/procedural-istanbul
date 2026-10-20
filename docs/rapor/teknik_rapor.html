@@ -86,7 +86,7 @@
 <ul>
   <li><strong>Sentetik şehirde</strong> (gerçek O-D bilinir) tahminci, sayılmayan linklerin akım hatasını GEH 5,6'dan 2,2'ye indirir; gerçek değerlerin %96'sı 2,5 standart hata içindedir. Tek tek O-D hücreleri ise belirlenemez ve bu açıkça raporlanır.</li>
   <li><strong>Gerçek koridorda</strong> 23 İBB sayımı talebin toplam düzeyini sabitler (veri payı 0,81). Prior, koridora neredeyse iki kat fazla talep koyuyordu (117,9 bin yerine 61,6 bin araç/sa); daha önce SUMO'da görülen kilitlenmenin kaynağı budur.</li>
-  <li><strong>İstanbulkart binişleri</strong>, sayımlardan bağımsız bir kaynak olarak koridor içi talep için aynı büyüklüğü verir.</li>
+  <li><strong>İstanbulkart binişleri</strong> kaba bir makullük kontrolü sağlar: sayımlardan sonraki koridor içi talep toplu taşıma kullanımıyla aynı büyüklüktedir, ilk tahmin değildi. Biniş/otomobil oranı varsayım olduğu için bu bir doğrulama değildir.</li>
   <li><strong>Dışarıda bırakılan sayımlarda</strong> GEH &lt; 5 ölçütü (%85) henüz karşılanmıyor (%8,7). Düzey doğru, talebin zonlar arasındaki dağılımı zayıftır. Rapor bu olumsuz sonuçları ve nedenlerini de içerir.</li>
   <li><strong>Simülasyondan gerçeğe sinir ağı</strong> ilk sürümünde kullanılamaz durumdadır ve MAP tahmincisi bunu otomatik olarak yakalar: statik simülatör gerçek yavaşlamayı üretmiyor.</li>
   <li><strong>Gölge simülasyon</strong>, bir kapanma anında SUMO durumunu çatallayıp müdahale politikalarını gerçek zamandan hızlı yarıştırır.</li>
@@ -286,7 +286,7 @@ min<sub>x ≥ 0</sub> &nbsp; Σ<sub>sayım</sub> ((Px)<sub>e</sub> − y<sub>e</
 <tr><td>Düzeyin veri payı</td><td>0,807</td><td>0,815</td></tr>
 <tr><td>Dışarıda bırakılan ortalama GEH</td><td>22,86</td><td>22,71</td></tr>
 </table>
-<p><strong>Sonuç:</strong> sayımlardan tamamen bağımsız bir kaynak, sayımların koridor içi talep için söylediği büyüklüğü doğrular. Oran hanehalkı anketinin zon bazındaki mod payından alındığında çapa güçlenecektir. Köprünün yön bazlı KGM sayımı aynı yoldan girer (<code>--bridge-eu-as</code>, <code>--bridge-as-eu</code>); bu veri henüz elde edilmedi.</p>
+<p><strong>Sonuç:</strong> bu bir doğrulama değil, kaba bir makullük kontrolüdür. Biniş ile otomobil yolculuğu arasındaki 1:1 oran bir varsayımdır ve binişler aktarmaları ve koridordan geçen yolcuları da içerir; bu yüzden "uyum" büyük ölçüde varsayımın kendisinden gelir. Geniş belirsizlikle söyleyebildiği şudur: sayımlardan sonraki tahmin (15,6 bin) toplu taşıma kullanımıyla aynı büyüklüktedir, ilk tahmin (57,4 bin, binişlerin yaklaşık 5 katı) değildi. Gerçek bir sağlama için oran hanehalkı anketinin zon bazındaki ulaşım türü paylarından alınmalı ve aktarma binişleri ayrılmalıdır. Köprünün yön bazlı KGM sayımı aynı yoldan girer (<code>--bridge-eu-as</code>, <code>--bridge-as-eu</code>); bu veri henüz elde edilmedi.</p>
 
 <h2>9. Dinamik sınama ve gölge simülasyon</h2>
 <h3>9.1 Tahminin SUMO'da koşturulması</h3>

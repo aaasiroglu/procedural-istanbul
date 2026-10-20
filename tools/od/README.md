@@ -166,7 +166,7 @@ uv run --group sumo python tools/od/corridor.py --area=koridor --speeds data/od/
 | Düzeyin veri payı | 0.807 | 0.815 |
 | Dışarıda bırakılan GEH (ortalama) | 22.86 | 22.71 |
 
-Sayımlardan bağımsız bir kaynak, sayımların koridor içi talep için söylediğini doğruluyor. Oran hanehalkı anketinin zon bazındaki mod payından alınırsa çapa güçlenir. Köprünün yön bazlı sayımı (KGM) `--bridge-eu-as` ve `--bridge-as-eu` ile aynı yoldan girer; bu veri henüz elimizde yok.
+Bu bir doğrulama değil, kaba bir makullük kontrolü. Biniş ile otomobil yolculuğu arasındaki 1:1 oran bir varsayım, binişler aktarmaları ve koridordan geçen yolcuları da içeriyor; 'uyum' büyük ölçüde bu varsayımdan geliyor. Geniş belirsizlikle söyleyebildiği tek şey şu: sayımlardan sonraki tahmin (15.6 bin) toplu taşıma kullanımıyla aynı büyüklükte, ilk tahmin (57.4 bin, binişlerin ~5 katı) değildi. Gerçek bir sağlama için oran, hanehalkı anketinin zon bazındaki ulaşım türü paylarından alınmalı ve aktarma binişleri ayrılmalı. Köprünün yön bazlı sayımı (KGM) `--bridge-eu-as` ve `--bridge-as-eu` ile aynı yoldan girer; bu veri henüz elimizde yok.
 
 ### Simülasyondan gerçeğe ters çözücü: ilk deneme (19 Ekim 2026)
 
