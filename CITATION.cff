@@ -1,0 +1,34 @@
+cff-version: 1.2.0
+message: "If you use this software or its method, please cite it as below."
+title: "Procedural Istanbul: origin–destination estimation from censored speed observations and an open traffic digital twin of Istanbul"
+type: software
+authors:
+  - family-names: "Aşıroğlu"
+    given-names: "Abdurrahim Arif"
+    email: "aaasiroglu@outlook.com"
+repository-code: "https://github.com/aaasiroglu/procedural-istanbul"
+url: "https://aaasiroglu.github.io/procedural-istanbul/"
+license: MIT
+date-released: "2026-10-21"
+keywords:
+  - traffic
+  - digital twin
+  - origin-destination estimation
+  - inverse problem
+  - SUMO
+  - Istanbul
+  - open data
+  - Three.js
+abstract: >-
+  A browser-based 3D digital twin of Istanbul's Maslak – 15 July Bridge corridor built from open data, with a transport
+  model that estimates origin–destination demand from İBB's live road speeds. Speeds enter as censored (one-sided)
+  observations, every estimate reports its data share, the level of demand has its own identification measure, and
+  validation uses held-out counts only. A shadow simulation forks SUMO's state at an incident to compare responses.
+references:
+  - type: software
+    title: "Tokyo: a procedural 3D city in the browser"
+    authors:
+      - family-names: "Su"
+        given-names: "Yong"
+    repository-code: "https://github.com/jeantimex/tokyo"
+    notes: "The 3D engine this project's client is derived from (MIT)."

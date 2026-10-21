@@ -1,0 +1,21 @@
+name: Bug
+description: Something does not work (the 3D twin, a script, the site)
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: URL (with parameters) or the command you ran.
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: Browser and OS for the 3D twin; Python, Node and OS for the scripts. Console output helps a lot.

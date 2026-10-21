@@ -1,0 +1,16 @@
+name: Data question
+description: A number that looks wrong, or a question about a data source or a result
+labels: [data]
+body:
+  - type: textarea
+    id: number
+    attributes:
+      label: Which number, and where
+      description: For example a counter in the recommendations panel, a figure in the report, a value in summary.json.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it looks wrong
+      description: What you would expect instead, and on what basis.

@@ -2,7 +2,28 @@
   "name": "procedural-istanbul",
   "version": "0.1.0",
   "private": true,
-  "description": "A real-time 3D Istanbul in the browser, compiled from public data with procedural detail",
+  "description": "An open traffic digital twin of Istanbul in the browser, with a model that estimates travel demand from road speeds",
+  "author": "Abdurrahim Arif Aşıroğlu <aaasiroglu@outlook.com>",
+  "homepage": "https://aaasiroglu.github.io/procedural-istanbul/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aaasiroglu/procedural-istanbul.git"
+  },
+  "bugs": {
+    "url": "https://github.com/aaasiroglu/procedural-istanbul/issues"
+  },
+  "keywords": [
+    "istanbul",
+    "digital-twin",
+    "traffic",
+    "threejs",
+    "sumo",
+    "origin-destination",
+    "open-data"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",

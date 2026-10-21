@@ -1,0 +1,16 @@
+name: Feature or idea
+description: Propose an improvement to the twin, the model or the documentation
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What should change, and who it helps.
+    validations:
+      required: true
+  - type: textarea
+    id: approach
+    attributes:
+      label: Possible approach
+      description: Optional. Files or modules involved, data needed.
