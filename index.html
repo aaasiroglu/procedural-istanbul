@@ -36,16 +36,6 @@
       #traffic-legend[hidden] { display: none; }
       #traffic-legend .item { display: flex; align-items: center; gap: 7px; }
       #traffic-legend .swatch { width: 18px; height: 5px; flex: none; border-radius: 1px; }
-      #incident-ticker {
-        position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 1000;
-        background: rgba(185, 28, 28, 0.92); color: #fff; padding: 8px 18px; border-radius: 24px;
-        font: 13px system-ui, sans-serif; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-        display: none; align-items: center; gap: 8px; border: 1px solid rgba(255, 255, 255, 0.25);
-        pointer-events: auto; backdrop-filter: blur(4px);
-      }
-      #incident-ticker.success { background: rgba(16, 185, 129, 0.94); }
-      #incident-ticker.warning { background: rgba(217, 119, 6, 0.94); }
-      #incident-ticker.danger { background: rgba(220, 38, 38, 0.96); }
 
       /* ==========================================================================
          GEO-TWIN EXECUTIVE COMMAND CENTER & ERGONOMIC UI
@@ -362,7 +352,6 @@
       <div class="bar"><div class="fill"></div></div>
       <div class="step">başlıyor…</div>
     </div>
-    <div id="incident-ticker"></div>
     <script>
       // The city's name goes on the loading screen before anything else runs, so it never changes under the eye.
       (function () {

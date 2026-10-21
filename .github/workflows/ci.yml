@@ -18,3 +18,14 @@ jobs:
       - run: npm run build       # the browser client bundles
       - uses: astral-sh/setup-uv@v5
       - run: uv run python tools/od/test_odme.py   # inverse OD on a synthetic city
+
+  reproduce:
+    # the reference corridor estimate, from the committed snapshot (data/snapshot/koridor): no downloads
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4   # (corridor.py reads the area's bounds from tools/pipeline/config.mjs)
+        with:
+          node-version: 20
+      - uses: astral-sh/setup-uv@v5
+      - run: uv run --group sumo python tools/od/reproduce.py

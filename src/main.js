@@ -21,17 +21,9 @@ import { createBirds, MAX_BIRDS } from './world/birds.js';
 import { loadBackdrop } from './world/backdrop.js';
 import { WaterMirror } from './world/mirror.js';
 import { LampLight, installLampLight } from './world/lamplight.js';
-import { TransitSystem } from './world/transit.js';
-import { LivingVRPManager } from './world/vrp.js';
-import { AgenticOrchestrator } from './world/agentic.js';
-import { NaturalIncidentEngine, findNearestLandmark } from './world/nlp_incident.js';
 import { GeoTwinUI } from './world/ui.js';
 import { H3UberGridLayer } from './world/h3UberGrid.js';
 import { OdFlowArcsLayer } from './world/odFlowArcsLayer.js';
-import { InverseOdSolver } from './world/inverseOdSolver.js';
-import { initIstanbul36TazGrid } from './world/h3HexTazEngine.js';
-import { RoadHeatmapLayer } from './world/roadHeatmapLayer.js';
-import { TrafficAnalyticsDashboard } from './world/trafficAnalyticsDashboard.js';
 import { HexOdAnalyticsDrawer } from './world/hexOdAnalyticsDrawer.js';
 import { RecommendationsPanel } from './world/recommendationsPanel.js';
 import { installWelcomeGuide } from './world/welcomeGuide.js';
@@ -167,10 +159,6 @@ if (manifest.structures) scene.add(await buildStructures(`tiles/${AREA}/${manife
 const traffic = new Traffic(await (await fetch(`tiles/${AREA}/${manifest.roads}`)).json(), streamer.surface);
 if (params.get('cars') != null) traffic.count = Math.min(MAX_CARS, Number(params.get('cars')) || 0);
 if (params.get('traffic') !== '0') scene.add(traffic.group);
-const transit = new TransitSystem(scene, proj, streamer.surface);
-const vrpManager = new LivingVRPManager(scene, traffic, streamer.surface, proj);
-const agentic = new AgenticOrchestrator(traffic, transit, vrpManager);
-const naturalIncident = new NaturalIncidentEngine(scene, traffic, transit, vrpManager, agentic, proj, streamer.surface);
 
 // Floating Holographic Landmark Tags for Istanbul Corridor
 const landmarks = [
@@ -190,16 +178,6 @@ for (const lm of landmarks) {
 }
 scene.add(landmarksGroup);
 landmarksGroup.visible = false;
-const incidentTicker = document.getElementById('incident-ticker');
-let tickerTimer;
-transit.onIncidentChange((msg, type) => {
-  if (!incidentTicker) return;
-  incidentTicker.textContent = msg;
-  incidentTicker.className = type;
-  incidentTicker.style.display = 'flex';
-  clearTimeout(tickerTimer);
-  tickerTimer = setTimeout(() => { incidentTicker.style.display = 'none'; }, 9000);
-});
 const liveTraffic = { enabled: params.get('liveTraffic') !== '0', status: 'bağlanıyor' };
 const trafficLegend = document.getElementById('traffic-legend');
 trafficLegend.hidden = !liveTraffic.enabled;
@@ -329,37 +307,8 @@ let guiState, clockText, geoTwinUI, gui;
   });
   liveFolder.add(liveTraffic, 'status').name('son güncelleme').listen().disable();
 
-  const incidentFolder = gui.addFolder('Olay senaryoları (gösterim)');
-  const incidentActions = {
-    köprü_kaza: () => transit.triggerIncident('bridge-closure', traffic),
-    metrobüs_arıza: () => transit.triggerIncident('metrobus-jam', traffic),
-    gayrettepe_metro: () => transit.triggerIncident('metro-breakdown', traffic),
-    levent_yol_çalışması: () => transit.triggerIncident('levent-work', traffic),
-    sıfırla: () => {
-      transit.resolveIncident('bridge-closure', traffic);
-      transit.resolveIncident('metrobus-jam', traffic);
-      transit.resolveIncident('metro-breakdown', traffic);
-      transit.resolveIncident('levent-work', traffic);
-    },
-  };
-  incidentFolder.add(incidentActions, 'köprü_kaza').name('Köprü bağlantısında kaza');
-  incidentFolder.add(incidentActions, 'metrobüs_arıza').name('Mecidiyeköy metrobüs arızası');
-  incidentFolder.add(incidentActions, 'gayrettepe_metro').name('Gayrettepe metro arızası');
-  incidentFolder.add(incidentActions, 'levent_yol_çalışması').name('Büyükdere Caddesi yol çalışması');
-  incidentFolder.add(incidentActions, 'sıfırla').name('Tüm olayları kaldır');
 
-  const agenticFolder = gui.addFolder('Paneller ve katmanlar');
-  const agenticControls = {
-    hud: true,
-    vrpRoutes: true,
-    landmarks: true,
-    whatIfBenchmark: () => transit.triggerIncident('bridge-closure', traffic),
-  };
-  agenticFolder.add(agenticControls, 'hud').name('komuta paneli (gösterim)').onChange((v) => agentic.toggleVisibility(v));
-  agenticFolder.add(agenticControls, 'vrpRoutes').name('filo rotaları (gösterim)').onChange((v) => vrpManager.setRoutesVisible(v));
-  agenticFolder.add(agenticControls, 'landmarks').name('yer adları').onChange((v) => { landmarksGroup.visible = v; });
-  agenticFolder.add(agenticControls, 'whatIfBenchmark').name('köprü kapanması senaryosu');
-
+  gui.add(landmarksGroup, 'visible').name('yer adları');
   gui.add(traffic, 'count', 0, MAX_CARS, 10).name('en fazla araç');
   gui.add(traffic, 'highway', 0, 20, 0.5).name('otoyol trafiği');
   gui.add(traffic, 'headlights', 0, 20, 0.5).name('far parlaklığı');
@@ -418,12 +367,9 @@ let guiState, clockText, geoTwinUI, gui;
 // ---------------------------------------------------------------- H3 TAZ & Traffic Analytics Engine
 let h3GridLayer;
 let odFlowArcsLayer;
-let roadHeatmapLayer;
-let trafficAnalyticsDashboard;
 let hexOdAnalyticsDrawer;
 
-// The OD estimate behind the panels (tools/report/export_app_data.py); without it the panels fall back to the
-// gravity prior below, which is fitted to no observation.
+// The OD estimate behind the panels (tools/report/export_app_data.py); without it the zones are drawn empty.
 const odData = await fetch(`data/od/${AREA}.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
 const zoneName = new Map((odData?.zones ?? []).map((z) => [z.id, z.kind === 'gateway' ? `Geçit ${z.id} (${z.name || 'sınır'})` : `H3 ${z.id.slice(0, 9)}…`]));
 const VALUE_OF_TIME_TL_H = 150; // (an assumption, for the corridor cost column only)
@@ -439,7 +385,6 @@ const realOd = odData && {
   gehReport: { screenlinesUnder5Pct: Number(odData.validation.held_out.under5_pct.toFixed(1)), meanGeh: odData.validation.held_out.mean },
 };
 odFlowArcsLayer = new OdFlowArcsLayer({ scene, proj, streamer });
-roadHeatmapLayer = new RoadHeatmapLayer({ scene, traffic, streamer });
 
 h3GridLayer = new H3UberGridLayer({
   scene,
@@ -468,10 +413,8 @@ function selectHex(cell) {
   }
 }
 
-const odSolver = realOd ? null : new InverseOdSolver(h3GridLayer.hexCells);
-// (the real estimate is one snapshot: hour and scenario controls do not change it)
-const solveOd = (hour, scenario) => realOd ?? odSolver.solveInverseOdMatrix(hour, scenario);
-let currentOdSolution = solveOd(clockTime.hour);
+// (the estimate is one snapshot: changing the hour does not change it)
+const currentOdSolution = realOd ?? { corridors: [], gehReport: null };
 
 // The recommendation panel and the real-data switches, near the top of the settings panel
 const focusOn = (x, z) => {
@@ -502,7 +445,6 @@ hexOdAnalyticsDrawer = new HexOdAnalyticsDrawer({
   onHourChange: (hour) => {
     clockTime.live = false;
     clockTime.hour = hour;
-    currentOdSolution = solveOd(hour, trafficAnalyticsDashboard?.scenario);
     if (h3GridLayer.selectedHexId) {
       odFlowArcsLayer.updateArcs(currentOdSolution.corridors, h3GridLayer.selectedHexId, hexOdAnalyticsDrawer.flowDirection, tazLookup);
     }
@@ -522,69 +464,10 @@ hexOdAnalyticsDrawer = new HexOdAnalyticsDrawer({
       controls.update();
     }
   },
-  onTriggerChaos: () => {
-    transit.triggerIncident('bridge-closure', traffic);
-    if (roadHeatmapLayer) roadHeatmapLayer.updateColors(true);
-  },
 });
 
-let isRoutePinPicking = false;
-let routePinStep = 0;
-let tempRoutePointA = null;
-
-trafficAnalyticsDashboard = new TrafficAnalyticsDashboard({
-  h3GridLayer,
-  roadHeatmapLayer,
-  odArcsLayer: odFlowArcsLayer,
-  traffic,
-  controls,
-  camera,
-  streamer,
-  proj,
-  scene,
-  onStartPinPicking: () => {
-    isRoutePinPicking = true;
-    routePinStep = 0;
-    tempRoutePointA = null;
-    const banner = document.getElementById('pin-instruction-banner');
-    if (banner) {
-      const pText = banner.querySelector('.p-text');
-      if (pText) pText.textContent = '📍 [1/2] Başlangıç Noktası (A) için haritaya tıklayın...';
-      banner.style.display = 'flex';
-    }
-  },
-  onWeatherActuate: (weather, directives) => {
-    if (weather === 'heavy_rain') {
-      atmosphere.cloudsOn = true;
-      atmosphere.coverage = 0.95;
-      scene.fog = new THREE.FogExp2(0x1e293b, 0.0012);
-    } else if (weather === 'heavy_snow') {
-      atmosphere.cloudsOn = true;
-      atmosphere.coverage = 0.98;
-      scene.fog = new THREE.FogExp2(0xe2e8f0, 0.0016);
-    } else if (weather === 'dense_fog') {
-      atmosphere.cloudsOn = true;
-      atmosphere.coverage = 0.85;
-      scene.fog = new THREE.FogExp2(0x94a3b8, 0.0035);
-    } else {
-      scene.fog = null;
-      atmosphere.coverage = 0.25;
-    }
-    currentOdSolution = solveOd(trafficAnalyticsDashboard.selectedHour, trafficAnalyticsDashboard.scenario);
-    if (h3GridLayer.selectedHexId) {
-      odFlowArcsLayer.updateArcs(currentOdSolution.corridors, h3GridLayer.selectedHexId, hexOdAnalyticsDrawer.flowDirection, tazLookup);
-      hexOdAnalyticsDrawer.updateData(h3GridLayer.selectedHex, currentOdSolution.corridors, currentOdSolution.gehReport);
-    }
-  },
-});
-
-let isPinPicking = false;
 geoTwinUI = new GeoTwinUI({
-  transit,
   traffic,
-  vrpManager,
-  agentic,
-  naturalIncident,
   clockTime,
   controls,
   camera,
@@ -592,10 +475,6 @@ geoTwinUI = new GeoTwinUI({
   landmarksGroup,
   proj,
   state: guiState,
-  gui,
-  onTogglePinMode: (active) => {
-    isPinPicking = active;
-  },
   onToggleH3Taz: (forceVal) => {
     const vis = typeof forceVal === 'boolean' ? (h3GridLayer.setVisible(forceVal), forceVal) : h3GridLayer.toggleVisible();
     if (!vis) {
@@ -604,30 +483,12 @@ geoTwinUI = new GeoTwinUI({
     }
     return vis;
   },
-  onOpenOdDrawer: () => {
-    const cell = h3GridLayer.selectedHex || h3GridLayer.hexCells[0];
-    if (hexOdAnalyticsDrawer) {
-      hexOdAnalyticsDrawer.toggle(cell, currentOdSolution.corridors, currentOdSolution.gehReport);
-      if (hexOdAnalyticsDrawer.isOpen && !h3GridLayer.visible) {
-        h3GridLayer.setVisible(true);
-      }
-    }
-  },
   onSelectHexMetric: (metric) => {
     h3GridLayer.setMetric(metric);
   },
   onOpenRecommendations: recsPanel ? () => recsPanel.toggle() : null,
-  onOpenAnalyticsDashboard: () => {
-    trafficAnalyticsDashboard.toggle();
-  },
-  onToggleRoadHeatmap: (v) => {
-    roadHeatmapLayer.setVisible(v);
-  },
   onToggleOdArcs: (v) => {
     odFlowArcsLayer.setVisible(v);
-  },
-  onToggleRouteRibbon: (v) => {
-    trafficAnalyticsDashboard.router.setVisible(v);
   },
 });
 if (params.get('recs') === '1') recsPanel?.setOpen(true); // (?recs=1: open with the recommendations shown)
@@ -637,8 +498,6 @@ installWelcomeGuide({
   onOpenRecommendations: () => recsPanel?.setOpen(true),
   onShowZones: () => h3GridLayer.setVisible(true),
 });
-
-
 
 // ---------------------------------------------------------------- input
 const keys = new Set();
@@ -699,50 +558,7 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 4) return;
   raycaster.setFromCamera(new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1), camera);
 
-  // If in Route Pin Dropper Mode (A -> B Point Selection)
-  if (isRoutePinPicking) {
-    const hits = raycaster.intersectObjects(scene.children, true);
-    const hit = hits.find((h) => h.point && h.object.type === 'Mesh' && h.object.name !== 'natural-incidents');
-    if (hit) {
-      const { x, y, z } = hit.point;
-      const [lon, lat] = proj.unproject(x, z);
-      const landmark = findNearestLandmark(lon, lat);
-      const ptName = landmark ? landmark.name : `${lat.toFixed(4)}N, ${lon.toFixed(4)}E`;
-
-      if (routePinStep === 0) {
-        tempRoutePointA = { x, y, z, lon, lat, name: ptName };
-        routePinStep = 1;
-        const banner = document.getElementById('pin-instruction-banner');
-        if (banner) {
-          const pText = banner.querySelector('.p-text');
-          if (pText) pText.textContent = `📍 [2/2] Varış Noktası (B) için haritaya tıklayın (A: ${ptName})...`;
-        }
-      } else {
-        const tempRoutePointB = { x, y, z, lon, lat, name: ptName };
-        isRoutePinPicking = false;
-        routePinStep = 0;
-        const banner = document.getElementById('pin-instruction-banner');
-        if (banner) banner.style.display = 'none';
-        trafficAnalyticsDashboard.setCustomRoute(tempRoutePointA, tempRoutePointB);
-      }
-      return;
-    }
-  }
-
-  // If in Map Pin Dropper Mode
-  if (isPinPicking) {
-    const hits = raycaster.intersectObjects(scene.children, true);
-    const hit = hits.find((h) => h.point && h.object.type === 'Mesh' && h.object.name !== 'natural-incidents');
-    if (hit) {
-      const { x, y, z } = hit.point;
-      const [lon, lat] = proj.unproject(x, z);
-      const landmark = findNearestLandmark(lon, lat);
-      geoTwinUI.handleMapPinSelected({ x, y, z, lon, lat, name: landmark ? landmark.name : null });
-      return;
-    }
-  }
-
-  // Check H3 Hexagon TAZ Click
+  // a zone of the estimate, else a building
   const hitHexId = h3GridLayer ? h3GridLayer.raycast(raycaster) : null;
   if (hitHexId) {
     h3GridLayer.selectHex(hitHexId);
@@ -810,13 +626,8 @@ function tick() {
   signs.update();
   railways.userData.trains.update(dt, env.night);
   if (traffic.group.parent) traffic.update(dt, controls.target);
-  transit.update(dt, shared.uTime.value);
-  vrpManager.update(dt);
-  naturalIncident.update(shared.uTime.value);
   if (odFlowArcsLayer) odFlowArcsLayer.update(dt);
   if (h3GridLayer) h3GridLayer.update(dt);
-  if (roadHeatmapLayer) roadHeatmapLayer.update(dt, agentic?.whatIfActive);
-  if (trafficAnalyticsDashboard?.router) trafficAnalyticsDashboard.router.update(dt);
   env.setSky(...Object.values(atmosphere.setDate(clockTime.date())));
   clockText.textContent = clockTime.label();
   env.update(dt);
@@ -849,5 +660,5 @@ function frame() { tick(); requestAnimationFrame(frame); }
 requestAnimationFrame(frame);
 
 // (for the console and for tools: tick() draws a frame by hand, clockTime sets the hour)
-window.__app = { scene, camera, controls, streamer, env, renderer, materials, ao, atmosphere, traffic, transit, vrpManager, agentic, naturalIncident, geoTwinUI, h3GridLayer, odFlowArcsLayer, odSolver, roadHeatmapLayer, trafficAnalyticsDashboard, hexOdAnalyticsDrawer, shared, tick, clockTime, JUNCTION_PARAMS };
+window.__app = { scene, camera, controls, streamer, env, renderer, materials, ao, atmosphere, traffic, geoTwinUI, h3GridLayer, odFlowArcsLayer, hexOdAnalyticsDrawer, recsPanel, shared, tick, clockTime, JUNCTION_PARAMS };
 

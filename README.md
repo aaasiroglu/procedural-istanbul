@@ -35,6 +35,7 @@ The 3D engine is derived from Yong Su's [Tokyo](https://github.com/jeantimex/tok
 |---|---|
 | **No install** | Open the [live 3D twin](https://aaasiroglu.github.io/procedural-istanbul/app/). İBB's traffic feed is refreshed every hour by the site's build. Use **Recommendations** and **O-D zones** in the top bar. |
 | **Run the published build locally** | `npx serve docs` → http://localhost:3000/app/ (the compiled city is committed under `docs/app`) |
+| **Reproduce the O-D estimate** | `npm run reproduce`: the reference estimate from the committed data snapshot, checked against its expected numbers (Python + uv, about 5 minutes, no downloads) |
 | **Develop the client** | see [Quick start](#quick-start) |
 
 ## What is in it
@@ -42,7 +43,7 @@ The 3D engine is derived from Yong Su's [Tokyo](https://github.com/jeantimex/tok
 | Area | What it does | Where |
 |---|---|---|
 | 3D city compiler | OSM + DEM → binary tiles (buildings, roads, bridges, rails, props, signs) | [`tools/pipeline`](tools/pipeline) |
-| 3D client | Streaming, lighting and atmosphere, traffic, live İBB layer, analytics panels | [`src/`](src) |
+| 3D client | Streaming, lighting and atmosphere, traffic, live İBB layer, recommendations and O-D zone panels | [`src/`](src) |
 | SUMO network | OSM → SUMO network, İBB segment matching (95.5 %), smoke tests | [`tools/sumo`](tools/sumo/README.md) |
 | Inverse O-D estimator | Censored speed observations, bilevel MAP with UE assignment, data share, level identification | [`tools/od/odme.py`](tools/od/odme.py) |
 | Real-corridor estimate | Zones (H3 + gateways), land-use prior, İBB counts, İstanbulkart anchor | [`tools/od`](tools/od/README.md) |
@@ -83,7 +84,13 @@ npm run dev                                 # http://localhost:5280/?area=korido
 
 The dev server proxies İBB's live feed (`/api/ibb-*`), so live colours work locally. Useful URL parameters: `?guide=0` hides the welcome card, `?recs=1` opens the recommendations, `?zones=1` shows the O-D zones, `?cam=x,z,dist,azimuth,elevation` sets the view, `?time=17.5` fixes the clock.
 
-Transport model (SUMO 1.27 is installed into the project environment by uv on first use):
+Transport model (SUMO 1.27 is installed into the project environment by uv on first use). To get the reference result without building anything, start from the snapshot:
+
+```bash
+npm run reproduce                           # data/snapshot/koridor → estimate, compared with expected.json
+```
+
+The snapshot holds every input of the reference estimate, frozen on 19 October 2026 at 11:30: the SUMO network, the İBB segment matching, the land-use extract, İBB's speeds, the October 2024 counts and the İstanbulkart anchor (about 12 MB). To build the same from today's data:
 
 ```bash
 npm run sumo:net -- --area=koridor          # OSM → SUMO network (data/sumo/koridor)
@@ -101,9 +108,10 @@ Every command, with counts and anchors, is listed in [the technical report, appe
 npm test          # 3D data pipeline (compiled-tile checks are skipped when no tiles are present)
 npm run test:od   # inverse O-D estimator on a synthetic city with a known answer (34 checks)
 npm run build     # client bundle
+npm run reproduce # reference O-D estimate from the snapshot, within tolerance of expected.json
 ```
 
-CI runs all three on every push ([`ci.yml`](.github/workflows/ci.yml)). [`pages.yml`](.github/workflows/pages.yml) publishes `docs/` hourly with a fresh İBB snapshot.
+CI runs all four on every push ([`ci.yml`](.github/workflows/ci.yml)). [`pages.yml`](.github/workflows/pages.yml) publishes `docs/` hourly with a fresh İBB snapshot.
 
 ## Results so far, honestly
 
@@ -118,12 +126,12 @@ Details, negative findings included: [`tools/od/README.md`](tools/od/README.md),
 
 ```text
 src/world, src/shared   3D engine, traffic, live İBB layer, panels (Three.js)
-src/matrakci            alternative view inspired by Matrakçı Nasuh's miniatures (prototype)
 tools/pipeline          OSM / İBB / DEM → 3D tiles (Node.js)
 tools/sumo              SUMO network, İBB matching, dynamic runs, shadow simulation (Python)
 tools/od                inverse O-D estimate, UE assignment, anchors, sensor audit, neural solver (Python)
 tools/report            figures and the app's data export (Python)
 tools/archive           İBB live data archive (Python)
+data/snapshot           frozen inputs of the reference estimate (npm run reproduce)
 docs/                   project site (GitHub Pages), docs/app = published 3D build, report and slides
 ```
 

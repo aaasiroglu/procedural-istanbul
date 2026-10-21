@@ -2,7 +2,7 @@
 node_modules/
 dist/
 
-# raw downloads (PLATEAU CityGML and textures, OSM, GSI DEM): several GB per area - re-create with `npm run fetch`
+# raw downloads (OSM, terrain tiles): re-create with `npm run fetch`
 data/raw/
 data/preview/
 data/ibb-local/network.gdb/

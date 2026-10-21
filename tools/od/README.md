@@ -150,6 +150,8 @@ Pazartesi 11:30 canlı İBB hızları, Ekim 2024 Pazartesi 11:00–12:00 sayıml
 
 Arazi kullanımı prior'ı toplam talebi neredeyse iki kat yüksek gösteriyor (117.9 bin → 61.6 bin araç/sa; düzey çarpanı 0.30'un bir kısmını zon çarpanları geri alıyor); daha önce SUMO'da görülen kilitlenmenin kaynağı bu. Düzey artık veriden geliyor, ancak dışarıda bırakılan GEH, talebin zonlar arasındaki dağılımının hâlâ zayıf olduğunu gösteriyor. Saatler farklı olduğu için bu sonuç Cumartesi 17:00 turlarıyla doğrudan karşılaştırılmamalı.
 
+Bu tahminin girdileri `data/snapshot/koridor` altında donduruldu; `npm run reproduce` onu yeniden üretip `expected.json` ile karşılaştırır. Zonları ağa tek yerine sekiz düğümden bağlayan güncel `corridor.py` aynı girdilerden 63.6 bin araç/sa ve dışarıda bırakılan GEH ortalaması 23.5 verir; düzey çarpanı, veri payı ve GEH < 5 oranı değişmez.
+
 ### Çok kaynaklı çapalar: İstanbulkart (19 Ekim 2026)
 
 ```bash

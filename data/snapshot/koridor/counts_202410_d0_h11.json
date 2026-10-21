@@ -1,0 +1,444 @@
+[
+  {
+    "sensor": "303",
+    "name": "15 Temmuz Şehitler Köprüsü Yıldız Katılımı",
+    "lon": 29.018432,
+    "lat": 41.057702,
+    "days": 4,
+    "expressway": true,
+    "road": "1. Çevre Yolu",
+    "road_type": "motorway",
+    "edges": [
+      "227609596",
+      "49516554"
+    ],
+    "value": 5202,
+    "sd": 1225,
+    "share_of_day": 0.0417
+  },
+  {
+    "sensor": "256",
+    "name": "4.Levent",
+    "lon": 29.010828,
+    "lat": 41.081359,
+    "days": 4,
+    "expressway": false,
+    "road": "Büyükdere Caddesi",
+    "road_type": "primary",
+    "edges": [
+      "828782141",
+      "657420352"
+    ],
+    "value": 2170,
+    "sd": 309,
+    "share_of_day": 0.0545
+  },
+  {
+    "sensor": "258",
+    "name": "Büyükdere 1.Levent",
+    "lon": 29.015483,
+    "lat": 41.073533,
+    "days": 4,
+    "expressway": true,
+    "road": "Büyükdere Caddesi",
+    "road_type": "primary",
+    "edges": [
+      "43915457",
+      "45500610",
+      "543664106#4"
+    ],
+    "value": 5173,
+    "sd": 695,
+    "share_of_day": 0.0588
+  },
+  {
+    "sensor": "263",
+    "name": "Conrad Oteli",
+    "lon": 29.008125,
+    "lat": 41.047781,
+    "days": 4,
+    "expressway": false,
+    "road": "Barbaros Bulvarı",
+    "road_type": "primary",
+    "edges": [
+      "1350453590#2",
+      "1350453587"
+    ],
+    "value": 2927,
+    "sd": 526,
+    "share_of_day": 0.0573
+  },
+  {
+    "sensor": "60",
+    "name": "D100 15 Temmuz Şehitler Köprüsü Avrupa Girişi",
+    "lon": 29.024857,
+    "lat": 41.054074,
+    "days": 4,
+    "expressway": true,
+    "road": "1. Çevre Yolu",
+    "road_type": "motorway",
+    "edges": [
+      "213956885",
+      "23292197"
+    ],
+    "value": 8016,
+    "sd": 1431,
+    "share_of_day": 0.0431
+  },
+  {
+    "sensor": "85",
+    "name": "D100 Hurriyet Tepesi",
+    "lon": 28.986117,
+    "lat": 41.066795,
+    "days": 4,
+    "expressway": true,
+    "road": "1. Çevre Yolu",
+    "road_type": "trunk",
+    "edges": [
+      "227564881",
+      "696853880"
+    ],
+    "value": 4941,
+    "sd": 749,
+    "share_of_day": 0.0589
+  },
+  {
+    "sensor": "305",
+    "name": "D100 Mecidiyeköy B. Köprü Katılımı",
+    "lon": 29.005424,
+    "lat": 41.066793,
+    "days": 4,
+    "expressway": true,
+    "road": "1. Çevre Yolu",
+    "road_type": "trunk",
+    "edges": [
+      "46625694",
+      "227564891#1"
+    ],
+    "value": 6742,
+    "sd": 1162,
+    "share_of_day": 0.0509
+  },
+  {
+    "sensor": "25",
+    "name": "D100 Yıldız Katılımı",
+    "lon": 29.011504,
+    "lat": 41.054534,
+    "days": 4,
+    "expressway": true,
+    "road": "Balmumcu Kavşağı",
+    "road_type": "motorway_link",
+    "edges": [
+      "23292220",
+      "42211562"
+    ],
+    "value": 2458,
+    "sd": 389,
+    "share_of_day": 0.054
+  },
+  {
+    "sensor": "301",
+    "name": "D100 Zincirlikuyu",
+    "lon": 29.011693,
+    "lat": 41.066856,
+    "days": 4,
+    "expressway": true,
+    "road": "1. Çevre Yolu",
+    "road_type": "trunk",
+    "edges": [
+      "1541093425",
+      "46625684"
+    ],
+    "value": 4990,
+    "sd": 706,
+    "share_of_day": 0.0506
+  },
+  {
+    "sensor": "302",
+    "name": "D100 Zincirlikuyu",
+    "lon": 29.014473,
+    "lat": 41.064736,
+    "days": 2,
+    "expressway": true,
+    "road": "1. Çevre Yolu",
+    "road_type": "trunk",
+    "edges": [
+      "1304689396",
+      "1008912654"
+    ],
+    "value": 5812,
+    "sd": 1019,
+    "share_of_day": 0.0514
+  },
+  {
+    "sensor": "90",
+    "name": "FSM Avrupa Girişi",
+    "lon": 29.047444,
+    "lat": 41.090744,
+    "days": 4,
+    "expressway": true,
+    "road": "2. Çevre Yolu",
+    "road_type": "motorway",
+    "edges": [
+      "1239657469",
+      "1221622267"
+    ],
+    "value": 11505,
+    "sd": 1212,
+    "share_of_day": 0.0514
+  },
+  {
+    "sensor": "443",
+    "name": "FSM Gişeler",
+    "lon": 29.040798,
+    "lat": 41.091107,
+    "days": 4,
+    "expressway": true,
+    "road": null,
+    "road_type": null,
+    "edges": [],
+    "override": {
+      "skip": "FSM toll plaza: counts the toll lanes only (81 000 a day where the bridge entrance beside it counts 224 000)"
+    },
+    "skipped": "FSM toll plaza: counts the toll lanes only (81 000 a day where the bridge entrance beside it counts 224 000)"
+  },
+  {
+    "sensor": "468",
+    "name": "Harp Akademisi",
+    "lon": 29.01175,
+    "lat": 41.104341,
+    "days": 3,
+    "expressway": true,
+    "road": "Büyükdere Caddesi",
+    "road_type": "primary",
+    "edges": [
+      "1222286470",
+      "23226257#0"
+    ],
+    "value": 7149,
+    "sd": 928,
+    "share_of_day": 0.0577
+  },
+  {
+    "sensor": "464",
+    "name": "Levent 1",
+    "lon": 29.013623,
+    "lat": 41.077812,
+    "days": 4,
+    "expressway": true,
+    "road": "Büyükdere Caddesi",
+    "road_type": "primary",
+    "edges": [
+      "543664106#0",
+      "963007851#0"
+    ],
+    "value": 5755,
+    "sd": 1034,
+    "share_of_day": 0.06
+  },
+  {
+    "sensor": "265",
+    "name": "Maslak Atatürk Oto Sanayi",
+    "lon": 29.024749,
+    "lat": 41.115626,
+    "days": 4,
+    "expressway": false,
+    "road": "Büyükdere Caddesi",
+    "road_type": "primary",
+    "edges": [
+      "26426729#3",
+      "227696641#1"
+    ],
+    "value": 4307,
+    "sd": 936,
+    "share_of_day": 0.056
+  },
+  {
+    "sensor": "533",
+    "name": "Mecidiyeköy",
+    "lon": 28.990867,
+    "lat": 41.067179,
+    "days": 4,
+    "expressway": true,
+    "road": "1. Çevre Yolu",
+    "road_type": "trunk",
+    "edges": [
+      "46625694",
+      "696853880"
+    ],
+    "value": 5423,
+    "sd": 596,
+    "share_of_day": 0.0499
+  },
+  {
+    "sensor": "218",
+    "name": "Memorial Hast.",
+    "lon": 28.977706,
+    "lat": 41.065031,
+    "days": 4,
+    "expressway": false,
+    "road": "Piyalepaşa Bulvarı",
+    "road_type": "primary",
+    "edges": [
+      "1206808265",
+      "1455847601"
+    ],
+    "value": 1938,
+    "sd": 235,
+    "share_of_day": 0.0548
+  },
+  {
+    "sensor": "254",
+    "name": "Sanayi Mah. Büyükdere Cd.",
+    "lon": 29.00541,
+    "lat": 41.090627,
+    "days": 1,
+    "expressway": true,
+    "road": "Büyükdere Caddesi",
+    "road_type": "primary",
+    "edges": [
+      "657410182",
+      "657420351"
+    ],
+    "skipped": "fewer than 2 days with counts and density"
+  },
+  {
+    "sensor": "417",
+    "name": "TEM FSM Gişe Sahası Öncesi",
+    "lon": 29.033579,
+    "lat": 41.091569,
+    "days": 3,
+    "expressway": true,
+    "road": "2. Çevre Yolu",
+    "road_type": "motorway",
+    "edges": [
+      "671857607"
+    ],
+    "override": {
+      "direction": 0,
+      "why": "before the FSM toll plaza: the Asia-bound carriageway only (98 000 a day, half the two-way entrance count)"
+    },
+    "value": 5078,
+    "sd": 830,
+    "share_of_day": 0.0514
+  },
+  {
+    "sensor": "152",
+    "name": "TEM Harp Akademileri",
+    "lon": 29.006446,
+    "lat": 41.100045,
+    "days": 4,
+    "expressway": true,
+    "road": "2. Çevre Yolu",
+    "road_type": "motorway",
+    "edges": [
+      "23230673",
+      "23498038"
+    ],
+    "value": 8753,
+    "sd": 1551,
+    "share_of_day": 0.0555
+  },
+  {
+    "sensor": "2",
+    "name": "TEM Karanfilköy",
+    "lon": 29.028617,
+    "lat": 41.092425,
+    "days": 2,
+    "expressway": true,
+    "road": "2. Çevre Yolu",
+    "road_type": "motorway",
+    "edges": [
+      "31758482",
+      "657410178"
+    ],
+    "value": 4596,
+    "sd": 511,
+    "share_of_day": 0.0474
+  },
+  {
+    "sensor": "268",
+    "name": "TEM Levent",
+    "lon": 29.021896,
+    "lat": 41.094442,
+    "days": 4,
+    "expressway": true,
+    "road": "2. Çevre Yolu",
+    "road_type": "motorway",
+    "edges": [
+      "23226368",
+      "23235209"
+    ],
+    "value": 7253,
+    "sd": 1000,
+    "share_of_day": 0.047
+  },
+  {
+    "sensor": "260",
+    "name": "Yıldız",
+    "lon": 29.008883,
+    "lat": 41.053496,
+    "days": 4,
+    "expressway": false,
+    "road": "Barbaros Bulvarı",
+    "road_type": "primary",
+    "edges": [
+      "1082092853#3",
+      "878863419#1"
+    ],
+    "value": 2280,
+    "sd": 362,
+    "share_of_day": 0.0543
+  },
+  {
+    "sensor": "259",
+    "name": "Zincirlikuyu",
+    "lon": 29.013387,
+    "lat": 41.067293,
+    "days": 4,
+    "expressway": false,
+    "road": "Barbaros Bulvarı",
+    "road_type": "primary",
+    "edges": [
+      "837903921",
+      "45500605"
+    ],
+    "value": 3805,
+    "sd": 389,
+    "share_of_day": 0.0519
+  },
+  {
+    "sensor": "534",
+    "name": "Çağlayan Kavşağı",
+    "lon": 28.976058,
+    "lat": 41.067733,
+    "days": 4,
+    "expressway": true,
+    "road": "1. Çevre Yolu",
+    "road_type": "trunk",
+    "edges": [
+      "23291919",
+      "696853880"
+    ],
+    "value": 5431,
+    "sd": 846,
+    "share_of_day": 0.053
+  },
+  {
+    "sensor": "124",
+    "name": "Üsküdar Sahil Yolu",
+    "lon": 29.034033,
+    "lat": 41.039438,
+    "days": 4,
+    "expressway": false,
+    "road": "Abdullah Ağa Caddesi",
+    "road_type": "primary",
+    "edges": [
+      "-401205049",
+      "401205049"
+    ],
+    "value": 472,
+    "sd": 54,
+    "share_of_day": 0.0402
+  }
+]

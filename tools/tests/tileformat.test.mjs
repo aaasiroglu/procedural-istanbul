@@ -4,7 +4,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { encodeTile, decodeTile, AREA, BFLAG, PROP } from '../../src/shared/tileformat.js';
-import { meshCode3, meshBounds3, meshBlock } from '../../src/shared/geo.js';
 import { ROOT } from '../pipeline/config.mjs';
 
 let passed = 0;
@@ -30,15 +29,6 @@ test('encode -> decode round trip', () => {
   assert.deepEqual([p.kind, p.variant, p.x, p.z, p.scale], [PROP.POLE, 1, 3.5, -4.25, 1.25]);
   assert.ok(Math.abs(p.rot - Math.PI / 2) < 1e-3);
   assert.deepEqual([...out.wires], [0, 0, 30, -2.5]);
-});
-
-test('JIS mesh codes', () => {
-  assert.equal(meshCode3(139.70045, 35.65948), '53393596'); // Shibuya Scramble Crossing
-  const b = meshBounds3('53393596');
-  assert.ok(b.south <= 35.65948 && 35.65948 < b.north && b.west <= 139.70045 && 139.70045 < b.east);
-  const block = meshBlock(139.70045, 35.65948, 1);
-  assert.equal(new Set(block).size, 9);
-  assert.ok(block.includes('53394506') && block.includes('53393585'));
 });
 
 // every compiled area under public/tiles

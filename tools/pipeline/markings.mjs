@@ -1,5 +1,5 @@
 // Road paint and traffic signals. Lane lines are laid out from the *measured* carriageway: at each
-// sample the distance to the kerb on both sides (PLATEAU carriageway polygons) gives the true centre
+// sample the distance to the kerb on both sides (carriageway polygons) gives the true centre
 // and width, so paint does not inherit the offset of the OSM centreline.
 import { AREA, PROP, DECAL } from '../../src/shared/tileformat.js';
 import { hash, forEachAlong } from './landscape.mjs';

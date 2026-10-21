@@ -53,7 +53,6 @@ Projenin araştırma katkısı, **hız verisinden talep (O-D) matrisi çıkarma*
 | **Simülasyondan gerçeğe ters çözücü** | SUMO ile üretilen binlerce (O-D → hız) örneğiyle eğitilen bir sinir ağı, canlı hızdan O-D'yi anlık tahmin eder. Yukarıdaki tahminci bu ağın referansı ve denetçisi olur. İlk sürüm statik atama örnekleriyle eğitildi ve denetçi onu reddetti (simülasyon-gerçek farkı); SUMO örnekleri sırada. | İlk sürüm `tools/od/neural_inverse.py` |
 | **Gölge simülasyon** | Kaza veya kapanma anında SUMO durumu çatallanır ve birkaç müdahale politikası gerçek zamandan hızlı koşturulup karşılaştırılır. Kararı simülasyon verir, dil modeli yalnızca sonucu anlatır. İlk sınamada TEM kapanmasında anında bilgilendirme, habersiz duruma göre 735 araç daha geçirdi (dört koşu ~9 dakikada). | ✅ İlk sürüm `tools/sumo/shadow.py` |
 | **Talep düzeyinin tanımlanabilirliği** | Tüm matrisin düzeyi ayrı bir çarpanla taşınır; profil eğriliğinden sayımların düzeyi gerçekten sabitleyip sabitlemediği ölçülür. Gerçek koridorda 23 sayım düzeyi sabitliyor (veri payı 0.81) ve prior'ın toplam talebi neredeyse iki kat yüksek gösterdiğini ortaya koyuyor (117.9 bin → 61.6 bin araç/sa). | ✅ |
-| **Matrakçı görünümü** | Koridorun Matrakçı Nasuh minyatür kartografyasından esinlenen alternatif çizimi (`src/matrakci`). | Prototip |
 
 Gerçek O-D'si bilinen sentetik bir şehirde (`npm run test:od`) linklerin %30'u sayıldı, kalanlarda yalnızca hız kullanıldı. Tahminci, hiç sayılmayan linklerin ortalama akım hatasını prior'a göre **GEH 5.6'dan 2.2'ye** (rotalar biliniyorken) ve **3.8'e** (rotalar da tahmin edilirken) indiriyor. Rotaları prior'a sabitleyen kısa yol GEH 8.0 veriyor. Gerçek değerlerin %96'sı 2.5 standart hata içinde kalıyor. Tek tek O-D hücrelerindeki kazanç ise küçük ve bu açıkça raporlanıyor: 36 sayımla 90 O-D çifti tam belirlenemez.
 
@@ -70,7 +69,6 @@ Ara sonuç sunumu (yöntem, sentetik ve gerçek veri sonuçları, olumsuz bulgul
 | Ters O-D tahmini | ✅ Canlı İBB hızlarından koridorun ilk O-D tahmini (75 H3 zonu ve 20 geçit, SUMO `od2trips` çıktısı). İBB sayımlarıyla talep düzeyi sabitlendi (×0.30, veri payı 0.81); dışarıda bırakılan GEH < 5 oranı %8.7, dağılım hâlâ zayıf ([tools/od](tools/od/README.md)) |
 | Tarayıcıdaki trafik | Görsel: araçlar kameranın çevresinde, rotalar rastgele. Analiz için kullanılmamalı |
 | Panellerdeki H3 zonları, O-D akışları, öneriler | ✅ **Gerçek veri:** tahminin 95 zonu ve 1.470 O-D çifti, İBB hızları, darboğazlar ve kural tabanlı öneri motoru v1 (`tools/report/export_app_data.py` → `public/data/od/koridor.json`) |
-| Tahminleme paneli (24 saat, hava, senaryo) | Gösterim amaçlı; tek bir zaman diliminin tahmini var |
 | Çok kaynaklı çapalar, gölge simülasyon, sinir ağı ters çözücü | İlk sürümler ([teknik rapor](docs/rapor/teknik_rapor.pdf)) |
 | Öneri motoru | İlk sürüm: darboğaz sıralaması, kaza müdahalesi (gölge simülasyon), teyit edilecek sensörler, talep düzeyi |
 
@@ -86,6 +84,16 @@ Ara sonuç sunumu (yöntem, sentetik ve gerçek veri sonuçları, olumsuz bulgul
 ## Çalıştırma
 
 Gereksinimler: Node.js 20+, Python 3.10+ ve [uv](https://docs.astral.sh/uv/).
+
+Referans O-D tahminini hiçbir şey indirmeden yeniden üretmek için:
+
+```bash
+npm run reproduce                           # data/snapshot/koridor → tahmin, expected.json ile karşılaştırılır
+```
+
+Anlık görüntü (`data/snapshot/koridor`, ~12 MB) tahminin tüm girdilerini 19 Ekim 2026 11:30'daki haliyle tutar: SUMO ağı, İBB segment eşlemesi, arazi kullanımı, İBB hızları, Ekim 2024 sayımları ve İstanbulkart çapası. CI her push'ta bunu koşturur.
+
+3D istemci:
 
 ```bash
 npm install
@@ -115,6 +123,7 @@ Genişletilmiş koridor eskisinin yaklaşık altı katı büyüklükte. Derleme 
 npm run archive:ibb                         # İBB canlı hızlarını data/archive/ibb altına arşivler
 npm test                                    # 3D veri hattı testleri
 npm run test:od                             # ters O-D testleri
+npm run reproduce                           # referans tahmin, anlık görüntüden
 ```
 
 Arşivin yapısı ve sorgu örnekleri için bkz. [tools/archive/README.md](tools/archive/README.md).
@@ -123,15 +132,13 @@ Arşivin yapısı ve sorgu örnekleri için bkz. [tools/archive/README.md](tools
 
 ```text
 src/world, src/shared   3D motor ve tarayıcı arayüzü
-src/matrakci            Matrakçı görünümü
 tools/pipeline          OSM / İBB / DEM → 3D karolar
 tools/archive           İBB canlı veri arşivi (Python)
 tools/od                Ters O-D tahmini, UE ataması, çapalar, sinir ağı (Python)
 tools/sumo              SUMO ağı, İBB eşlemesi, dinamik koşu, gölge simülasyon (Python)
+data/snapshot           Referans tahminin dondurulmuş girdileri (npm run reproduce)
 docs/rapor, docs/sunum  Teknik rapor (PDF) ve sunumlar (TR / EN)
 ```
-
-[`docs/vizyon/`](docs/vizyon/) altındaki `GEO_TWIN_MIMARISI.md` ve `METODOLOJI_VE_MIMARI.md` hedef mimariyi anlatır. Anlattıkları her şey henüz uygulanmış değildir.
 
 ## Lisans ve kaynaklar
 

@@ -7,10 +7,10 @@ Thank you for your interest. This project has two halves, a 3D client in JavaScr
 | You want to work on | You need | Start with |
 |---|---|---|
 | The 3D client (`src/`) | Node.js 20+ | `npm install`, then either compile the city (see the [README](README.md#quick-start)) or copy the published tiles: `cp -r docs/app/tiles docs/app/textures public/` and `npm run dev` |
-| The transport model (`tools/od`, `tools/sumo`) | Python 3.10+ and [uv](https://docs.astral.sh/uv/) | `npm run test:od` (no data needed), then `npm run sumo:net -- --area=koridor` |
+| The transport model (`tools/od`, `tools/sumo`) | Python 3.10+ and [uv](https://docs.astral.sh/uv/) | `npm run test:od` (no data needed), then `npm run reproduce` (the reference estimate from the committed snapshot) |
 | Documentation and the site (`docs/`) | a browser | `npx serve docs` |
 
-Large data (OSM extracts, İBB downloads, SUMO networks, estimates) lives under `data/` and is not committed: every file there can be rebuilt with the commands in the READMEs. On a corporate network with a TLS proxy, set `UV_NATIVE_TLS=1` and run Marp with `npx --offline`.
+Large data (OSM extracts, İBB downloads, SUMO networks, estimates) lives under `data/` and is not committed: every file there can be rebuilt with the commands in the READMEs. The one exception is `data/snapshot/koridor`, the frozen inputs of the reference estimate. On a corporate network with a TLS proxy, set `UV_NATIVE_TLS=1` and run Marp with `npx --offline`.
 
 ## Before you open a pull request
 
@@ -18,7 +18,10 @@ Large data (OSM extracts, İBB downloads, SUMO networks, estimates) lives under 
 npm test          # 3D data pipeline
 npm run test:od   # inverse O-D estimator (34 checks on a synthetic city)
 npm run build     # the client still bundles
+npm run reproduce # if you touched tools/od or tools/sumo: the reference estimate still comes out the same
 ```
+
+If you change the method on purpose and the reference numbers move, run `npm run reproduce -- --update` and say in the pull request which numbers moved and why.
 
 If you changed the client and want the published site to show it, rebuild it with `npm run build:site`, which writes `docs/app`.
 
@@ -38,8 +41,7 @@ If you changed the client and want the published site to show it, rebuild it wit
 | Separate the "warned drivers re-route more often" effect from the information itself in `tools/sumo/shadow.py` (add a policy that only re-routes more often), and run several seeds | SUMO | the shadow simulation's recommendation is currently confounded |
 | Use the 2012 household survey's mode shares per zone in `tools/od/anchors.py` instead of the fixed 1:1 boardings-to-car ratio, and remove transfer boardings | Python | turns the İstanbulkart anchor from a rough plausibility check into a real one |
 | Add a test for `tools/od/sensor_audit.py` with a synthetic one-direction counter | Python | keeps the sensor audit honest |
-| Translate the remaining English-only parts of the settings panel and the scenario dashboard | client | consistency |
-| Make the scenario dashboard (`src/world/trafficAnalyticsDashboard.js`) read the real estimate, or remove its illustrative parts | client | it is still marked "illustrative" |
+| Show a second time of day in the panels: export a 17:00 estimate (`counts_202410_d5_h17.csv` exists) and let the clock switch between them | Python + client | the panels show one snapshot today |
 
 Open an issue before a large change, so we can agree on the approach first.
 

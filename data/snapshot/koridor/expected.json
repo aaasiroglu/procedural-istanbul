@@ -1,0 +1,13 @@
+{
+  "prior_trips_per_hour": 117946.9184,
+  "estimate_trips_per_hour": 63619.5761,
+  "level_factor": 0.298,
+  "level_ci95_low": 0.1954,
+  "level_ci95_high": 0.4545,
+  "level_data_share": 0.8145,
+  "data_share_trip_weighted": 0.0998,
+  "held_out_geh_under5_pct": 8.6957,
+  "held_out_geh_mean": 23.5249,
+  "prior_geh_mean": 38.2805,
+  "counts_used": 23
+}

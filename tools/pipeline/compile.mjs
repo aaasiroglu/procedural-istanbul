@@ -1,4 +1,4 @@
-// City compiler: raw PLATEAU / OSM / GSI data -> streaming tiles in public/tiles/<area>/.
+// City compiler: raw OSM / terrain / İBB data -> streaming tiles in public/tiles/<area>/.
 //   manifest.json   area, origin, bounds, tile list, terrain grid description, attribution
 //   terrain.bin     Float32 height grid (TP metres), row-major, rows run north -> south (+z)
 //   t_<x>_<z>.bin   per 256 m tile: buildings, ground surfaces (roads, paint, parks, water), props (trees,
@@ -6,37 +6,29 @@
 //   roads.json      drivable road graph from OSM (junction nodes + polyline edges; y = road level, above the
 //                   ground on bridges and the elevated expressway)
 //   structures.json footbridges, station platforms and canopies (tools/pipeline/extras.mjs)
-//   x_<x>_<z>.bin   per tile, where there are any: PLATEAU's own 3D models of bridges, street furniture and
-//                   trees as one static mesh (tools/pipeline/meshes.mjs)
-//   r_<x>_<z>.jpg   per tile, where there are any: PLATEAU's aerial photos of the LOD2 roofs, packed into one atlas
-//   w_<x>_<z>.jpg   the same for the walls (shown from a distance)
 //   rails.json      surface and elevated railway lines from OSM, with their height profile (y = track bed)
-// Usage: node tools/pipeline/compile.mjs [--area=shibuya] [--no-ads]   (--no-ads: leave out the invented billboards, screens and banners)
+// Usage: node tools/pipeline/compile.mjs [--area=koridor] [--no-ads]   (--no-ads: leave out the invented billboards, screens and banners)
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { resolveArea, ROOT } from './config.mjs';
 import { makeProjection, TILE, tileOf, tileKey } from '../../src/shared/geo.js';
 import { encodeTile, AREA, BFLAG, PROP, VERSION } from '../../src/shared/tileformat.js';
-import { readBuildings, readRoads } from './citygml.mjs';
 import { readOsm, buildRoadGraph, fuseIbbRoads, buildRailways } from './osm.mjs';
-import { buildHeightGrid, sampleGrid, buildBackdropGrid } from './terrain.mjs';
-import { BACKDROP, AREAS } from './config.mjs';
+import { buildHeightGrid, sampleGrid } from './terrain.mjs';
+import { AREAS } from './config.mjs';
 import { PolyIndex, readLand, clipRing, placeProps } from './landscape.mjs';
 import { buildMarkings } from './markings.mjs';
-import { splitOutlineRoads } from './roadsplit.mjs';
 import { profileRailways } from './rails.mjs';
 import { readPlaces, placeSigns, placeAds } from './signs.mjs';
 import { placeFurniture } from './furniture.mjs';
 import { readExtra, buildExtras } from './extras.mjs';
-import { readModels, encodeMesh } from './meshes.mjs';
-import { bakePhotos } from './photos.mjs';
 import { SPORT, MATERIAL } from '../../src/shared/tileformat.js';
 import { inRings } from './landscape.mjs';
 import { profileRoads, flyover, smoothCurve, BANK } from './roadprofile.mjs';
 import { DECK_FLAG, CORRIDOR_MARGIN, projectOnDeck } from '../../src/shared/decks.js';
 
-const TERRAIN_STEP = 5; // metres, matches the GSI 5 m DEM
+const TERRAIN_STEP = 5; // metres
 
 const area = resolveArea();
 const proj = makeProjection(...area.origin);
@@ -141,7 +133,7 @@ log(`terrain ${grid.w} x ${grid.h} @ ${TERRAIN_STEP} m, ${gMin.toFixed(1)}..${gM
   ` (${grid.stats.fallback} cells from dem10b, ${grid.stats.holes} filled)`);
 const ground = (x, z) => sampleGrid(grid, x, z);
 
-// ---------------------------------------------------------------- PLATEAU
+// ---------------------------------------------------------------- tiles
 const tiles = new Map();
 const tileFor = (x, z) => {
   const [tx, tz] = tileOf(x, z), k = tileKey(tx, tz);
@@ -150,118 +142,7 @@ const tileFor = (x, z) => {
 };
 // Point-in-polygon indexes used to place paint, trees and street furniture.
 const idx = { building: new PolyIndex(), road: new PolyIndex(), carriageway: new PolyIndex(), sidewalk: new PolyIndex(), water: new PolyIndex() };
-const plateauDir = path.join(area.rawDir, 'plateau');
-const plateauExists = fs.existsSync(plateauDir);
-const gmlFiles = (type) => plateauExists ? fs.readdirSync(plateauDir).filter((f) => new RegExp(`^\\d{8}_${type}(_\\d+)?\\.gml$`).test(f)).sort() : [];
-const emptyDeckTops = { at: () => undefined, cover: () => 0 };
-
-// bridges, street furniture and trees that PLATEAU gives as finished models
-const models = plateauExists ? readModels(plateauDir, proj.project, ground) : { objects: [], tops: emptyDeckTops, count: {} };
-if (plateauExists) log(`models (PLATEAU): ${Object.entries(models.count).map(([k, v]) => `${k.split(':')[1]} ${v}`).join(', ')}; ${models.objects.reduce((s, o) => s + o.tris.length, 0)} triangles`);
-else log('PLATEAU directory missing: skipping CityGML model pass');
-
-const seen = new Set();
-const bstats = { files: 0, read: 0, dup: 0, noSolid: 0, dropped: 0, lod2: 0, baseDiff: [], heights: [], usage: {} };
-for (const f of gmlFiles('bldg')) {
-  const list = readBuildings(path.join(plateauDir, f));
-  bstats.files++; bstats.read += list.length;
-  for (const b of list) {
-    if (seen.has(b.id)) { bstats.dup++; continue; }
-    seen.add(b.id);
-    let polys, base, height, flags = b.lod2 ? BFLAG.LOD2 : 0;
-    if (b.solid.length) {
-      let lo = Infinity, hi = -Infinity;
-      for (const rings of b.solid) for (const [, , h] of rings[0]) { lo = Math.min(lo, h); hi = Math.max(hi, h); }
-      // The footprint is the solid's floor: the faces lying at the lowest height.
-      polys = cleanPolygons(b.solid.filter((rings) => rings[0].every(([, , h]) => h - lo < 0.05)));
-      base = lo; height = hi - lo;
-    } else {
-      polys = cleanPolygons(b.lod0);
-      height = b.measuredHeight ?? 3 * (b.storeys || 1);
-      flags |= BFLAG.NO_SOLID; bstats.noSolid++;
-    }
-    if (!polys.length || !(height > 0.5)) { bstats.dropped++; continue; }
-    const [cx, cz] = centroidOf(polys);
-    if (!inBounds(cx, cz)) { bstats.dropped++; continue; }
-    const g = ground(cx, cz);
-    if (base === undefined) base = g; else bstats.baseDiff.push(base - g);
-    if (b.lod2) bstats.lod2++;
-    bstats.heights.push(height);
-    bstats.usage[b.usage ?? 0] = (bstats.usage[b.usage ?? 0] ?? 0) + 1;
-    // LOD2 shell in world coordinates (closing points dropped; degenerate rings discarded)
-    const surfaces = [];
-    for (const s of b.surfaces) {
-      let uv = s.uv && s.uv.map((u) => [...u]); // photo coordinates, kept in step with the points
-      const rings = s.rings.map((ring, r) => {
-        const pts = ring.map(([lon, lat, h]) => { const [x, z] = proj.project(lon, lat); return [r2(x), r2(h), r2(z)]; });
-        if (pts.length > 1 && pts[0].every((v, k) => Math.abs(v - pts.at(-1)[k]) < 0.02)) { pts.pop(); uv?.[r].splice(-2); }
-        return pts;
-      });
-      if (rings.some((r) => r.length < 3 || r.length >= 65000)) { if (rings[0].length < 3 || rings[0].length >= 65000) continue; rings.length = 1; uv = uv && [uv[0]]; }
-      if (rings.length < 256 && surfaces.length < 65000) surfaces.push({ roof: s.roof, rings, image: uv ? s.image : null, photo: uv });
-    }
-    bstats.surfaces = (bstats.surfaces ?? 0) + surfaces.length;
-    tileFor(cx, cz).buildings.push({ usage: b.usage, storeys: b.storeys, flags, base: r2(base), height: r2(height), measuredHeight: b.measuredHeight, polygons: polys, surfaces });
-  }
-  log(`  ${f}: ${list.length} buildings`);
-}
-const pct = (arr, p) => {
-  const values = [...(arr ?? [])].sort((a, b) => a - b);
-  if (!values.length) return 0;
-  return values[Math.min(values.length - 1, Math.floor(p * values.length))];
-};
-const nB = bstats.read - bstats.dup - bstats.dropped;
-log(`buildings: ${nB} kept from ${bstats.files} files (${bstats.dup} duplicates across ward files, ${bstats.dropped} dropped, ` +
-  `${bstats.noSolid} without LOD1 solid, ${bstats.lod2} with LOD2)`);
-log(`  LOD2 shells: ${bstats.surfaces ?? 0} surfaces`);
-log(`  height median ${pct(bstats.heights, 0.5).toFixed(1)} m, p95 ${pct(bstats.heights, 0.95).toFixed(1)} m, max ${pct(bstats.heights, 1).toFixed(1)} m`);
-const absDiff = (bstats.baseDiff ?? []).map(Math.abs);
-log(`  building base vs DEM: median |d| ${pct(absDiff, 0.5).toFixed(2)} m, p95 ${pct(absDiff, 0.95).toFixed(2)} m`);
-log(`  usage codes: ${Object.entries(bstats.usage).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}:${v}`).join(' ')}`);
-
-const seenRoads = new Set();
-const rstats = { roads: 0, outlines: 0, areas: [0, 0, 0, 0, 0] };
-const outlineOnly = []; // roads without a carriageway / sidewalk split: polygons [outer, ...holes]
-for (const f of gmlFiles('tran')) {
-  for (const r of readRoads(path.join(plateauDir, f))) {
-    if (seenRoads.has(r.id)) continue;
-    seenRoads.add(r.id); rstats.roads++;
-    const push = (kind, code, raw) => {
-      const polygons = cleanPolygons(raw, 0.2);
-      if (!polygons.length) return;
-      const [cx, cz] = centroidOf(polygons);
-      if (!inBounds(cx, cz)) return;
-      tileFor(cx, cz).areas.push({ kind, code, polygons });
-      if (kind === AREA.ROAD) rstats.outlines++; else rstats.areas[kind]++;
-      const index = kind === AREA.ROAD ? idx.road : kind === AREA.CARRIAGEWAY ? idx.carriageway : kind === AREA.SIDEWALK ? idx.sidewalk : null;
-      if (index) for (const rings of polygons) index.add(rings);
-      if (kind === AREA.ROAD && !r.areas.length) outlineOnly.push(...polygons);
-    };
-    push(AREA.ROAD, r.func ?? 0, r.outline);
-    for (const a of r.areas) push(a.kind, a.code, a.polygons);
-  }
-}
-log(`roads (PLATEAU): ${rstats.roads} roads, ${rstats.outlines} outlines; detailed areas: carriageway ${rstats.areas[AREA.CARRIAGEWAY]}, ` +
-  `sidewalk ${rstats.areas[AREA.SIDEWALK]}, island ${rstats.areas[AREA.ISLAND]}, other ${rstats.areas[AREA.OTHER]}`);
-
-// PLATEAU's LOD1 "buildings" include structures that are not buildings: expressway and railway decks,
-// footbridges, ventilation shafts. Extruded from the ground they become blocks standing in the road.
-// They carry no use and no storey count; drop those that lie in a road outline (flyovers and viaducts
-// are built from the road and rail data instead).
-let structures = 0;
-for (const t of tiles.values()) {
-  t.buildings = t.buildings.filter((b) => {
-    const anonymous = (b.usage === 454 || b.usage === 461 || !b.usage) && !(b.storeys > 0 && b.storeys < 255);
-    if (anonymous) {
-      const ring = b.polygons[0][0], [cx, cz] = centroidOf(b.polygons);
-      const inRoad = ring.filter(([x, z]) => idx.road.has(x, z)).length / ring.length;
-      if (idx.road.has(cx, cz) && inRoad > 0.7) { structures++; return false; }
-    }
-    for (const rings of b.polygons) idx.building.add(rings);
-    return true;
-  });
-}
-log(`buildings: dropped ${structures} unnamed structures standing in a road`);
+const bstats = { heights: [], usage: {} };
 
 // ---------------------------------------------------------------- OSM
 const osm = readOsm(path.join(area.rawDir, 'osm.json'));
@@ -305,8 +186,8 @@ const decks = roadsOut.edges.filter((e) => e.span).map((e) => {
 });
 // Under a road bridge the terrain model shows the bridge, not the track bed below it.
 const underBridge = (x, z) => decks.some((d) => { const p = projectOnDeck(d, x, z); return p.inside && p.dist <= d.half - CORRIDOR_MARGIN + 6; });
-const rails = profileRailways(buildRailways(osm, proj.project, inBounds), ground, inBounds, underBridge, (x, z) => models.tops.at(x, z));
-// Station buildings stand over the tracks, but PLATEAU gives them as solid blocks. Record where each track
+const rails = profileRailways(buildRailways(osm, proj.project, inBounds), ground, inBounds, underBridge, () => undefined);
+// Station buildings stand over the tracks as solid blocks. Record where each track
 // crosses a building outline so the client can put a tunnel mouth there: [x, y, z, dirX, dirZ], pointing in.
 let portals = 0;
 for (const line of rails) {
@@ -329,7 +210,6 @@ for (const line of rails) {
 log(`railways: ${portals} portals where tracks pass through buildings`);
 log(`railways (OSM): ${rails.length} lines (${rails.filter((r) => r.bridge).length} elevated sections, ${rails.filter((r) => r.deck.length).length} on surveyed decks)`);
 
-// Roads PLATEAU maps only as an outline get their carriageway from the OSM centrelines; the rest is sidewalk.
 const extraRaw = readExtra(path.join(area.rawDir, 'osm_extra.json'), proj.project);
 const lampFile = path.join(area.rawDir, 'osm_lights.json');
 if (fs.existsSync(lampFile)) {
@@ -341,13 +221,12 @@ if (fs.existsSync(lampFile)) {
   }
 }
 
-// Fallback: If no PLATEAU building files were present (non-Japanese cities like Istanbul),
-// generate 3D procedural buildings directly from OSM building polygons.
+// Buildings: extruded from the OSM building polygons.
 //
 // OSM's Simple 3D Buildings: a complex mapped as building:part ways (a podium, its towers, each with its own
 // height and min_height) is drawn from its parts, and its outline (the building=* way around them) is not drawn,
 // or a mall's whole footprint would rise to its tallest tower's height.
-if (nB === 0 && extraRaw) {
+{
   const ringOf = (w) => {
     if (!w.closed || w.pts.length < 4) return null;
     const polygon = cleanWorldRing(w.pts);
@@ -442,20 +321,6 @@ if (nB === 0 && extraRaw) {
   }
   log(`buildings (OSM fallback): ${made} from footprints, ${fromParts} from the parts of ${replaced} complexes (their outlines not drawn), ${buried} underground structures left out`);
 }
-// pedestrian streets and paths in the open, as lines (stairs, bridges and passages are not streets)
-const walkLines = extraRaw.ways.filter((w) => ['pedestrian', 'footway', 'path'].includes(w.tags.highway) && !w.closed && !w.tags.bridge && !w.tags.tunnel
-  && w.tags.indoor !== 'yes' && !['sidewalk', 'crossing', 'link'].includes(w.tags.footway)).map((w) => w.pts);
-const split = splitOutlineRoads({ outlines: outlineOnly, edges: graph.edges, pos: graph.pos, idxRoad: idx.road, walkLines });
-for (const [kind, polys, index] of [[AREA.CARRIAGEWAY, split.carriageway, idx.carriageway], [AREA.SIDEWALK, split.sidewalk, idx.sidewalk]]) {
-  for (const rings of polys) {
-    const polygon = rings.map((r) => r.map(([x, z]) => [r2(x), r2(z)]));
-    index.add(polygon);
-    const [cx, cz] = centroidOf([polygon]);
-    tileFor(Math.min(Math.max(cx, minX), maxX - 0.01), Math.min(Math.max(cz, minZ), maxZ - 0.01)).areas.push({ kind, code: 0, polygons: [polygon] });
-  }
-}
-log(`outline-only roads: ${outlineOnly.length} polygons -> ${split.carriageway.length} carriageway, ${split.sidewalk.length} sidewalk pieces` +
-  ` (${split.pedestrian} pedestrian streets, ${split.untouched} without any OSM way, ${split.failed} failed to clip)`);
 
 // ---------------------------------------------------------------- land cover, paint, props
 const landRaw = readLand(path.join(area.rawDir, 'osm_land.json'));
@@ -510,7 +375,7 @@ const worldLand = {
   crossings: landRaw.crossings.map(xz), signals: landRaw.signals,
   crossingNodes: landRaw.crossingNodes,
 };
-// Istanbul has no PLATEAU road polygons, so derive tiled asphalt and explicitly mapped sidewalks from OSM.
+// Derive tiled asphalt and explicitly mapped sidewalks from OSM.
 let osmRoadPatches = 0, osmSidewalkPatches = 0;
 const addRoadPatch = (kind, ring, index) => {
   let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
@@ -582,7 +447,7 @@ for (const t of tiles.values()) {
       if (len < 0.3) continue;
       const mx = (ax + bx) / 2, mz = (az + bz) / 2, p = projectOnDeck(decks[deck], mx, mz);
       if (!p.inside || p.y - ground(mx, mz) < 1.5) continue;                 // on the bank: no drop here
-      // Open air beyond? PLATEAU's road polygons leave gaps of a few metres in the middle of a bridge, so
+      // Open air beyond? road polygons can leave gaps of a few metres in the middle of a bridge, so
       // an edge counts as the side of the bridge only if no road surface follows within 9 m.
       const nx = -(bz - az) / len, nz = (bx - ax) / len;
       if ([0.5, 1.5, 3, 5, 7, 9].some((d) => idx.road.has(mx + nx * d, mz + nz * d)) || len < 1.5) continue;
@@ -610,10 +475,6 @@ for (const m of [...extras.marks, ...courtLines.map((ring) => ({ kind: AREA.MARK
   const [cx, cz] = centre(m.ring);
   if (inBounds(cx, cz)) tileFor(cx, cz).areas.push({ kind: m.kind, code: 0, polygons: [[rounded(m.ring)]] });
 }
-// a footbridge PLATEAU has as a model is not built a second time from the OSM line
-const osmBridges = extras.structures.footbridges.length;
-extras.structures.footbridges = extras.structures.footbridges.filter((f) => models.tops.cover(f.pts) < 0.5);
-extras.count['footbridges replaced by PLATEAU models'] = osmBridges - extras.structures.footbridges.length;
 for (const b of extras.barriers) tileFor((b[0] + b[2]) / 2, (b[1] + b[3]) / 2).walls.push(b);
 fs.mkdirSync(area.outDir, { recursive: true });
 log(`OSM extras: ${Object.entries(extras.count).map(([k, v]) => `${k} ${v}`).join(', ')}`);
@@ -644,13 +505,13 @@ for (const w of extraRaw.ways) {
   if (!hint) continue;
   const [cx, cz] = centre(w.pts);
   if (!inBounds(cx, cz)) continue;
-  // the PLATEAU building under the middle of the OSM outline (it may be filed under a neighbouring tile)
+  // the building under the middle of the OSM outline (it may be filed under a neighbouring tile)
   const [tx, tz] = [Math.floor(cx / TILE), Math.floor(cz / TILE)];
   search: for (let i = tx - 1; i <= tx + 1; i++) for (let j = tz - 1; j <= tz + 1; j++)
     for (const b of tiles.get(tileKey(i, j))?.buildings ?? []) if (b.polygons.some((rings) => inRings(cx, cz, rings))) { b.hint = hint; hinted++; break search; }
 }
 log(`OSM building hints: ${hinted} buildings with a mapped colour or material`);
-// Steel lattice towers (Tokyo Tower): PLATEAU has their outline as a closed shell; the client draws it as open steelwork.
+// Steel lattice towers: OSM has their outline as a closed shell; the client draws it as open steelwork.
 let lattice = 0;
 for (const e of JSON.parse(fs.readFileSync(path.join(area.rawDir, 'osm_poi.json'), 'utf8')).elements) {
   const t = e.tags ?? {}, at = e.center ?? e;
@@ -679,45 +540,9 @@ for (const p of furniture.props) tileFor(p.x, p.z).props.push({ ...p, x: r2(p.x)
 for (const s of furniture.signs) tileFor(s.x, s.z).signs.push({ ...s, x: r2(s.x), y: r2(s.y), z: r2(s.z), w: r2(s.w), h: r2(s.h) });
 log(`street furniture (OSM): ${Object.entries(furniture.count).map(([k, v]) => `${propName[k]} ${v}`).join(', ')}`);
 
-// ---------------------------------------------------------------- PLATEAU models against generated objects
-// One of each: a surveyed tree or subway entrance replaces the generated one; a generated street light or
-// signal (they light up, and the signals run with the traffic) keeps its place and the model is left out.
-{
-  const near = (list, x, z, r) => list.some((p) => Math.hypot(p.x - x, p.z - z) < r);
-  const all = [...tiles.values()].flatMap((t) => t.props);
-  const lights = all.filter((p) => p.kind === PROP.LIGHT), signals = all.filter((p) => p.kind === PROP.SIGNAL);
-  const before = models.objects.length;
-  models.objects = models.objects.filter((o) => !(o.type === 'frn' && ((o.code === 4200 && near(lights, o.x, o.z, 8)) || (o.code === 4900 && near(signals, o.x, o.z, 10)))));
-  const trees = models.objects.filter((o) => o.type === 'veg' && o.code === 0), entrances = models.objects.filter((o) => o.type === 'frn' && o.code === 4020);
-  let removed = 0;
-  for (const t of tiles.values()) {
-    const n = t.props.length;
-    t.props = t.props.filter((p) => !((p.kind === PROP.TREE && near(trees, p.x, p.z, 4)) || (p.kind === PROP.SUBWAY && near(entrances, p.x, p.z, 12))));
-    removed += n - t.props.length;
-  }
-  let tris = 0;
-  for (const o of models.objects) for (const t of o.tris) {
-    const x = (t.a[0] + t.b[0] + t.c[0]) / 3, z = (t.a[2] + t.b[2] + t.c[2]) / 3;
-    if (!inBounds(x, z)) continue;
-    (tileFor(x, z).mesh ??= []).push(t); tris++;
-  }
-  log(`models: ${models.objects.length} objects kept (${before - models.objects.length} lights and signals left to the generated ones), ${tris} triangles; ${removed} generated trees and subway entrances replaced`);
-}
-
 // ---------------------------------------------------------------- write
 fs.rmSync(area.outDir, { recursive: true, force: true });
 fs.mkdirSync(area.outDir, { recursive: true });
-// PLATEAU's photos: a roof atlas per tile, and the colour of each building's walls
-const photos = { tiles: 0, roofs: 0, walls: 0, colours: 0, bytes: 0 };
-for (const t of tiles.values()) {
-  const roofFile = `r_${t.tx}_${t.tz}.jpg`, wallFile = `w_${t.tx}_${t.tz}.jpg`;
-  const baked = await bakePhotos(t, plateauDir, path.join(area.outDir, roofFile), path.join(area.outDir, wallFile));
-  if (baked.roofs) t.atlas = roofFile;
-  if (baked.walls) t.wallAtlas = wallFile;
-  if (baked.roofs || baked.walls) photos.tiles++;
-  for (const k of ['roofs', 'walls', 'colours', 'bytes']) photos[k] += baked[k];
-}
-log(`photos (PLATEAU): ${photos.roofs} roofs and ${photos.walls} sets of walls in the atlases of ${photos.tiles} tiles (${(photos.bytes / 1e6).toFixed(1)} MB), ${photos.colours} buildings take their wall colour from the photo`);
 let bytes = 0;
 const tileList = [];
 for (const t of [...tiles.values()].sort((a, b) => a.tz - b.tz || a.tx - b.tx)) {
@@ -725,14 +550,6 @@ for (const t of [...tiles.values()].sort((a, b) => a.tz - b.tz || a.tx - b.tx)) 
   fs.writeFileSync(path.join(area.outDir, file), buf);
   bytes += buf.length;
   const entry = { x: t.tx, z: t.tz, file, buildings: t.buildings.length, areas: t.areas.length, props: t.props.length, signs: t.signs.length, bytes: buf.length };
-  if (t.atlas) entry.atlas = t.atlas;
-  if (t.wallAtlas) entry.walls = t.wallAtlas;
-  if (t.mesh) {
-    entry.mesh = `x_${t.tx}_${t.tz}.bin`;
-    const m = encodeMesh(t.mesh);
-    fs.writeFileSync(path.join(area.outDir, entry.mesh), m);
-    bytes += m.length;
-  }
   tileList.push(entry);
 }
 fs.writeFileSync(path.join(area.outDir, 'terrain.bin'), Buffer.from(grid.data.buffer));
@@ -742,17 +559,6 @@ roadsOut.signals = graph.nodes.map((n, i) => (signalIds.has(n.id) ? i : -1)).fil
 fs.writeFileSync(path.join(area.outDir, 'roads.json'), JSON.stringify(roadsOut));
 fs.writeFileSync(path.join(area.outDir, 'rails.json'), JSON.stringify(rails));
 fs.writeFileSync(path.join(area.outDir, 'structures.json'), JSON.stringify(extras.structures));
-// the land around the area, for the horizon (config: backdrop)
-let backdrop = null;
-if (area.backdropBbox) {
-  const b = area.backdropBbox, [bx0, bz1] = proj.project(b.west, b.south), [bx1, bz0] = proj.project(b.east, b.north);
-  const g = buildBackdropGrid(path.join(area.rawDir, 'dem'), proj, { minX: bx0, maxX: bx1, minZ: bz0, maxZ: bz1 }, BACKDROP.step, BACKDROP.zoom);
-  fs.writeFileSync(path.join(area.outDir, 'backdrop.bin'), Buffer.from(g.data.buffer));
-  let top = 0;
-  for (const v of g.data) top = Math.max(top, v);
-  backdrop = { file: 'backdrop.bin', x0: r2(g.x0), z0: r2(g.z0), step: g.step, w: g.w, h: g.h };
-  log(`backdrop ${g.w} x ${g.h} @ ${g.step} m, up to ${top.toFixed(0)} m`);
-}
 const manifest = {
   format: VERSION, area: area.id, name: area.name, compiled: new Date().toISOString(),
   origin: { lon: area.origin[0], lat: area.origin[1] },
@@ -761,17 +567,11 @@ const manifest = {
   meshes: area.meshes,
   terrain: { file: 'terrain.bin', x0: r2(grid.x0), z0: r2(grid.z0), step: grid.step, w: grid.w, h: grid.h, min: r2(gMin), max: r2(gMax) },
   roads: 'roads.json', rails: 'rails.json', structures: 'structures.json',
-  ...(backdrop ? { backdrop } : {}),
   ...(area.view ? { view: area.view } : {}),
   // street-level bridge decks: road polygons marked with a deck, and street objects, follow these instead of the terrain (src/shared/decks.js)
   decks,
   tiles: tileList,
-  // (credit only what this area was built from: PLATEAU and GSI exist in Japan only)
-  attribution: nB > 0 ? [
-    '3D city model, roof photos, bridges, street furniture: Project PLATEAU, MLIT Japan (CC BY 4.0 compatible PLATEAU terms)',
-    'Elevation: Geospatial Information Authority of Japan (GSI) DEM tiles',
-    'Road network and railways: © OpenStreetMap contributors (ODbL 1.0)',
-  ] : [
+  attribution: [
     'Buildings, roads and railways: © OpenStreetMap contributors (ODbL 1.0)',
     'Elevation: Mapzen Terrain Tiles (SRTM, GMTED and others) via AWS Open Data',
     'Traffic: © İBB Açık Veri / UYM',

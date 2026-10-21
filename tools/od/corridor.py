@@ -224,6 +224,9 @@ def build(net, bbox, params_csv: Path | None = None):
 def overpass_json(query: str, path: Path) -> dict:
     if path.exists():
         return json.loads(path.read_text(encoding="utf-8"))
+    if path.with_name(path.name + ".gz").exists():  # (the committed snapshot keeps it compressed)
+        import gzip
+        return json.loads(gzip.decompress(path.with_name(path.name + ".gz").read_bytes()).decode("utf-8"))
     data = urllib.parse.urlencode({"data": query}).encode()
     for attempt in range(3):
         for url in MIRRORS:
@@ -510,6 +513,7 @@ def write_outputs(out: Path, net, network, zones, links, est, x0, prod, attr, ob
 
 def main() -> None:
     import sumolib
+    sys.stdout.reconfigure(encoding="utf-8")  # (Windows consoles default to a code page without → and İ)
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--area", default="koridor")
     parser.add_argument("--speeds", help="a segment_speeds Parquet file from the archive (default: live)")
@@ -518,9 +522,11 @@ def main() -> None:
     parser.add_argument("--rounds", type=int, default=8, help="bilevel rounds (default 8)")
     parser.add_argument("--tag", default="", help="appended to the output folder's name (e.g. counts)")
     parser.add_argument("--survey", help="survey_trips_h<hour>.csv (tools/od/survey_prior.py): rescale the prior's trip types to it")
+    parser.add_argument("--sumo-dir", type=Path, help="network and İBB matching files (default data/sumo/<area>; the snapshot: data/snapshot/<area>)")
+    parser.add_argument("--out", type=Path, help="output folder (default data/od/<area>/<time>[-tag])")
     args = parser.parse_args()
 
-    sumo_dir = ROOT / "data" / "sumo" / args.area
+    sumo_dir = args.sumo_dir or ROOT / "data" / "sumo" / args.area
     bbox = area_bbox(args.area)
     print("network …")
     net = sumolib.net.readNet(str(sumo_dir / f"{args.area}.net.xml.gz"), withInternal=False)
@@ -617,7 +623,7 @@ def main() -> None:
                       "lon": round(z["lon"], 5), "lat": round(z["lat"], 5)} for z in zones if z["kind"] == "gateway"],
         "assumptions": ASSUMPTIONS,
     }
-    out = ROOT / "data" / "od" / args.area / (when.strftime("%Y%m%d-%H%M") + (f"-{args.tag}" if args.tag else ""))
+    out = args.out or ROOT / "data" / "od" / args.area / (when.strftime("%Y%m%d-%H%M") + (f"-{args.tag}" if args.tag else ""))
     write_outputs(out, net, network, zones, links, est, x0, prod, attr, obs, meta, rows, role)
     print(json.dumps({k: meta[k] for k in ("zones", "observations", "car_trips_per_hour", "bound_violations", "data_share", "level_of_demand")}, ensure_ascii=False, indent=2))
     if validation:

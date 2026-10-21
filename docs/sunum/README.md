@@ -7,7 +7,7 @@ Aynı sunumun birebir Türkçe ve İngilizce hali (24 slayt, aynı yapı ve ayn�
 | Türkçe | [SUNUM.md](SUNUM.md) | [sunum.pdf](sunum.pdf), [sunum.html](sunum.html) |
 | English | [SUNUM_EN.md](SUNUM_EN.md) | [sunum_en.pdf](sunum_en.pdf), [sunum_en.html](sunum_en.html) |
 
-Ayrıca: [PRESENTATION_EN.md](PRESENTATION_EN.md) → [presentation_en.pdf](presentation_en.pdf), UPC SUMO & trafik modelleme dersi için SUMO odaklı ayrı bir sunum.
+Ayrıca: [Procedural_Istanbul_class.pptx](Procedural_Istanbul_class.pptx), genel izleyici için sade İngilizce ders sunumu (14 slayt); konuşma metni [konusma_metni.md](konusma_metni.md).
 
 `img/`: Grafikler [tools/report/figures.py](../../tools/report/figures.py) ile üretilir; veri gerektirmeyenler iki dilde (`ad.png` Türkçe, `ad-en.png` İngilizce). `koridor-harita`, `dislanan-sayimlar` ve `sumo-hizlar` `data/od/koridor` çıktılarından üretilir ve şimdilik yalnızca Türkçe etiketlidir. Diğerleri 3D istemcinin ekran görüntüleridir.
 

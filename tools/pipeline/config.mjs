@@ -1,6 +1,5 @@
-// Areas the pipeline can build. An area is a block of PLATEAU 3rd-level meshes (~1.1 x 0.9 km each)
-// around a centre; the world origin (0, 0, 0) sits on `origin`. `backdrop` (kilometres) adds the land that far
-// around the area as coarse terrain under an aerial photo: the mountains on the horizon.
+// Areas the pipeline can build: a bounding box (`bbox`, or `radius` km around `origin`); the world origin
+// (0, 0, 0) sits on `origin`. `view` is the initial camera (x, z, distance, azimuth, elevation).
 import path from 'node:path';
 import fs from 'node:fs';
 import { bboxAround } from '../../src/shared/geo.js';
@@ -55,21 +54,11 @@ const IBB_GRID_AREAS = fs.existsSync(IBB_GRID_FILE)
   ? Object.fromEntries(JSON.parse(fs.readFileSync(IBB_GRID_FILE, 'utf8')).map((area) => [area.id, area]))
   : {};
 
-// DEM tiles (about 125 m a pixel) and the grid made of them (metres); the photo of all of it (15 m a pixel), and a
-// sharper one (4 m) of the land within `near` kilometres: what lies just beyond the last houses
-export const BACKDROP = { zoom: 10, step: 120, photoZoom: 13, nearZoom: 15, near: 7 };
-
-// The rectangle `backdrop` kilometres around the origin, in degrees.
-export function backdropBox({ origin: [lon, lat] }, backdrop) {
-  const dLat = backdrop / 110.95, dLon = backdrop / (111.32 * Math.cos((lat * Math.PI) / 180));
-  return { south: lat - dLat, north: lat + dLat, west: lon - dLon, east: lon + dLon };
-}
-
 export function resolveArea(argv = process.argv) {
   const arg = argv.find((a) => a.startsWith('--area='));
   const id = arg ? arg.split('=')[1] : 'koridor';
   const area = AREAS[id] ?? IBB_GRID_AREAS[id];
   if (!area) throw new Error(`unknown area "${id}" (known: ${Object.keys(AREAS).join(', ')})`);
   const bbox = area.bbox ?? bboxAround(area.origin[0], area.origin[1], area.radius);
-  return { id, ...area, meshes: [], bbox, backdropBbox: area.backdrop ? backdropBox(area, area.backdrop) : null, rawDir: path.join(RAW, id), outDir: path.join(ROOT, 'public/tiles', id) };
+  return { id, ...area, meshes: [], bbox, rawDir: path.join(RAW, id), outDir: path.join(ROOT, 'public/tiles', id) };
 }
