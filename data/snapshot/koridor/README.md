@@ -21,6 +21,6 @@ Every input of the reference O-D estimate, frozen so that `npm run reproduce` gi
 | Level factor | 0.30 (95 %: 0.20–0.45), data share 0.81: the counts pin the level down |
 | Held-out GEH (23 counters, leave-one-out) | 8.7 % under 5, mean 23.5 (prior: mean 38.3) |
 
-The technical report, the slides and the app's data quote 61.6 k trips and a held-out mean of 22.9: that estimate was made from the same inputs by the earlier version of `corridor.py`, which connected each zone to the network at one node instead of eight. The level factor, the data share and the GEH < 5 share are the same in both.
+The technical report and the app's data quote 61.6 k trips and a held-out mean of 22.9: that estimate was made from the same inputs by the earlier version of `corridor.py`, which connected each zone to the network at one node instead of eight. The level factor, the data share and the GEH < 5 share are the same in both.
 
 Data: © OpenStreetMap contributors (ODbL), © İBB Açık Veri / UYM.

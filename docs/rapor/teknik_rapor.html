@@ -62,7 +62,7 @@
   <div class="kicker">Teknik rapor · Ekim 2026</div>
   <h1>Procedural Istanbul</h1>
   <div class="sub">Sansürlü hız gözlemlerinden başlangıç–varış talebi tahmini ve Maslak – 15 Temmuz koridorunun açık veriyle kurulan dijital ikizi</div>
-  <div class="img"><img src="../sunum/img/kopru-ortakoy.jpg" alt=""></div>
+  <div class="img"><img src="../img/kopru-ortakoy.jpg" alt=""></div>
   <div class="meta">
     <b>Abdurrahim Arif Aşıroğlu</b><br>
     github.com/aaasiroglu/procedural-istanbul · MIT lisansı<br>
@@ -122,7 +122,7 @@
 
 <h2>2. Çalışma alanı ve veri</h2>
 <div class="two">
-<figure><img src="../sunum/img/koridor-harita.png" alt=""><figcaption><b>Şekil 1.</b> Koridor: 75 H3 zonu (koyu: daha çok üretim), 20 geçit zonu (■) ve İBB sayım sensörleri (renk: dışarıda bırakılan GEH).</figcaption></figure>
+<figure><img src="../img/koridor-harita.png" alt=""><figcaption><b>Şekil 1.</b> Koridor: 75 H3 zonu (koyu: daha çok üretim), 20 geçit zonu (■) ve İBB sayım sensörleri (renk: dışarıda bırakılan GEH).</figcaption></figure>
 <div>
 <p><strong>Alan:</strong> Enlem 41,038–41,118, boylam 28,975–29,048 (yaklaşık 5,9 × 8,9 km). Beşiktaş – Maslak ekseni (Büyükdere Caddesi, Barbaros Bulvarı), O-1 ve O-2 çevre yolları, 15 Temmuz Köprüsü'nün Avrupa yakası.</p>
 <table>
@@ -141,7 +141,7 @@
 <p>Tüm ham veriler komutla yeniden indirilir; depoda yalnızca kod, küçük yapılandırma dosyaları ve rapor çıktıları tutulur. Canlı hız akışı ayrıca 5 dakikada bir Parquet olarak arşivlenir (<code>npm run archive:ibb</code>), böylece her tahmin tekrar üretilebilir.</p>
 
 <h2>3. Sistem mimarisi</h2>
-<figure><img src="../sunum/img/mimari.png" alt=""><figcaption><b>Şekil 2.</b> Veri ve model hattı. Gri: açık veri; mavi: ön işleme; turuncu: tahmin; yeşil: sınama ve kullanım.</figcaption></figure>
+<figure><img src="../img/mimari.png" alt=""><figcaption><b>Şekil 2.</b> Veri ve model hattı. Gri: açık veri; mavi: ön işleme; turuncu: tahmin; yeşil: sınama ve kullanım.</figcaption></figure>
 <p>Hat dört katmandan oluşur:</p>
 <ol>
 <li><strong>Açık veri.</strong> OSM, İBB canlı hız akışı, sensör sayımları, toplu ulaşım binişleri ve İBB'nin 2020 ulaşım modeli.</li>
@@ -156,7 +156,7 @@
 <tr><td>SUMO ağı, eşleme, simülasyon</td><td>Python, SUMO 1.27, sumolib</td><td><code>tools/sumo</code></td></tr>
 <tr><td>Ters O-D tahmini, çapalar, sinir ağı</td><td>Python, NumPy, SciPy, scikit-learn</td><td><code>tools/od</code></td></tr>
 <tr><td>Canlı hız arşivi</td><td>Python, PyArrow</td><td><code>tools/archive</code></td></tr>
-<tr><td>Rapor ve sunum grafikleri</td><td>Python, Matplotlib, Marp</td><td><code>tools/report</code>, <code>docs</code></td></tr>
+<tr><td>Rapor grafikleri</td><td>Python, Matplotlib</td><td><code>tools/report</code></td></tr>
 </table>
 
 <h2>4. Yol ağı: OSM'den SUMO'ya</h2>
@@ -180,7 +180,7 @@
 <h2>5. Yöntem: ters O-D tahmini</h2>
 <h3>5.1 Hız, sansürlü bir gözlemdir</h3>
 <div class="two">
-<figure><img src="../sunum/img/temel-diyagram.png" alt=""><figcaption><b>Şekil 3.</b> Üçgen temel diyagram. Serbest akış dalında hız akımı belirlemez; sıkışık dalda hız, geçen akımı ve dolayısıyla talep için bir alt sınırı verir.</figcaption></figure>
+<figure><img src="../img/temel-diyagram.png" alt=""><figcaption><b>Şekil 3.</b> Üçgen temel diyagram. Serbest akış dalında hız akımı belirlemez; sıkışık dalda hız, geçen akımı ve dolayısıyla talep için bir alt sınırı verir.</figcaption></figure>
 <div>
 <p>Üçgen temel diyagramda (Newell 1993; Daganzo 1994) şerit başına akım q, yoğunluk k'nın parçalı doğrusal bir fonksiyonudur: serbest akış dalında q = v<sub>f</sub>·k, sıkışık dalda q = w·(k<sub>j</sub> − k). Buradan iki sonuç çıkar:</p>
 <ul>
@@ -227,7 +227,7 @@ min<sub>x ≥ 0</sub> &nbsp; Σ<sub>sayım</sub> ((Px)<sub>e</sub> − y<sub>e</
 
 <h2>6. Sentetik doğrulama</h2>
 <p>Yöntem önce gerçek O-D'si bilinen bir şehirde sınanır (<code>tools/od/test_odme.py</code>, 34 kontrol). Ağ, iki arterli 6 × 6 bir ızgaradır; 10 zon ve 90 O-D çifti vardır. Linklerin %30'u gürültülü sayımla gözlenir, kalanlarda yalnızca hız kullanılır. Prior, gerçeğin gürültülü ve %20 düşük bir kopyasıdır.</p>
-<figure><img src="../sunum/img/sentetik.png" alt=""><figcaption><b>Şekil 4.</b> Sayılmayan linklerde ortalama GEH. Solda: rotalar biliniyorken, rotalar da tahmin edilirken (bilevel) ve rotalar prior'a sabitlenmişken. Sağda: zon bazında hatalı bir prior için bağımsız çift hataları ile zon çarpanlarının karşılaştırması.</figcaption></figure>
+<figure><img src="../img/sentetik.png" alt=""><figcaption><b>Şekil 4.</b> Sayılmayan linklerde ortalama GEH. Solda: rotalar biliniyorken, rotalar da tahmin edilirken (bilevel) ve rotalar prior'a sabitlenmişken. Sağda: zon bazında hatalı bir prior için bağımsız çift hataları ile zon çarpanlarının karşılaştırması.</figcaption></figure>
 <table>
 <tr><th>Kontrol</th><th>Sonuç</th></tr>
 <tr><td>Sayılmayan linklerde akım (rotalar biliniyor)</td><td>GEH 5,60 → 2,23</td></tr>
@@ -238,7 +238,7 @@ min<sub>x ≥ 0</sub> &nbsp; Σ<sub>sayım</sub> ((Px)<sub>e</sub> − y<sub>e</
 <tr><td>O-D toplamı çapası</td><td>Çapa karşılanır; adı geçmeyen çiftler prior'da kalır (×1,04)</td></tr>
 </table>
 <h3>6.1 Talep düzeyinin tanımlanabilirliği</h3>
-<figure><img src="../sunum/img/talep-duzeyi.png" alt=""><figcaption><b>Şekil 5.</b> Prior her yerde %40 düşükken: yalnızca hız sınırlarıyla düzey belirlenemez (veri payı 0,00). Tek bir kesit sayımı, zon çarpanları yokken düzeyin %94'ünü belirler; zon çarpanları serbestken yalnızca %53'ünü.</figcaption></figure>
+<figure><img src="../img/talep-duzeyi.png" alt=""><figcaption><b>Şekil 5.</b> Prior her yerde %40 düşükken: yalnızca hız sınırlarıyla düzey belirlenemez (veri payı 0,00). Tek bir kesit sayımı, zon çarpanları yokken düzeyin %94'ünü belirler; zon çarpanları serbestken yalnızca %53'ünü.</figcaption></figure>
 <p>Bu sonuç önemli bir tasarım kuralı verir: zon çarpanları serbest olduğunda tek bir sayım, kestiği zonları büyüterek de karşılanabilir. Düzeyi gerçekten sabitlemek için <strong>bağımsız zonları kesen birden çok sayım</strong> gerekir. Ölçüt (4), bu durumu sayım sayısına bakmadan, doğrudan ayırt eder.</p>
 
 <h2>7. Gerçek veri sonuçları</h2>
@@ -253,12 +253,12 @@ min<sub>x ≥ 0</sub> &nbsp; Σ<sub>sayım</sub> ((Px)<sub>e</sub> − y<sub>e</
 <tr><td>TEM FSM Gişe Öncesi</td><td class="n">98 bin</td><td>iki yön</td><td>tek yön</td></tr>
 </table>
 <h3>7.2 Doğrulama turları (Cumartesi 17:00–18:00)</h3>
-<figure><img src="../sunum/img/geh-turlar.png" alt=""><figcaption><b>Şekil 6.</b> Beş düzeltme turunda ortalama GEH ve GEH &lt; 5 oranı: eşleme denetimi ve kesintisiz akış kuralı, zon çarpanları, İBB 2020 kapasite ve BPR değerleri, 2012 anketinin yolculuk tipi payları.</figcaption></figure>
+<figure><img src="../img/geh-turlar.png" alt=""><figcaption><b>Şekil 6.</b> Beş düzeltme turunda ortalama GEH ve GEH &lt; 5 oranı: eşleme denetimi ve kesintisiz akış kuralı, zon çarpanları, İBB 2020 kapasite ve BPR değerleri, 2012 anketinin yolculuk tipi payları.</figcaption></figure>
 <p>Dışarıda bırakılan ortalama GEH 35,6'dan 23,2'ye indi, ancak GEH &lt; 5 ölçütü uzakta kaldı. Link parametreleri darboğaz değildir; kalan hata prior'ın yapısından ve sensör tanımlarındaki çelişkiden gelir. Örneğin üç O-2 sensörü (4.291 / 7.108 / 8.171 araç/sa) modelde aynı akıma oturur; aralarında rampa yoksa bu mümkün değildir, yani yön ya da şerit kapsamları farklı olmalıdır.</p>
 
 <h3>7.3 Talep düzeyi sayımlarla sabitlendi (Pazartesi 11:00–12:00)</h3>
 <p>Canlı İBB hızları (Pazartesi 11:30) ve Ekim 2024 Pazartesi 11:00–12:00 sayımlarıyla (23 sensör) düzey ayrıca tahmin edildi.</p>
-<figure><img src="../sunum/img/talep-duzeyi-koridor.png" alt=""><figcaption><b>Şekil 7.</b> Talep düzeyi çarpanının prior ve sonsal dağılımı; koridorun toplam talebi.</figcaption></figure>
+<figure><img src="../img/talep-duzeyi-koridor.png" alt=""><figcaption><b>Şekil 7.</b> Talep düzeyi çarpanının prior ve sonsal dağılımı; koridorun toplam talebi.</figcaption></figure>
 <table>
 <tr><th>Ölçüt</th><th>Sonuç</th></tr>
 <tr><td>Düzey çarpanı (%95 aralık)</td><td>0,30 (0,19–0,46); prior sd 0,5</td></tr>
@@ -268,7 +268,7 @@ min<sub>x ≥ 0</sub> &nbsp; Σ<sub>sayım</sub> ((Px)<sub>e</sub> − y<sub>e</
 <tr><td>GEH &lt; 5 (ortalama)</td><td>Prior %4,3 (37,8); uyum %17,4 (12,2); dışarıda bırakılan %8,7 (22,9)</td></tr>
 </table>
 <div class="two">
-<figure><img src="../sunum/img/dislanan-sayimlar.png" alt=""><figcaption><b>Şekil 8.</b> Her sayım tek tek dışarıda bırakıldığında modelin tahmini. Yeşil bant: GEH &lt; 5.</figcaption></figure>
+<figure><img src="../img/dislanan-sayimlar.png" alt=""><figcaption><b>Şekil 8.</b> Her sayım tek tek dışarıda bırakıldığında modelin tahmini. Yeşil bant: GEH &lt; 5.</figcaption></figure>
 <div>
 <p><strong>Yorum.</strong> Arazi kullanımından kurulan prior, toplam talebi neredeyse iki kat yüksek gösteriyordu (117,9 bine karşı 61,6 bin). Düzey çarpanı 0,30 tek başına daha büyük bir düşüş söyler; zon çarpanları bunun bir kısmını geri alır. Bu, sayımsız tahminin SUMO'da ağı kilitlemesinin (Bölüm 9) doğrudan açıklamasıdır. Düzey artık veriden gelir.</p>
 <p>Dışarıda bırakılan GEH ise talebin <strong>zonlar arasındaki dağılımının</strong> hâlâ zayıf olduğunu gösterir. En büyük sapmalar FSM Avrupa girişinde (model sayımın yaklaşık %60'ını taşıyabiliyor), O-2 sensörlerinde ve Maslak'tadır. Bunlar geçit prior'ının kaba olmasına ve sensör tanımlarına işaret eder.</p>
@@ -292,7 +292,7 @@ min<sub>x ≥ 0</sub> &nbsp; Σ<sub>sayım</sub> ((Px)<sub>e</sub> − y<sub>e</
 <h3>9.1 Tahminin SUMO'da koşturulması</h3>
 <p><code>tools/sumo/run_od.py</code>, saatlik matrisi 90 dakikaya yayar, <code>od2trips</code> ile yolculuklara çevirir ve mezoskopik modelde koşturur. Araçlar kalkışta rota seçer ve iki dakikada bir o anki seyahat sürelerine göre yeniden rota seçer; bu, kullanıcı dengesinin tek koşuluk bir yaklaşımıdır. Benzetilen hızlar, tahminin yapıldığı İBB görüntüsüyle segment segment karşılaştırılır.</p>
 <div class="two">
-<figure><img src="../sunum/img/sumo-hizlar.png" alt=""><figcaption><b>Şekil 9.</b> Sayımsız tahminin (128,6 bin araç/sa) dinamik koşusu: ağ kilitlendi.</figcaption></figure>
+<figure><img src="../img/sumo-hizlar.png" alt=""><figcaption><b>Şekil 9.</b> Sayımsız tahminin (128,6 bin araç/sa) dinamik koşusu: ağ kilitlendi.</figcaption></figure>
 <div>
 <p><strong>Sayımsız talep:</strong> 192.551 aracın yalnızca 102.735'i ağa girebildi; medyan hız 2,9 km/sa (İBB: 24 km/sa). Köprüde sayım 8,5 bin araç/sa iken tahmin 13,9 bin yüklemişti.</p>
 <p><strong>Sabitlenmiş talep (61,6 bin araç/sa):</strong> 90 dakikalık koşu 76. dakikaya kadar ilerledi; bu sürede 415 araç sıkışma nedeniyle ışınlandı, ardından koşu ilerlemeyi durdurdu. Düzey düşse de bazı düğümlerde (zon bağlantıları, Zincirlikuyu örgülenmesi) yerel kilitlenmeler sürüyor; zon girişlerinin daha çok kenara yayılması sıradaki iştir.</p>
@@ -340,8 +340,8 @@ min<sub>x ≥ 0</sub> &nbsp; Σ<sub>sayım</sub> ((Px)<sub>e</sub> − y<sub>e</
 <h2>11. 3D dijital ikiz</h2>
 <p>3D istemci, Yong Su'nun "Tokyo" projesinden (MIT) türetilmiş bir Three.js motorudur ve tamamen açık veriden derlenir: OSM yolları, binaları, rayları, arazi örtüsü ve sayısal yükseklik modeli bir Node.js veri hattıyla (<code>tools/pipeline</code>) karolara dönüştürülür. Yol kesimleri İBB'nin canlı sıkışıklık sınıfıyla renklenir.</p>
 <div class="two">
-<figure><img src="../sunum/img/levent-kuleler.jpg" alt=""><figcaption><b>Şekil 10.</b> Levent: OSM <code>building:part</code> verisinden kuleler.</figcaption></figure>
-<figure><img src="../sunum/img/yol-profili.png" alt=""><figcaption><b>Şekil 11.</b> Yol profili düzeltmeleri: köprüler zemini kopyalamıyor, eğim sıçramaları yok.</figcaption></figure>
+<figure><img src="../img/levent-kuleler.jpg" alt=""><figcaption><b>Şekil 10.</b> Levent: OSM <code>building:part</code> verisinden kuleler.</figcaption></figure>
+<figure><img src="../img/yol-profili.png" alt=""><figcaption><b>Şekil 11.</b> Yol profili düzeltmeleri: köprüler zemini kopyalamıyor, eğim sıçramaları yok.</figcaption></figure>
 </div>
 <ul>
 <li><strong>İstanbul'a özgü üretim.</strong> Kiremit kırma çatılar, bacalar ve su depoları, krem-bej cepheler; zemin kattaki OSM POI'leri için gerçek dükkân adlarıyla vitrin ve tabelalar; ofisler kendi katında.</li>

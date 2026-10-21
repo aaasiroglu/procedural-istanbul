@@ -1,6 +1,6 @@
 name: site
 
-# Publishes docs/ (the project site, the technical report, the slides and the 3D twin in docs/app) to GitHub Pages.
+# Publishes docs/ (the project site, the technical report and the 3D twin in docs/app) to GitHub Pages.
 # Every hour it also fetches İBB's live traffic feed on the server (the browser cannot: İBB does not allow
 # cross-origin requests) and puts the copy beside the twin, so the published twin shows traffic at most an hour old.
 # One-time setup: repository Settings → Pages → Source: "GitHub Actions".

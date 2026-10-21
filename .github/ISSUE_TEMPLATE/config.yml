@@ -2,4 +2,4 @@ blank_issues_enabled: true
 contact_links:
   - name: Project site and documentation
     url: https://aaasiroglu.github.io/procedural-istanbul/
-    about: Plain-language explanation of every term, the technical report and the slides.
+    about: Plain-language explanation of every term, and the technical report.

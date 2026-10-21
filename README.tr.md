@@ -19,7 +19,7 @@
 
 3D motor, Yong Su'nun [Tokyo](https://github.com/jeantimex/tokyo) projesinden (MIT) türetilmiştir. İstanbul verisi, ulaşım modeli ve analitik katman bu repoda geliştirilmektedir.
 
-**Live 3D twin:** https://aaasiroglu.github.io/procedural-istanbul/app/ · **Project site:** https://aaasiroglu.github.io/procedural-istanbul/ · **Technical report (TR, PDF):** [docs/rapor/teknik_rapor.pdf](docs/rapor/teknik_rapor.pdf) · **Slides (TR / EN):** [docs/sunum](docs/sunum/README.md)
+**Live 3D twin:** https://aaasiroglu.github.io/procedural-istanbul/app/ · **Project site:** https://aaasiroglu.github.io/procedural-istanbul/ · **Technical report (TR, PDF):** [docs/rapor/teknik_rapor.pdf](docs/rapor/teknik_rapor.pdf)
 
 ## Mimari
 
@@ -55,8 +55,6 @@ Projenin araştırma katkısı, **hız verisinden talep (O-D) matrisi çıkarma*
 | **Talep düzeyinin tanımlanabilirliği** | Tüm matrisin düzeyi ayrı bir çarpanla taşınır; profil eğriliğinden sayımların düzeyi gerçekten sabitleyip sabitlemediği ölçülür. Gerçek koridorda 23 sayım düzeyi sabitliyor (veri payı 0.81) ve prior'ın toplam talebi neredeyse iki kat yüksek gösterdiğini ortaya koyuyor (117.9 bin → 61.6 bin araç/sa). | ✅ |
 
 Gerçek O-D'si bilinen sentetik bir şehirde (`npm run test:od`) linklerin %30'u sayıldı, kalanlarda yalnızca hız kullanıldı. Tahminci, hiç sayılmayan linklerin ortalama akım hatasını prior'a göre **GEH 5.6'dan 2.2'ye** (rotalar biliniyorken) ve **3.8'e** (rotalar da tahmin edilirken) indiriyor. Rotaları prior'a sabitleyen kısa yol GEH 8.0 veriyor. Gerçek değerlerin %96'sı 2.5 standart hata içinde kalıyor. Tek tek O-D hücrelerindeki kazanç ise küçük ve bu açıkça raporlanıyor: 36 sayımla 90 O-D çifti tam belirlenemez.
-
-Ara sonuç sunumu (yöntem, sentetik ve gerçek veri sonuçları, olumsuz bulgular, yol haritası): [docs/sunum](docs/sunum/README.md).
 
 ## Durum
 
@@ -137,7 +135,7 @@ tools/archive           İBB canlı veri arşivi (Python)
 tools/od                Ters O-D tahmini, UE ataması, çapalar, sinir ağı (Python)
 tools/sumo              SUMO ağı, İBB eşlemesi, dinamik koşu, gölge simülasyon (Python)
 data/snapshot           Referans tahminin dondurulmuş girdileri (npm run reproduce)
-docs/rapor, docs/sunum  Teknik rapor (PDF) ve sunumlar (TR / EN)
+docs/rapor              Teknik rapor (PDF)
 ```
 
 ## Lisans ve kaynaklar

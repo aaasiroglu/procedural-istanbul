@@ -1,4 +1,4 @@
-"""Figures for the presentation (docs/sunum), drawn from the project's own outputs.
+"""Figures for the technical report and the site (docs/img), drawn from the project's own outputs.
 
   uv run --with matplotlib python tools/report/figures.py
 
@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 OD = ROOT / "data" / "od" / "koridor"
-OUT = ROOT / "docs" / "sunum" / "img"
+OUT = ROOT / "docs" / "img"
 OUT.mkdir(parents=True, exist_ok=True)
 plt.rcParams.update({"font.size": 12, "axes.spines.top": False, "axes.spines.right": False, "figure.dpi": 150})
 BLUE, ORANGE, GREEN, GREY, RED = "#2f6db5", "#e07b22", "#2e8b57", "#8a8f98", "#c0392b"

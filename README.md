@@ -4,7 +4,7 @@
 
 **An open traffic digital twin of Istanbul that runs in the browser, and a traffic model that reads demand from road speeds.**
 
-[**Live 3D twin**](https://aaasiroglu.github.io/procedural-istanbul/app/) · [**Project site**](https://aaasiroglu.github.io/procedural-istanbul/) · [Technical report (TR)](docs/rapor/teknik_rapor.pdf) · [Slides](docs/sunum/README.md) · [Türkçe](README.tr.md)
+[**Live 3D twin**](https://aaasiroglu.github.io/procedural-istanbul/app/) · [**Project site**](https://aaasiroglu.github.io/procedural-istanbul/) · [Technical report (TR)](docs/rapor/teknik_rapor.pdf) · [Türkçe](README.tr.md)
 
 [![tests](https://github.com/aaasiroglu/procedural-istanbul/actions/workflows/ci.yml/badge.svg)](https://github.com/aaasiroglu/procedural-istanbul/actions/workflows/ci.yml)
 [![site](https://github.com/aaasiroglu/procedural-istanbul/actions/workflows/pages.yml/badge.svg)](https://aaasiroglu.github.io/procedural-istanbul/)
@@ -132,7 +132,7 @@ tools/od                inverse O-D estimate, UE assignment, anchors, sensor aud
 tools/report            figures and the app's data export (Python)
 tools/archive           İBB live data archive (Python)
 data/snapshot           frozen inputs of the reference estimate (npm run reproduce)
-docs/                   project site (GitHub Pages), docs/app = published 3D build, report and slides
+docs/                   project site (GitHub Pages), docs/app = published 3D build, technical report
 ```
 
 ## Contributing
